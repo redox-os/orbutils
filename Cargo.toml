@@ -1,0 +1,15 @@
+[package]
+name = "redox-editor"
+description = "The Redox Editor"
+repository = "https://github.com/redox-os/editor"
+version = "0.0.1"
+license-file = "LICENSE"
+readme = "README.md"
+authors = ["Jeremy Soller <jackpot51@gmail.com>"]
+
+[[bin]]
+name = "redox-editor"
+path = "src/main.rs"
+
+[dependencies]
+orbtk = "*"
