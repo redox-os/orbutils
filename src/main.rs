@@ -28,7 +28,7 @@ fn real_main(){
                 let mut text = String::new();
                 match file.read_to_string(&mut text) {
                     Ok(_) => text_box.text.set(text),
-                    Err(err) => println!("Failed to open {}: {}", path, err)
+                    Err(err) => println!("Failed to read {}: {}", path, err)
                 }
             },
             Err(err) => println!("Failed to open {}: {}", path, err)
