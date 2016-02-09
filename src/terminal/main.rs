@@ -7,14 +7,15 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use window::ConsoleWindow;
+use window::{ConsoleEvent, ConsoleWindow};
 
 mod window;
 
 fn main() {
     let mut window = ConsoleWindow::new(-1, -1, 576, 400, "Terminal");
 
-    match Command::new("sh")
+    let shell = "../ion/target/debug/ion-shell";
+    match Command::new(shell)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -87,25 +88,25 @@ fn main() {
                     }
                 }
 
-                window.print("# ", Color::rgb(255, 255, 255));
-                if let Some(mut line) = window.read() {
-                    line.push('\n');
-                    match stdin.write(&line.as_bytes()) {
-                        Ok(_) => (),
-                        Err(err) => {
-                            println!("failed to write stdin: {}", err);
-                            break 'events;
-                        }
+                for console_event in window.read() {
+                    match console_event {
+                        ConsoleEvent::Line(mut line) => {
+                            line.push('\n');
+                            match stdin.write(&line.as_bytes()) {
+                                Ok(_) => (),
+                                Err(err) => {
+                                    println!("failed to write stdin: {}", err);
+                                    break 'events;
+                                }
+                            }
+                        },
+                        ConsoleEvent::Quit => break 'events
                     }
-                } else {
-                    break 'events;
                 }
 
                 thread::sleep_ms(30);
             }
         },
-        Err(err) => {
-            window.print(&format!("failed to execute shell: {}\n", err), Color::rgb(255, 0, 0));
-        }
+        Err(err) => println!("failed to execute '{}': {}\n", shell, err)
     }
 }
