@@ -1,6 +1,6 @@
 [package]
 name = "orbutils"
-description = "The Orbital Core Utilities"
+description = "The Orbital Utilities"
 repository = "https://github.com/redox-os/orbutils"
 version = "0.1.0"
 license-file = "LICENSE"
