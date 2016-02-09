@@ -1,15 +1,15 @@
 [package]
-name = "redox-editor"
-description = "The Redox Editor"
-repository = "https://github.com/redox-os/editor"
-version = "0.0.3"
+name = "orbutils"
+description = "The Orbital Core Utilities"
+repository = "https://github.com/redox-os/orbutils"
+version = "0.1.0"
 license-file = "LICENSE"
 readme = "README.md"
 authors = ["Jeremy Soller <jackpot51@gmail.com>"]
 
 [[bin]]
-name = "redox-editor"
-path = "src/main.rs"
+name = "editor"
+path = "src/editor.rs"
 
 [dependencies]
-orbtk = "*"
+orbtk = "0.1"

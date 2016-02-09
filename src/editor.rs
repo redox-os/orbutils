@@ -1,12 +1,14 @@
 extern crate orbtk;
 
-use orbtk::*;
+use orbtk::{Button, Point, Rect, TextBox, Window};
+use orbtk::callback::Click;
+use orbtk::place::Place;
 
 use std::env;
 use std::fs::File;
 use std::io::Read;
 
-fn real_main(){
+fn main(){
     let path_option = env::args().nth(1);
 
     let title = if let Some(ref path) = path_option {
@@ -15,11 +17,11 @@ fn real_main(){
         format!("Editor")
     };
 
-    let mut window = Window::new(Rect::new(100, 100, 420, 420), &title);
+    let mut window = Window::new(Rect::new(100, 100, 576, 420), &title);
 
     let text_box = TextBox::new()
         .position(0, 16)
-        .size(420, 404)
+        .size(576, 404)
         .place(&mut window);
 
     if let Some(ref path) = path_option {
@@ -45,15 +47,4 @@ fn real_main(){
         .place(&mut window);
 
     window.exec();
-}
-
-#[cfg(target_os = "redox")]
-#[no_mangle]
-pub fn main() {
-    real_main();
-}
-
-#[cfg(not(target_os = "redox"))]
-fn main() {
-    real_main();
 }
