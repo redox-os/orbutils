@@ -9,7 +9,12 @@ authors = ["Jeremy Soller <jackpot51@gmail.com>"]
 
 [[bin]]
 name = "editor"
-path = "src/editor.rs"
+path = "src/editor/main.rs"
+
+[[bin]]
+name = "terminal"
+path = "src/terminal/main.rs"
 
 [dependencies]
+orbclient = "0.1"
 orbtk = "0.1"
