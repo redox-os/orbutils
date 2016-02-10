@@ -2,7 +2,7 @@
 name = "orbutils"
 description = "The Orbital Utilities"
 repository = "https://github.com/redox-os/orbutils"
-version = "0.1.0"
+version = "0.1.1"
 license-file = "LICENSE"
 readme = "README.md"
 authors = ["Jeremy Soller <jackpot51@gmail.com>"]
@@ -14,6 +14,10 @@ path = "src/editor/main.rs"
 [[bin]]
 name = "terminal"
 path = "src/terminal/main.rs"
+
+[[bin]]
+name = "viewer"
+path = "src/viewer/main.rs"
 
 [dependencies]
 orbclient = "0.1"
