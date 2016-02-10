@@ -2,6 +2,7 @@ extern crate orbclient;
 
 use orbclient::Color;
 
+use std::env;
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -14,8 +15,8 @@ mod window;
 fn main() {
     let mut window = ConsoleWindow::new(-1, -1, 576, 400, "Terminal");
 
-    let shell = "../ion/target/debug/ion-shell";
-    match Command::new(shell)
+    let shell = env::args().nth(1).unwrap_or("sh".to_string());
+    match Command::new(&shell)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
