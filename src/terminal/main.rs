@@ -35,8 +35,8 @@ fn main() {
                             Ok(0) => break 'stdout,
                             Ok(count) => match stdout_output_mutex.lock() {
                                 Ok(mut stdout_output) => stdout_output.extend_from_slice(&buf[..count]),
-                                Err(err) => {
-                                    println!("failed to lock stdout output mutex: {}", err);
+                                Err(_) => {
+                                    println!("failed to lock stdout output mutex");
                                     break 'stdout;
                                 }
                             },
@@ -59,8 +59,8 @@ fn main() {
                             Ok(0) => break 'stderr,
                             Ok(count) => match stderr_output_mutex.lock() {
                                 Ok(mut stderr_output) => stderr_output.extend_from_slice(&buf[..count]),
-                                Err(err) => {
-                                    println!("failed to lock stderr output mutex: {}", err);
+                                Err(_) => {
+                                    println!("failed to lock stderr output mutex");
                                     break 'stderr;
                                 }
                             },
@@ -83,8 +83,8 @@ fn main() {
                         }
                         window.print(&string, Color::rgb(255, 255, 255));
                     },
-                    Err(err) => {
-                        println!("failed to lock print output mutex: {}", err);
+                    Err(_) => {
+                        println!("failed to lock print output mutex");
                         break 'events;
                     }
                 }
