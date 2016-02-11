@@ -72,8 +72,8 @@ fn main() {
     //TODO: Use a directory walk
     for entry_result in fs::read_dir("apps/").unwrap() {
         let entry = entry_result.unwrap();
-        if entry.metadata().unwrap().is_dir() {
-            packages.push(Package::from_path(entry.path().to_str().unwrap()));
+        if entry.file_type().unwrap().is_dir() {
+            packages.push(Package::from_path(&("apps/".to_string() + entry.file_name().to_str().unwrap())));
         }
     }
 
