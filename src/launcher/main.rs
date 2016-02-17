@@ -2,7 +2,6 @@ extern crate orbclient;
 
 use std::env;
 use std::fs::{self, File};
-use std::io::Read;
 use std::process::Command;
 use std::thread;
 
@@ -70,10 +69,10 @@ fn main() {
     let mut packages: Vec<Box<Package>> = Vec::new();
 
     //TODO: Use a directory walk
-    for entry_result in fs::read_dir("apps/").unwrap() {
+    for entry_result in fs::read_dir("/apps/").unwrap() {
         let entry = entry_result.unwrap();
         if entry.file_type().unwrap().is_dir() {
-            packages.push(Package::from_path(&("apps/".to_string() + entry.file_name().to_str().unwrap())));
+            packages.push(Package::from_path(&("/apps/".to_string() + entry.file_name().to_str().unwrap())));
         }
     }
 
@@ -83,10 +82,8 @@ fn main() {
             for package in packages.iter() {
                 let mut accepted = false;
                 for accept in package.accepts.iter() {
-                    if (accept.starts_with('*') &&
-                        path.ends_with(&accept[1 ..])) ||
-                       (accept.ends_with('*') &&
-                        path.starts_with(&accept[.. accept.len() - 1])) {
+                    if (accept.starts_with('*') && path.ends_with(&accept[1 ..])) ||
+                       (accept.ends_with('*') && path.starts_with(&accept[.. accept.len() - 1])) {
                         accepted = true;
                         break;
                     }
@@ -100,7 +97,7 @@ fn main() {
             }
         }
     } else {
-        let shutdown = BmpFile::from_path("ui/actions/system-shutdown.bmp");
+        let shutdown = BmpFile::from_path("/ui/actions/system-shutdown.bmp");
         if ! shutdown.has_data() {
             println!("Failed to read shutdown icon");
         }
