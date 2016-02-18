@@ -25,8 +25,8 @@ pub struct Package {
 
 impl Package {
     /// Create package from URL
-    pub fn from_path(url: &str) -> Box<Self> {
-        let mut package = Box::new(Package {
+    pub fn from_path(url: &str) -> Self {
+        let mut package = Package {
             url: url.to_string(),
             id: String::new(),
             name: String::new(),
@@ -35,7 +35,7 @@ impl Package {
             accepts: Vec::new(),
             authors: Vec::new(),
             descriptions: Vec::new(),
-        });
+        };
 
         for part in url.rsplit('/') {
             if !part.is_empty() {
