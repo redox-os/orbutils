@@ -30,7 +30,7 @@ fn main() {
                     'stdout: loop {
                         let mut buf = [0; 4096];
                         match stdout.read(&mut buf) {
-                            //Ok(0) => break 'stdout,
+                            Ok(0) => break 'stdout,
                             Ok(count) => {
                                 match stdout_output_mutex.lock() {
                                     Ok(mut stdout_output) => stdout_output.extend_from_slice(&buf[..count]),
@@ -56,7 +56,7 @@ fn main() {
                     'stderr: loop {
                         let mut buf = [0; 4096];
                         match stderr.read(&mut buf) {
-                            //Ok(0) => break 'stderr,
+                            Ok(0) => break 'stderr,
                             Ok(count) => {
                                 match stderr_output_mutex.lock() {
                                     Ok(mut stderr_output) => stderr_output.extend_from_slice(&buf[..count]),
