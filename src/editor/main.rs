@@ -6,7 +6,7 @@ use orbtk::place::Place;
 
 use std::env;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Write};
 
 fn main(){
     let path_option = env::args().nth(1);
@@ -42,7 +42,23 @@ fn main(){
         .size(32, 16)
         .text("Save")
         .on_click(move |_button: &Button, _point: Point| {
-            println!("{}", text_box.text.get());
+            if let Some(ref path) = path_option {
+                match File::create(path) {
+                    Ok(mut file) => {
+                        let text = text_box.text.get();
+                        match file.write(&mut text.as_bytes()) {
+                            Ok(_) => match file.set_len(text.len()) {
+                                Ok(_) => println!("Successfully saved {}", path),
+                                Err(err) => println!("Failed to truncate {}: {}", path, err)
+                            },
+                            Err(err) => println!("Failed to write {}: {}", path, err)
+                        }
+                    },
+                    Err(err) => println!("Failed to open {}: {}", path, err)
+                }
+            } else {
+                println!("Need to create file!");
+            }
         })
         .place(&mut window);
 
