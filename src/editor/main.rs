@@ -47,7 +47,7 @@ fn main(){
                     Ok(mut file) => {
                         let text = text_box.text.get();
                         match file.write(&mut text.as_bytes()) {
-                            Ok(_) => match file.set_len(text.len()) {
+                            Ok(_) => match file.set_len(text.len() as u64) {
                                 Ok(_) => println!("Successfully saved {}", path),
                                 Err(err) => println!("Failed to truncate {}: {}", path, err)
                             },
