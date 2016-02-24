@@ -3,7 +3,7 @@ extern crate orbclient;
 use orbclient::Color;
 
 use std::env;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -84,7 +84,9 @@ fn main() {
                         for byte in output.drain(..) {
                             string.push(byte as char);
                         }
-                        window.print(&string, Color::rgb(255, 255, 255));
+                        if ! string.is_empty() {
+                            window.print(&string, Color::rgb(255, 255, 255));
+                        }
                     },
                     Err(_) => {
                         println!("failed to lock print output mutex");
