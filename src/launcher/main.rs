@@ -14,7 +14,6 @@ pub mod package;
 fn get_packages() -> Vec<Package> {
     let mut packages: Vec<Package> = Vec::new();
 
-    //TODO: Use a directory walk
     for entry_result in fs::read_dir("/apps/").unwrap() {
         let entry = entry_result.unwrap();
         if entry.file_type().unwrap().is_dir() {
