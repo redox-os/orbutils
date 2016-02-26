@@ -1,6 +1,8 @@
+#![feature(const_fn)]
+
 extern crate orbclient;
 
-use orbclient::Color;
+use orbclient::event;
 
 use std::env;
 use std::io::{self, Read, Write};
@@ -8,9 +10,9 @@ use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use window::{ConsoleEvent, ConsoleWindow};
+use console::Console;
 
-mod window;
+mod console;
 
 fn main() {
     let shell = env::args().nth(1).unwrap_or("sh".to_string());
@@ -76,15 +78,14 @@ fn main() {
             }
 
             let mut stdin = process.stdin.unwrap();
-            let mut window = ConsoleWindow::new(-1, -1, 576, 400, "Terminal");
+            let mut console = Console::new();
             'events: loop {
                 match output_mutex.lock() {
                     Ok(mut output) => {
-                        let mut string = String::new();
-                        for byte in output.drain(..) {
-                            string.push(byte as char);
+                        if ! output.is_empty() {
+                            console.write(&output);
+                            output.clear();
                         }
-                        window.print(&string, Color::rgb(255, 255, 255));
                     },
                     Err(_) => {
                         println!("failed to lock print output mutex");
@@ -92,10 +93,12 @@ fn main() {
                     }
                 }
 
-                for console_event in window.read() {
-                    match console_event {
-                        ConsoleEvent::Line(mut line) => {
-                            line.push('\n');
+                for event in console.window.events_no_wait() {
+                    if event.code == event::EVENT_QUIT {
+                        break 'events;
+                    }
+                    match console.event(event) {
+                        Some(line) => {
                             match stdin.write(&line.as_bytes()) {
                                 Ok(_) => (),
                                 Err(err) => {
@@ -104,7 +107,7 @@ fn main() {
                                 }
                             }
                         },
-                        ConsoleEvent::Quit => break 'events
+                        None => ()
                     }
                 }
 

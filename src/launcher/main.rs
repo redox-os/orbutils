@@ -174,7 +174,7 @@ fn main() {
             println!("launcher: failed to read shutdown icon");
         }
 
-        let mut window = Window::new(0, 600 - 48, 800, 48, "").unwrap();
+        let mut window = Window::new(0, 768 - 48, 1024, 48, "").unwrap();
 
         draw(&mut window, &packages, &shutdown, -1, -1);
         'running: loop {
