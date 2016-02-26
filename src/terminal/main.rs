@@ -5,7 +5,7 @@ extern crate orbclient;
 use orbclient::event;
 
 use std::env;
-use std::io::{self, Read, Write};
+use std::io::{Read, Write};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
