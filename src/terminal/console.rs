@@ -96,6 +96,19 @@ impl Console {
                 }
 
                 self.escape_sequence = false;
+            } else if c == 'H' || c == 'f' {
+                self.window.rect(self.point_x, self.point_y, 8, 16, self.background);
+
+                let row = self.sequence.get(0).map_or("", |p| &p).parse::<i32>().unwrap_or(0);
+                self.point_y = row * 16;
+
+                let col = self.sequence.get(1).map_or("", |p| &p).parse::<i32>().unwrap_or(0);
+                self.point_x = col * 8;
+
+                self.window.rect(self.point_x, self.point_y, 8, 16, self.foreground);
+                self.redraw = true;
+
+                self.escape_sequence = false;
             } else {
                 self.escape_sequence = false;
             }
