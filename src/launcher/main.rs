@@ -24,30 +24,21 @@ fn get_packages() -> Vec<Package> {
     packages
 }
 
-fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, mouse_x: i32, mouse_y: i32){
-    window.set(Color::rgba(0, 0, 0, 0));
+fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, selected: i32){
     let w = window.width();
-    window.rect(0, 16, w, 32, Color::rgba(0, 0, 0, 128));
+    let h = window.height();
+    window.set(Color::rgb(128, 128, 128));
 
     let mut x = 0;
+    let mut i = 0;
     for package in packages.iter() {
         if package.icon.has_data() {
-            let y = window.height() as isize - package.icon.height() as isize;
+            let y = h as isize - package.icon.height() as isize;
 
-            if mouse_y >= y as i32 && mouse_x >= x && mouse_x < x + package.icon.width() as i32 {
+            if i == selected {
                 window.rect(x as i32, y as i32,
                                   package.icon.width() as u32, package.icon.height() as u32,
-                                  Color::rgba(128, 128, 128, 128));
-
-                window.rect(x as i32, y as i32 - 16,
-                    package.name.len() as u32 * 8, 16,
-                    Color::rgba(0, 0, 0, 128));
-
-                let mut c_x = x;
-                for c in package.name.chars() {
-                    window.char(c_x as i32, y as i32 - 16, c, Color::rgb(255, 255, 255));
-                    c_x += 8;
-                }
+                                  Color::rgb(224, 224, 224));
             }
 
             window.image(x as i32, y as i32,
@@ -55,24 +46,25 @@ fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, mouse_
                         package.icon.height() as u32,
                         &package.icon);
             x = x + package.icon.width() as i32;
+            i += 1;
         }
     }
 
     if shutdown.has_data() {
-        x = window.width() as i32 - shutdown.width() as i32;
-        let y = window.height() as isize - shutdown.height() as isize;
+        x = w as i32 - shutdown.width() as i32;
+        let y = h as isize - shutdown.height() as isize;
 
-        if mouse_y >= y as i32 && mouse_x >= x &&
-           mouse_x < x + shutdown.width() as i32 {
+        if i == selected {
             window.rect(x as i32, y as i32,
                               shutdown.width() as u32, shutdown.height() as u32,
-                              Color::rgba(128, 128, 128, 128));
+                              Color::rgb(224, 224, 224));
         }
 
         window.image(x as i32, y as i32,
                         shutdown.width() as u32, shutdown.height() as u32,
                         &shutdown);
         x = x + shutdown.width() as i32;
+        i += 1;
     }
 
     window.sync();
@@ -173,27 +165,29 @@ fn main() {
             println!("launcher: failed to read shutdown icon");
         }
 
-        let mut window = Window::new(0, 768 - 48, 1024, 48, "").unwrap();
+        let mut window = Window::new(0, 768 - 32, 1024, 32, "").unwrap();
 
-        draw(&mut window, &packages, &shutdown, -1, -1);
+        let mut selected = -1;
+
+        draw(&mut window, &packages, &shutdown, selected);
         'running: loop {
             for event in window.events() {
                 match event.to_option() {
                     EventOption::Mouse(mouse_event) => {
-                        draw(&mut window, &packages, &shutdown, mouse_event.x, mouse_event.y);
+                        let mut now_selected = -1;
 
-                        if mouse_event.left_button {
+                        {
                             let mut x = 0;
+                            let mut i = 0;
                             for package in packages.iter() {
                                 if package.icon.has_data() {
                                     let y = window.height() as i32 - package.icon.height() as i32;
                                     if mouse_event.y >= y && mouse_event.x >= x &&
                                        mouse_event.x < x + package.icon.width() as i32 {
-                                        if let Err(err) = Command::new(&package.binary).spawn() {
-                                            println!("{}: Failed to launch: {}", package.binary, err);
-                                        }
+                                        now_selected = i;
                                     }
                                     x = x + package.icon.width() as i32;
+                                    i += 1;
                                 }
                             }
 
@@ -202,9 +196,35 @@ fn main() {
                                 let y = window.height() as i32 - shutdown.height() as i32;
                                 if mouse_event.y >= y && mouse_event.x >= x &&
                                    mouse_event.x < x + shutdown.width() as i32 {
-                                       File::create("acpi:off");
-                                       break 'running;
+                                       now_selected = i;
                                 }
+                                i += 1;
+                            }
+                        }
+
+                        if now_selected != selected {
+                            selected = now_selected;
+                            draw(&mut window, &packages, &shutdown, selected);
+                        }
+
+                        if mouse_event.left_button {
+                            let mut i = 0;
+                            for package in packages.iter() {
+                                if package.icon.has_data() {
+                                    if i == selected {
+                                        if let Err(err) = Command::new(&package.binary).spawn() {
+                                            println!("{}: Failed to launch: {}", package.binary, err);
+                                        }
+                                    }
+                                    i += 1;
+                                }
+                            }
+
+                            if shutdown.has_data() {
+                                if i == selected {
+                                       File::create("acpi:off");
+                                }
+                                i += 1;
                             }
                         }
                     },
