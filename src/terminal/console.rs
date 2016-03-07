@@ -178,6 +178,7 @@ RAW MODE
                 self.point_y += 16;
             },
             '\t' => self.point_x = ((self.point_x / 64) + 1) * 64,
+            '\r' => self.point_x = 0,
             '\x08' if self.raw_mode => {},
             '\x08' => {
                 self.point_x -= 8;
