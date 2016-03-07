@@ -5,10 +5,11 @@ extern crate orbclient;
 use orbclient::event;
 
 use std::env;
-use std::io::{Read, Write};
+use std::io::{Read, Write, self};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use std::error::Error;
 
 use console::Console;
 
@@ -16,12 +17,8 @@ mod console;
 
 fn main() {
     let shell = env::args().nth(1).unwrap_or("sh".to_string());
-    match Command::new(&shell)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-    {
+
+    match Command::new(&shell).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
         Ok(process) => {
             let output_mutex = Arc::new(Mutex::new(Vec::new()));
 
@@ -29,21 +26,24 @@ fn main() {
                 let mut stdout = process.stdout.unwrap();
                 let stdout_output_mutex = output_mutex.clone();
                 thread::spawn(move || {
+                    let term_stderr = io::stderr();
+                    let mut term_stderr = term_stderr.lock();
                     'stdout: loop {
                         let mut buf = [0; 4096];
                         match stdout.read(&mut buf) {
                             Ok(0) => break 'stdout,
                             Ok(count) => {
-                                match stdout_output_mutex.lock() {
-                                    Ok(mut stdout_output) => stdout_output.extend_from_slice(&buf[..count]),
-                                    Err(_) => {
-                                        println!("failed to lock stdout output mutex");
-                                        break 'stdout;
-                                    }
+                                if let Ok(mut stdout_output) = stdout_output_mutex.lock() {
+                                    stdout_output.extend_from_slice(&buf[..count]);
+                                } else {
+                                    let _ = term_stderr.write(b"failed to lock stdout output mutex.\n");
+                                    break 'stdout;
                                 }
                             },
                             Err(err) => {
-                                println!("failed to read stdout: {}", err);
+                                let _ = term_stderr.write(b"failed to read stdout: ");
+                                let _ = term_stderr.write(err.description().as_bytes());
+                                let _ = term_stderr.write(b"\n");
                                 break 'stdout;
                             }
                         }
@@ -55,6 +55,7 @@ fn main() {
                 let mut stderr = process.stderr.unwrap();
                 let stderr_output_mutex = output_mutex.clone();
                 thread::spawn(move || {
+                    let mut term_stderr = io::stderr();
                     'stderr: loop {
                         let mut buf = [0; 4096];
                         match stderr.read(&mut buf) {
@@ -63,13 +64,15 @@ fn main() {
                                 match stderr_output_mutex.lock() {
                                     Ok(mut stderr_output) => stderr_output.extend_from_slice(&buf[..count]),
                                     Err(_) => {
-                                        println!("failed to lock stderr output mutex");
+                                        let _ = term_stderr.write(b"failed to lock stderr output mutex.\n");
                                         break 'stderr;
                                     }
                                 }
                             },
                             Err(err) => {
-                                println!("failed to read stderr: {}", err);
+                                let _ = term_stderr.write(b"failed to read stderr: ");
+                                let _ = term_stderr.write(err.description().as_bytes());
+                                let _ = term_stderr.write(b"\n");
                                 break 'stderr;
                             }
                         }
@@ -82,13 +85,15 @@ fn main() {
             'events: loop {
                 match output_mutex.lock() {
                     Ok(mut output) => {
-                        if ! output.is_empty() {
+                        if !output.is_empty() {
                             console.write(&output);
                             output.clear();
                         }
                     },
                     Err(_) => {
-                        println!("failed to lock print output mutex");
+                        let term_stderr = io::stderr();
+                        let mut term_stderr = term_stderr.lock();
+                        let _ = term_stderr.write(b"failed to lock stdout mutex.\n");
                         break 'events;
                     }
                 }
@@ -97,23 +102,31 @@ fn main() {
                     if event.code == event::EVENT_QUIT {
                         break 'events;
                     }
-                    match console.event(event) {
-                        Some(line) => {
-                            match stdin.write(&line.as_bytes()) {
-                                Ok(_) => (),
-                                Err(err) => {
-                                    println!("failed to write stdin: {}", err);
-                                    break 'events;
-                                }
-                            }
-                        },
-                        None => ()
+
+                    if let Some(line) = console.event(event) {
+                        if let Err(err) = stdin.write(&line.as_bytes()) {
+                            let term_stderr = io::stderr();
+                            let mut term_stderr = term_stderr.lock();
+
+                            let _ = term_stderr.write(b"failed to write stdin: ");
+                            let _ = term_stderr.write(err.description().as_bytes());
+                            let _ = term_stderr.write(b"\n");
+                            break 'events;
+                        }
                     }
                 }
 
                 thread::sleep_ms(30);
             }
         },
-        Err(err) => println!("failed to execute '{}': {}\n", shell, err)
+        Err(err) => {
+            let term_stderr = io::stderr();
+            let mut term_stderr = term_stderr.lock();
+            let _ = term_stderr.write(b"failed to execute '");
+            let _ = term_stderr.write(shell.as_bytes());
+            let _ = term_stderr.write(b"': ");
+            let _ = term_stderr.write(err.description().as_bytes());
+            let _ = term_stderr.write(b"\n");
+        }
     }
 }
