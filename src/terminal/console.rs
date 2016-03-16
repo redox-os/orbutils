@@ -87,6 +87,26 @@ impl Console {
                     }
                     self.escape_sequence = false;
                 },
+                'J' => {
+                    match self.sequence.get(0).map_or("", |p| &p).parse::<usize>().unwrap_or(0) {
+                        0 => {
+                            //TODO: Erase down
+                        },
+                        1 => {
+                            //TODO: Erase up
+                        },
+                        2 => {
+                            // Erase all
+                            self.point_x = 0;
+                            self.point_y = 0;
+                            self.window.set(self.background);
+                            self.redraw = true;
+                        },
+                        _ => {}
+                    }
+
+                    self.escape_sequence = false;
+                },
                 'H' | 'f' => {
                     self.window.rect(self.point_x, self.point_y, 8, 16, self.background);
 
@@ -140,6 +160,7 @@ RAW MODE
                     // Reset
                     self.point_x = 0;
                     self.point_y = 0;
+                    self.raw_mode = false;
                     self.foreground = WHITE;
                     self.background = BLACK;
                     self.window.set(self.background);
@@ -172,14 +193,12 @@ RAW MODE
         match c {
             '\0' => {},
             '\x1B' => self.escape = true,
-            '\n' if self.raw_mode => self.point_x = 0,
             '\n' => {
                 self.point_x = 0;
                 self.point_y += 16;
             },
             '\t' => self.point_x = ((self.point_x / 64) + 1) * 64,
             '\r' => self.point_x = 0,
-            '\x08' if self.raw_mode => {},
             '\x08' => {
                 self.point_x -= 8;
                 if self.point_x < 0 {
@@ -210,26 +229,46 @@ RAW MODE
         match event.to_option() {
             EventOption::Key(key_event) => {
                 if key_event.pressed {
-                    match key_event.scancode {
-                        event::K_BKSP => if !self.command.is_empty() {
-                            self.write(&[8]);
-                            self.command.pop();
-                        },
-                        _ => match key_event.character {
-                            '\0' => (),
-                            c => {
-                                self.command.push(c);
-                                if !self.raw_mode {
-                                    self.write(&[c as u8]);
+                    if self.raw_mode {
+                        match key_event.scancode {
+                            event::K_BKSP => self.command.push_str("\x08 \x08"),
+                            event::K_UP => self.command.push_str("\x1B[A"),
+                            event::K_DOWN => self.command.push_str("\x1B[B"),
+                            event::K_RIGHT => self.command.push_str("\x1B[C"),
+                            event::K_LEFT => self.command.push_str("\x1B[D"),
+                            _ => match key_event.character {
+                                '\0' => {},
+                                c => {
+                                    self.command.push(c);
                                 }
+                            },
+                        }
 
-                                if c == '\n' {
-                                    let mut command = String::new();
-                                    mem::swap(&mut self.command, &mut command);
-                                    return Some(command);
+                        if ! self.command.is_empty() {
+                            let mut command = String::new();
+                            mem::swap(&mut self.command, &mut command);
+                            return Some(command);
+                        }
+                    } else {
+                        match key_event.scancode {
+                            event::K_BKSP => if ! self.command.is_empty() {
+                                self.write(&[8]);
+                                self.command.pop();
+                            },
+                            _ => match key_event.character {
+                                '\0' => (),
+                                c => {
+                                    self.write(&[c as u8]);
+                                    self.command.push(c);
+
+                                    if c == '\n' {
+                                        let mut command = String::new();
+                                        mem::swap(&mut self.command, &mut command);
+                                        return Some(command);
+                                    }
                                 }
-                            }
-                        },
+                            },
+                        }
                     }
                 }
             },
