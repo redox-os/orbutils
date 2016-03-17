@@ -3,14 +3,44 @@ use std::{cmp, mem};
 use orbclient::{Color, Event, EventOption, Window};
 use orbclient::event;
 
-const BLACK: Color = Color::rgb(0, 0, 0);
-const RED: Color = Color::rgb(194, 54, 33);
-const GREEN: Color = Color::rgb(37, 188, 36);
-const YELLOW: Color = Color::rgb(173, 173, 39);
-const BLUE: Color = Color::rgb(73, 46, 225);
-const MAGENTA: Color = Color::rgb(211, 56, 211);
-const CYAN: Color = Color::rgb(51, 187, 200);
-const WHITE: Color = Color::rgb(203, 204, 205);
+fn ansi_color(value: u8) -> Color {
+    match value {
+        0 => Color::rgb(0x00, 0x00, 0x00),
+        1 => Color::rgb(0x80, 0x00, 0x00),
+        2 => Color::rgb(0x00, 0x80, 0x00),
+        3 => Color::rgb(0x80, 0x80, 0x00),
+        4 => Color::rgb(0x00, 0x00, 0x80),
+        5 => Color::rgb(0x80, 0x00, 0x80),
+        6 => Color::rgb(0x00, 0x80, 0x80),
+        7 => Color::rgb(0xc0, 0xc0, 0xc0),
+        8 => Color::rgb(0x80, 0x80, 0x80),
+        9 => Color::rgb(0xff, 0x00, 0x00),
+        10 => Color::rgb(0x00, 0xff, 0x00),
+        11 => Color::rgb(0xff, 0xff, 0x00),
+        12 => Color::rgb(0x00, 0x00, 0xff),
+        13 => Color::rgb(0xff, 0x00, 0xff),
+        14 => Color::rgb(0x00, 0xff, 0xff),
+        15 => Color::rgb(0xff, 0xff, 0xff),
+        16 ... 231 => {
+            let convert = |value: u8| -> u8 {
+                match value {
+                    0 => 0,
+                    _ => value * 0x28 + 0x28
+                }
+            };
+
+            let r = convert((value - 16)/36 % 6);
+            let g = convert((value - 16)/6 % 6);
+            let b = convert((value - 16) % 6);
+            Color::rgb(r, g, b)
+        },
+        232 ... 255 => {
+            let gray = (value - 232) * 10 + 8;
+            Color::rgb(gray, gray, gray)
+        },
+        _ => Color::rgb(0, 0, 0)
+    }
+}
 
 pub struct Console {
     pub window: Box<Window>,
@@ -34,8 +64,8 @@ impl Console {
             window: window,
             point_x: 0,
             point_y: 0,
-            foreground: WHITE,
-            background: BLACK,
+            foreground: ansi_color(7),
+            background: ansi_color(0),
             redraw: true,
             command: String::new(),
             escape: false,
@@ -60,31 +90,50 @@ impl Console {
                 },
                 'm' => {
                     // Display attributes
-                    for value in self.sequence.iter() {
-                        match value.as_str() {
-                            "" | "0" => {
-                                self.foreground = WHITE;
-                                self.background = BLACK;
+                    let mut value_iter = self.sequence.iter();
+                    while let Some(value_str) = value_iter.next() {
+                        let value = value_str.parse::<u8>().unwrap_or(0);
+                        match value {
+                            0 => {
+                                self.foreground = ansi_color(7);
+                                self.background = ansi_color(0);
                             },
-                            "30" => self.foreground = BLACK,
-                            "31" => self.foreground = RED,
-                            "32" => self.foreground = GREEN,
-                            "33" => self.foreground = YELLOW,
-                            "34" => self.foreground = BLUE,
-                            "35" => self.foreground = MAGENTA,
-                            "36" => self.foreground = CYAN,
-                            "37" => self.foreground = WHITE,
-                            "40" => self.background = BLACK,
-                            "41" => self.background = RED,
-                            "42" => self.background = GREEN,
-                            "43" => self.background = YELLOW,
-                            "44" => self.background = BLUE,
-                            "45" => self.background = MAGENTA,
-                            "46" => self.background = CYAN,
-                            "47" => self.background = WHITE,
+                            30 ... 37 => self.foreground = ansi_color(value - 30),
+                            38 => match value_iter.next().map_or("", |s| &s).parse::<usize>().unwrap_or(0) {
+                                2 => {
+                                    //True color
+                                    let r = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    let g = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    let b = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    self.foreground = Color::rgb(r, g, b);
+                                },
+                                5 => {
+                                    //256 color
+                                    let color_value = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    self.foreground = ansi_color(color_value);
+                                },
+                                _ => {}
+                            },
+                            40 ... 47 => self.background = ansi_color(value - 40),
+                            48 => match value_iter.next().map_or("", |s| &s).parse::<usize>().unwrap_or(0) {
+                                2 => {
+                                    //True color
+                                    let r = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    let g = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    let b = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    self.background = Color::rgb(r, g, b);
+                                },
+                                5 => {
+                                    //256 color
+                                    let color_value = value_iter.next().map_or("", |s| &s).parse::<u8>().unwrap_or(0);
+                                    self.background = ansi_color(color_value);
+                                },
+                                _ => {}
+                            },
                             _ => {},
                         }
                     }
+
                     self.escape_sequence = false;
                 },
                 'J' => {
@@ -167,8 +216,8 @@ RAW MODE
                     self.point_x = 0;
                     self.point_y = 0;
                     self.raw_mode = false;
-                    self.foreground = WHITE;
-                    self.background = BLACK;
+                    self.foreground = ansi_color(7);
+                    self.background = ansi_color(0);
                     self.window.set(self.background);
                     self.redraw = true;
 
