@@ -221,8 +221,23 @@ pub fn f_expr(token_list: &[Token]) -> Result<IntermediateResult, ParseError> {
 }
 
 #[cfg(target_os = "redox")]
-pub fn f_expr(_token_list: &[Token]) -> Result<IntermediateResult, ParseError> {
-    Err(ParseError::UnexpectedEndOfInput)
+pub fn f_expr(token_list: &[Token]) -> Result<IntermediateResult, ParseError> {
+    let mut g1 = try!(g_expr(token_list));
+    let mut index = g1.tokens_read;
+    let token_len = token_list.len();
+    while index < token_len {
+        match token_list[index] {
+            Token::Exponent => {
+                let f = try!(f_expr(&token_list[index+1..]));
+                //TODO: g1.value = g1.value.powf(f.value);
+                g1.tokens_read += f.tokens_read + 1;
+            }
+            Token::Number(ref n) => return Err(ParseError::UnexpectedToken(n.clone(),"operator")),
+            _ => break,
+        }
+        index = g1.tokens_read;
+    }
+    Ok(g1)
 }
 
 // Numbers and parenthesized expressions
@@ -275,83 +290,10 @@ pub fn parse(tokens: Vec<Token>) -> Result<String, ParseError> {
     e_expr(&tokens).map(|answer| answer.value.to_string())
 }
 
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn simple_addition() {
-        assert_eq!(tokenize("12+3").and_then(parse).unwrap(), "15");
-    }
-
-    #[test]
-    fn addition() {
-        assert_eq!(tokenize("12+3+5").and_then(parse).unwrap(), "20");
-    }
-
-    #[test]
-    fn simple_subtraction() {
-        assert_eq!(tokenize("12-3").and_then(parse).unwrap(), "9");
-    }
-
-    #[test]
-    fn subtraction() {
-        assert_eq!(tokenize("12-3-4").and_then(parse).unwrap(), "5");
-    }
-
-    #[test]
-    fn mixed_addition_and_subtraction() {
-        assert_eq!(tokenize("12+3-4+8-2-3").and_then(parse).unwrap(), "14");
-    }
-
-    #[test]
-    fn simple_parentheses() {
-        assert_eq!(tokenize("((3))").and_then(parse).unwrap(), "3");
-        assert_eq!(tokenize("(12+(2+3))").and_then(parse).unwrap(), "17");
-        assert_eq!(tokenize("12+(2+3)").and_then(parse).unwrap(), "17");
-    }
-
-    #[test]
-    fn parentheses() {
-        assert_eq!(tokenize("12+(2+(3+5))+4+(((6)))").and_then(parse).unwrap(), "32");
-    }
-
-    #[test]
-    fn multiplication() {
-        assert_eq!(tokenize("3*3").and_then(parse).unwrap(), "9");
-        assert_eq!(tokenize("3*5").and_then(parse).unwrap(), "15");
-        assert_eq!(tokenize("0*5").and_then(parse).unwrap(), "0");
-        assert_eq!(tokenize("5*4*3*2*1").and_then(parse).unwrap(), "120");
-        assert_eq!(tokenize("(5*4)*3*(2*1)").and_then(parse).unwrap(), "120");
-    }
-
-    #[test]
-    fn division() {
-        assert_eq!(tokenize("12/4").and_then(parse).unwrap(), "3");
-        assert_eq!(tokenize("12/3").and_then(parse).unwrap(), "4");
-        assert_eq!(tokenize("5/2").and_then(parse).unwrap(), "2.5");
-        assert_eq!(tokenize("120/5/4/3/2").and_then(parse).unwrap(), "1");
-        assert_eq!(tokenize("(120/5)/4/(3/2)").and_then(parse).unwrap(), "4");
-    }
-
-    #[test]
-    fn exponentiation() {
-        assert_eq!(tokenize("3^2").and_then(parse).unwrap(), "9");
-        assert_eq!(tokenize("2^3^2").and_then(parse).unwrap(), "512");
-        assert_eq!(tokenize("2^(2+1)^2").and_then(parse).unwrap(), "512");
-    }
-}
-
 fn eval(input: &str) -> String {
     match tokenize(input).and_then(parse) {
         Ok(s) => s,
-        Err(e) => match e {
-            ParseError::InvalidNumber(s) => ["Error: Invalid number: ", s.as_str() ].concat(),
-            ParseError::UnrecognizedToken(s) => ["Error: Unrecognized token: ", s.as_str()].concat(),
-            ParseError::UnexpectedToken(found, expected) => ["Error: Unexpected token: expected [", expected, "] but found '", found.as_str(), "'"].concat(),
-            ParseError::UnexpectedEndOfInput => "Error: Unexpected end of input.".to_owned(),
-            ParseError::OtherError(s) => s,
-        }
+        Err(_e) => "Syntax Error".to_string()
     }
 }
 
