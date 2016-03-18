@@ -58,7 +58,7 @@ pub struct Console {
 
 impl Console {
     pub fn new() -> Console {
-        let mut window = Window::new(-1, -1, 640, 480, "Terminal").unwrap();
+        let mut window = Window::new_flags(-1, -1, 640, 480, "Terminal", true).unwrap();
         window.sync();
         Console {
             window: window,

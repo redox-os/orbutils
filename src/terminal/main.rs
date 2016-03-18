@@ -98,7 +98,7 @@ fn main() {
                     }
                 }
 
-                for event in console.window.events_no_wait() {
+                for event in console.window.events() {
                     if event.code == event::EVENT_QUIT {
                         break 'events;
                     }
