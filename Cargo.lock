@@ -2,7 +2,7 @@
 name = "orbutils"
 version = "0.1.6"
 dependencies = [
- "orbclient 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbclient 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbtk 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -18,7 +18,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.2.7"
+version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -32,7 +32,7 @@ dependencies = [
 
 [[package]]
 name = "orbclient"
-version = "0.1.5"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "sdl2 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -43,7 +43,7 @@ name = "orbtk"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "orbclient 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbclient 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -51,7 +51,7 @@ name = "rand"
 version = "0.3.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
