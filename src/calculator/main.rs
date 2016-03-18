@@ -4,11 +4,6 @@ use orbtk::{Button, Point, Rect, TextBox, Window};
 use orbtk::callback::{Click, Enter};
 use orbtk::place::Place;
 
-use std::env;
-use std::fs::File;
-use std::io::{Read, Write};
-
-
 #[derive(Debug, Clone)]
 pub enum Token {
     Plus,
