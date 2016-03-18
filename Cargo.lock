@@ -1,9 +1,9 @@
 [root]
 name = "orbutils"
-version = "0.1.6"
+version = "0.1.8"
 dependencies = [
  "orbclient 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbtk 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbtk 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -40,7 +40,7 @@ dependencies = [
 
 [[package]]
 name = "orbtk"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "orbclient 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",

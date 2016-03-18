@@ -2,10 +2,14 @@
 name = "orbutils"
 description = "The Orbital Utilities"
 repository = "https://github.com/redox-os/orbutils"
-version = "0.1.7"
+version = "0.1.8"
 license-file = "LICENSE"
 readme = "README.md"
 authors = ["Jeremy Soller <jackpot51@gmail.com>"]
+
+[[bin]]
+name = "calculator"
+path = "src/calculator/main.rs"
 
 [[bin]]
 name = "editor"
