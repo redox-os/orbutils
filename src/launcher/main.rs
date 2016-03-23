@@ -11,6 +11,26 @@ use package::Package;
 
 pub mod package;
 
+//TODO: Implement display size in orbclient
+#[cfg(target_os = "redox")]
+fn get_display_size() -> (i32, i32) {
+    match File::open("display:") {
+        Ok(display) => {
+            let path = display.path().map(|path| path.into_os_string().into_string().unwrap_or(String::new())).unwrap_or(String::new());
+            let res = path.split(":").nth(1).unwrap_or("");
+            let width = res.split("/").nth(0).unwrap_or("").parse::<i32>().unwrap_or(0);
+            let height = res.split("/").nth(1).unwrap_or("").parse::<i32>().unwrap_or(0);
+            (width, height)
+        },
+        Err(err) => panic!("launcher: failed to get display size: {}", err)
+    }
+}
+
+#[cfg(not(target_os = "redox"))]
+fn get_display_size() -> (i32, i32) {
+    panic!("launcher: failed to get display size")
+}
+
 fn get_packages() -> Vec<Package> {
     let mut packages: Vec<Package> = Vec::new();
 
@@ -165,7 +185,8 @@ fn main() {
             println!("launcher: failed to read shutdown icon");
         }
 
-        let mut window = Window::new(0, 768 - 32, 1024, 32, "").unwrap();
+        let (width, height) = get_display_size();
+        let mut window = Window::new(0, height - 32, width as u32, 32, "").unwrap();
 
         let mut selected = -1;
 
