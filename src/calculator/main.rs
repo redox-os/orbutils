@@ -307,7 +307,6 @@ fn main(){
             .on_enter(move |text_box: &TextBox| {
                 let input = text_box.text.get();
                 let result = eval(&input);
-                println!("{}={}", input, result);
                 text_box.text_i.set(result.len());
                 text_box.text.set(result);
             })
