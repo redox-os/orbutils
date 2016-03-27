@@ -14,8 +14,9 @@ use package::Package;
 pub mod package;
 
 const BAR_COLOR: Color = Color::rgb(40, 45, 57);
-const HIGHLIGHT_COLOR: Color = Color::rgb(80, 86, 102);
-const TEXT_COLOR: Color = Color::rgb(183, 189, 203);
+const BAR_HIGHLIGHT_COLOR: Color = Color::rgb(80, 86, 102);
+const TEXT_COLOR: Color = Color::rgb(204, 210, 224);
+const TEXT_HIGHLIGHT_COLOR: Color = Color::rgb(235, 241, 255);
 
 //TODO: Implement display size in orbclient
 #[cfg(target_os = "redox")]
@@ -64,7 +65,7 @@ fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, select
             if i == selected {
                 window.rect(x as i32, y as i32,
                                   package.icon.width() as u32, package.icon.height() as u32,
-                                  HIGHLIGHT_COLOR);
+                                  BAR_HIGHLIGHT_COLOR);
             }
 
             window.image(x as i32, y as i32,
@@ -83,7 +84,7 @@ fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, select
         if i == selected {
             window.rect(x as i32, y as i32,
                               shutdown.width() as u32, shutdown.height() as u32,
-                              HIGHLIGHT_COLOR);
+                              BAR_HIGHLIGHT_COLOR);
         }
 
         window.image(x as i32, y as i32,
@@ -103,8 +104,10 @@ fn draw_chooser(window: &mut Window, packages: &Vec<Package>, mouse_x: i32, mous
 
     let mut y = 0;
     for package in packages.iter() {
-        if mouse_y >= y as i32 && mouse_y < y + 32 {
-            window.rect(0, y, w, 32, HIGHLIGHT_COLOR);
+        let highlight = mouse_y >= y as i32 && mouse_y < y + 32;
+
+        if highlight {
+            window.rect(0, y, w, 32, BAR_HIGHLIGHT_COLOR);
         }
 
         if package.icon.has_data() {
@@ -113,7 +116,7 @@ fn draw_chooser(window: &mut Window, packages: &Vec<Package>, mouse_x: i32, mous
 
         let mut c_x = 40;
         for c in package.name.chars() {
-            window.char(c_x as i32, y + 8, c, TEXT_COLOR);
+            window.char(c_x as i32, y + 8, c, if highlight { TEXT_HIGHLIGHT_COLOR } else { TEXT_COLOR });
             c_x += 8;
         }
 
