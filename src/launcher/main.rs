@@ -1,3 +1,5 @@
+#![feature(const_fn)]
+
 extern crate orbclient;
 
 use std::env;
@@ -10,6 +12,10 @@ use orbclient::{BmpFile, Color, EventOption, Window};
 use package::Package;
 
 pub mod package;
+
+const BAR_COLOR: Color = Color::rgb(40, 45, 57);
+const HIGHLIGHT_COLOR: Color = Color::rgb(80, 86, 102);
+const TEXT_COLOR: Color = Color::rgb(183, 189, 203);
 
 //TODO: Implement display size in orbclient
 #[cfg(target_os = "redox")]
@@ -47,7 +53,7 @@ fn get_packages() -> Vec<Package> {
 fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, selected: i32){
     let w = window.width();
     let h = window.height();
-    window.set(Color::rgb(128, 128, 128));
+    window.set(BAR_COLOR);
 
     let mut x = 0;
     let mut i = 0;
@@ -58,7 +64,7 @@ fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, select
             if i == selected {
                 window.rect(x as i32, y as i32,
                                   package.icon.width() as u32, package.icon.height() as u32,
-                                  Color::rgb(224, 224, 224));
+                                  HIGHLIGHT_COLOR);
             }
 
             window.image(x as i32, y as i32,
@@ -77,7 +83,7 @@ fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, select
         if i == selected {
             window.rect(x as i32, y as i32,
                               shutdown.width() as u32, shutdown.height() as u32,
-                              Color::rgb(224, 224, 224));
+                              HIGHLIGHT_COLOR);
         }
 
         window.image(x as i32, y as i32,
@@ -93,12 +99,12 @@ fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &BmpFile, select
 fn draw_chooser(window: &mut Window, packages: &Vec<Package>, mouse_x: i32, mouse_y: i32){
     let w = window.width();
 
-    window.set(Color::rgb(255, 255, 255));
+    window.set(BAR_COLOR);
 
     let mut y = 0;
     for package in packages.iter() {
         if mouse_y >= y as i32 && mouse_y < y + 32 {
-            window.rect(0, y, w, 32, Color::rgb(128, 128, 128));
+            window.rect(0, y, w, 32, HIGHLIGHT_COLOR);
         }
 
         if package.icon.has_data() {
@@ -107,7 +113,7 @@ fn draw_chooser(window: &mut Window, packages: &Vec<Package>, mouse_x: i32, mous
 
         let mut c_x = 40;
         for c in package.name.chars() {
-            window.char(c_x as i32, y + 8, c, Color::rgb(0, 0, 0));
+            window.char(c_x as i32, y + 8, c, TEXT_COLOR);
             c_x += 8;
         }
 
