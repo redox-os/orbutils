@@ -18,6 +18,11 @@ mod console;
 fn main() {
     let shell = env::args().nth(1).unwrap_or("sh".to_string());
 
+    let width = 640;
+    let height = 480;
+
+    env::set_var("COLUMNS", format!("{}", width/8));
+    env::set_var("LINES", format!("{}", height/16));
     match Command::new(&shell).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
         Ok(process) => {
             let output_mutex = Arc::new(Mutex::new(Vec::new()));
@@ -81,7 +86,7 @@ fn main() {
             }
 
             let mut stdin = process.stdin.unwrap();
-            let mut console = Console::new();
+            let mut console = Console::new(width, height);
             'events: loop {
                 match output_mutex.lock() {
                     Ok(mut output) => {
