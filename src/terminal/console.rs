@@ -1,3 +1,7 @@
+extern crate system;
+
+use self::system::graphics::{fast_copy, fast_set};
+
 use std::{cmp, mem};
 
 use orbclient::{Color, Event, EventOption, Window};
@@ -232,12 +236,9 @@ RAW MODE
         if rows > 0 && rows < self.window.height() as usize {
             let offset = rows * self.window.width() as usize;
             let data = self.window.data_mut();
-            for i in 0..data.len() - offset {
-                let color = data[i + offset];
-                data[i] = color;
-            }
-            for i in data.len() - offset..data.len() {
-                data[i] = self.background;
+            unsafe {
+                fast_copy(data.as_mut_ptr() as *mut u32, data.as_ptr().offset(offset as isize) as *const u32, data.len() - offset);
+                fast_set(data.as_mut_ptr().offset((data.len() - offset) as isize) as *mut u32, self.background.data, offset);
             }
         }
     }
