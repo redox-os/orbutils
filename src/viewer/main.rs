@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 extern crate orbclient;
 
 use std::cmp::max;

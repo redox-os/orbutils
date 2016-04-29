@@ -1,3 +1,5 @@
+#![deny(warnings)]
+
 extern crate orbtk;
 
 use orbtk::{Button, Point, Rect, TextBox, Window};
