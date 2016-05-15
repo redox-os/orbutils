@@ -30,4 +30,4 @@ path = "src/viewer/main.rs"
 [dependencies]
 orbclient = "0.1"
 orbtk = "0.1"
-png = "*"
+png = { git="https://github.com/redox-os/rust-png" }

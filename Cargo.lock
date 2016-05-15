@@ -4,11 +4,17 @@ version = "0.1.10"
 dependencies = [
  "orbclient 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbtk 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "png 0.1.0 (git+https://github.com/redox-os/rust-png)",
 ]
 
 [[package]]
 name = "bitflags"
 version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "gcc"
+version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -20,6 +26,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "libc"
 version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "libz-sys"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "pkg-config 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "num"
@@ -44,6 +60,29 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "orbclient 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "pkg-config"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "png"
+version = "0.1.0"
+source = "git+https://github.com/redox-os/rust-png#245a09c67f965abaacebcb2e205def937c412bbc"
+dependencies = [
+ "gcc 0.3.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "png-sys 1.6.16 (git+https://github.com/redox-os/rust-png)",
+]
+
+[[package]]
+name = "png-sys"
+version = "1.6.16"
+source = "git+https://github.com/redox-os/rust-png#245a09c67f965abaacebcb2e205def937c412bbc"
+dependencies = [
+ "libz-sys 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
