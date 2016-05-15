@@ -1,14 +1,14 @@
 #![deny(warnings)]
 
 extern crate orbclient;
-extern crate orbimage;
+extern crate orbfont;
 
 use std::cmp::max;
 
 use std::env;
 
 use orbclient::{Color, Window, EventOption, K_ESC};
-use orbimage::Image;
+use orbfont::Font;
 
 fn event_loop(window: &mut Box<Window>){
     loop {
@@ -36,19 +36,37 @@ fn error_msg(window: &mut Box<Window>, msg: &str) {
 fn main() {
     let url = match env::args().nth(1) {
         Some(arg) => arg,
-        None => "none:".to_string(),
+        None => "/ui/fonts/FiraSans-Regular.ttf".to_string(),
     };
 
-    match Image::from_path(&url) {
-        Ok(image) => {
+    match Font::from_path(&url) {
+        Ok(font) => {
+            let lines = [
+                font.render("ABCDEFGHIJK", 64.0),
+                font.render("LMNOPQRSTUV", 64.0),
+                font.render("WXYZabcdefg", 64.0),
+                font.render("hijklmnopqr", 64.0),
+                font.render("stuvwxyz.?!", 64.0),
+                font.render("0123456789 ", 64.0)
+            ];
+            let mut width = 0;
+            let mut height = 0;
+            for line in lines.iter() {
+                width = max(width, line.width());
+                height += line.height();
+            }
             let mut window = Window::new(-1,
                                          -1,
-                                         max(320, image.width()),
-                                         max(32, image.height()),
-                                         &("Viewer (".to_string() + &url + ")"))
+                                         max(320, width),
+                                         max(32, height),
+                                         &("Character Map (".to_string() + &url + ")"))
                                  .unwrap();
-            window.set(Color::rgb(0, 0, 0));
-            image.draw(&mut window, 0, 0);
+            window.set(Color::rgb(255, 255, 255));
+            let mut y = 0;
+            for line in lines.iter() {
+                line.draw(&mut window, 0, y, Color::rgb(0, 0, 0));
+                y += line.height() as i32;
+            }
             window.sync();
             event_loop(&mut window);
         },
@@ -57,7 +75,7 @@ fn main() {
                                          -1,
                                          320,
                                          32,
-                                         &("Viewer (".to_string() + &url + ")"))
+                                         &("Character Map (".to_string() + &url + ")"))
                                  .unwrap();
             window.set(Color::rgb(0, 0, 0));
             error_msg(&mut window, &format!("{}", err));

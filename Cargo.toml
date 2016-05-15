@@ -12,6 +12,10 @@ name = "calculator"
 path = "src/calculator/main.rs"
 
 [[bin]]
+name = "character_map"
+path = "src/character_map/main.rs"
+
+[[bin]]
 name = "editor"
 path = "src/editor/main.rs"
 
@@ -29,5 +33,6 @@ path = "src/viewer/main.rs"
 
 [dependencies]
 orbclient = "0.1"
+orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.1"
