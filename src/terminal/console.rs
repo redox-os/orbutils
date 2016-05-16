@@ -1,6 +1,10 @@
 extern crate system;
 
+extern crate orbfont;
+
 use self::system::graphics::{fast_copy, fast_set};
+
+use self::orbfont::Font;
 
 use std::{cmp, mem};
 
@@ -48,10 +52,13 @@ fn ansi_color(value: u8) -> Color {
 
 pub struct Console {
     pub window: Box<Window>,
+    pub font: Font,
+    pub font_bold: Font,
     pub point_x: i32,
     pub point_y: i32,
     pub foreground: Color,
     pub background: Color,
+    pub bold: bool,
     pub redraw: bool,
     pub command: String,
     pub escape: bool,
@@ -66,10 +73,13 @@ impl Console {
         window.sync();
         Console {
             window: window,
+            font: Font::from_path("/ui/fonts/UbuntuMono-Regular.ttf").unwrap(),
+            font_bold: Font::from_path("/ui/fonts/UbuntuMono-Bold.ttf").unwrap(),
             point_x: 0,
             point_y: 0,
             foreground: ansi_color(7),
             background: ansi_color(0),
+            bold: false,
             redraw: true,
             command: String::new(),
             escape: false,
@@ -101,6 +111,10 @@ impl Console {
                             0 => {
                                 self.foreground = ansi_color(7);
                                 self.background = ansi_color(0);
+                                self.bold = false;
+                            },
+                            1 => {
+                                self.bold = true;
                             },
                             30 ... 37 => self.foreground = ansi_color(value - 30),
                             38 => match value_iter.next().map_or("", |s| &s).parse::<usize>().unwrap_or(0) {
@@ -222,6 +236,7 @@ RAW MODE
                     self.raw_mode = false;
                     self.foreground = ansi_color(7);
                     self.background = ansi_color(0);
+                    self.bold = false;
                     self.window.set(self.background);
                     self.redraw = true;
 
@@ -263,7 +278,12 @@ RAW MODE
                 self.window.rect(self.point_x, self.point_y, 8, 16, self.background);
             },
             _ => {
-                self.window.char(self.point_x, self.point_y, c, self.foreground);
+                if self.bold {
+                    self.font_bold.render(&c.to_string(), 16.0).draw(&mut self.window, self.point_x, self.point_y, self.foreground);
+                } else {
+                    self.font.render(&c.to_string(), 16.0).draw(&mut self.window, self.point_x, self.point_y, self.foreground);
+                }
+                //self.window.char(self.point_x, self.point_y, c, self.foreground);
                 self.point_x += 8;
             }
         }
