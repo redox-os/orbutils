@@ -122,7 +122,7 @@ fn main() {
                     }
                 }
 
-                thread::sleep_ms(30);
+                thread::sleep_ms(1);
             }
         },
         Err(err) => {
