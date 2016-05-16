@@ -28,7 +28,7 @@ fn event_loop(window: &mut Box<Window>){
 fn error_msg(window: &mut Box<Window>, msg: &str) {
     let mut x = 0;
     for c in msg.chars() {
-        window.char(x, 0, c, Color::rgb(255, 255, 255));
+        window.char(x, 0, c, Color::rgb(0, 0, 0));
         x += 8;
     }
 }
@@ -41,13 +41,22 @@ fn main() {
 
     match Image::from_path(&url) {
         Ok(image) => {
-            let mut window = Window::new(-1,
-                                         -1,
-                                         max(320, image.width()),
-                                         max(32, image.height()),
-                                         &("Viewer (".to_string() + &url + ")"))
-                                 .unwrap();
-            window.set(Color::rgb(0, 0, 0));
+            let mut window = Window::new(-1, -1, max(320, image.width()), max(32, image.height()),
+                                         &("Viewer (".to_string() + &url + ")")).unwrap();
+
+            let box_size = 4;
+            for box_y in 0..window.height()/box_size {
+                for box_x in 0..window.width()/box_size {
+                    let color = if box_x % 2 == box_y % 2 {
+                        Color::rgb(102, 102, 102)
+                    }else{
+                        Color::rgb(53, 53, 53)
+                    };
+
+                    window.rect((box_x * box_size) as i32, (box_y * box_size) as i32, box_size, box_size, color);
+                }
+            }
+
             image.draw(&mut window, 0, 0);
             window.sync();
             event_loop(&mut window);
@@ -59,7 +68,7 @@ fn main() {
                                          32,
                                          &("Viewer (".to_string() + &url + ")"))
                                  .unwrap();
-            window.set(Color::rgb(0, 0, 0));
+            window.set(Color::rgb(255, 255, 255));
             error_msg(&mut window, &format!("{}", err));
             window.sync();
             event_loop(&mut window);
