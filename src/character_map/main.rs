@@ -10,7 +10,7 @@ use std::env;
 use orbclient::{Color, Window, EventOption, K_ESC};
 use orbfont::Font;
 
-fn event_loop(window: &mut Box<Window>){
+fn event_loop(window: &mut Window){
     loop {
         for event in window.events() {
             if let EventOption::Key(key_event) = event.to_option() {
@@ -25,7 +25,7 @@ fn event_loop(window: &mut Box<Window>){
     }
 }
 
-fn error_msg(window: &mut Box<Window>, msg: &str) {
+fn error_msg(window: &mut Window, msg: &str) {
     let mut x = 0;
     for c in msg.chars() {
         window.char(x, 0, c, Color::rgb(255, 255, 255));

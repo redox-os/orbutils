@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Read;
 
-use orbclient::BmpFile;
+use orbimage::Image;
 
 /// A package (_REDOX content serialized)
 pub struct Package {
@@ -14,7 +14,7 @@ pub struct Package {
     /// The binary for the package
     pub binary: String,
     /// The icon for the package
-    pub icon: BmpFile,
+    pub icon: Image,
     /// The accepted extensions
     pub accepts: Vec<String>,
     /// The author(s) of the package
@@ -31,7 +31,7 @@ impl Package {
             id: String::new(),
             name: String::new(),
             binary: url.to_string() + "/main.bin",
-            icon: BmpFile::default(),
+            icon: Image::default(),
             accepts: Vec::new(),
             authors: Vec::new(),
             descriptions: Vec::new(),
@@ -47,7 +47,7 @@ impl Package {
         let mut info = String::new();
 
         if let Ok(mut file) = File::open(&(url.to_string() + "/_REDOX")) {
-            file.read_to_string(&mut info);
+            let _ = file.read_to_string(&mut info);
         }
 
         for line in info.lines() {
@@ -56,7 +56,7 @@ impl Package {
             } else if line.starts_with("binary=") {
                 package.binary = url.to_string() + &line[7..];
             } else if line.starts_with("icon=") {
-                package.icon = BmpFile::from_path(&line[5..]);
+                package.icon = Image::from_path(&line[5..]).unwrap_or(Image::default());
             } else if line.starts_with("accept=") {
                 package.accepts.push(line[7..].to_string());
             } else if line.starts_with("author=") {

@@ -51,7 +51,7 @@ fn ansi_color(value: u8) -> Color {
 }
 
 pub struct Console {
-    pub window: Box<Window>,
+    pub window: Window,
     pub font: Font,
     pub font_bold: Font,
     pub point_x: i32,
