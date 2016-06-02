@@ -73,8 +73,8 @@ impl Console {
         window.sync();
         Console {
             window: window,
-            font: Font::from_path("/ui/fonts/UbuntuMono-Regular.ttf").unwrap(),
-            font_bold: Font::from_path("/ui/fonts/UbuntuMono-Bold.ttf").unwrap(),
+            font: Font::find(Some("Mono"), None, Some("Regular")).unwrap(),
+            font_bold: Font::find(Some("Mono"), None, Some("Bold")).unwrap(),
             point_x: 0,
             point_y: 0,
             foreground: ansi_color(7),

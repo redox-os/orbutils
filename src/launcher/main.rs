@@ -139,7 +139,7 @@ fn main() {
 
             if packages.len() > 1 {
                 let mut window = Window::new(-1, -1, 400, packages.len() as u32 * 32, path).unwrap();
-                let font = Font::from_path("/ui/fonts/UbuntuMono-Regular.ttf").unwrap();
+                let font = Font::find(None, None, None).unwrap();
 
                 draw_chooser(&mut window, &font, &packages, -1, -1);
                 'choosing: loop {

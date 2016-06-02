@@ -36,7 +36,7 @@ fn error_msg(window: &mut Window, msg: &str) {
 fn main() {
     let url = match env::args().nth(1) {
         Some(arg) => arg,
-        None => "/ui/fonts/FiraSans-Regular.ttf".to_string(),
+        None => "/ui/fonts/Mono/Fira/Regular.ttf".to_string(),
     };
 
     match Font::from_path(&url) {
