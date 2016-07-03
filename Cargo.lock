@@ -6,6 +6,7 @@ dependencies = [
  "orbfont 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbimage 0.1.1 (git+https://github.com/redox-os/orbimage.git)",
  "orbtk 0.1.2 (git+https://github.com/redox-os/orbtk.git)",
+ "ransid 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -217,6 +218,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "ransid"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-serialize"

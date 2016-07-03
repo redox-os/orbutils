@@ -6,11 +6,12 @@ extern crate orbclient;
 use orbclient::event;
 
 use std::env;
+use std::error::Error;
 use std::io::{Read, Write, self};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 use std::thread;
-use std::error::Error;
 
 use console::Console;
 
@@ -122,7 +123,7 @@ fn main() {
                     }
                 }
 
-                thread::sleep_ms(1);
+                thread::sleep(Duration::new(0, 1000000));
             }
         },
         Err(err) => {

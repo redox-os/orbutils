@@ -36,3 +36,4 @@ orbclient = "0.1"
 orbfont = "0.1"
 orbimage = { git = "https://github.com/redox-os/orbimage.git" }
 orbtk = { git = "https://github.com/redox-os/orbtk.git" }
+ransid = "0.1"
