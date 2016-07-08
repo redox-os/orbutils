@@ -6,7 +6,8 @@ extern crate orbimage;
 extern crate orbfont;
 
 use std::env;
-use std::fs::{self, File};
+use std::fs::File;
+use std::path::Path;
 use std::process::Command;
 use std::thread;
 
@@ -44,16 +45,26 @@ fn get_display_size() -> (i32, i32) {
 }
 
 fn get_packages() -> Vec<Package> {
-    let mut packages: Vec<Package> = Vec::new();
+    let read_dir = Path::new("/apps/").read_dir().expect("failed to read_dir on /apps/");
 
-    for entry_result in fs::read_dir("/apps/").unwrap() {
-        let entry = entry_result.unwrap();
-        if entry.file_type().unwrap().is_dir() {
-            packages.push(Package::from_path(&("/apps/".to_string() + entry.file_name().to_str().unwrap())));
+    let mut entries = vec![];
+    for dir in read_dir {
+        let dir = match dir {
+            Ok(x) => x,
+            Err(_) => continue,
+        };
+        let file_name = dir.file_name().to_string_lossy().into_owned();
+        if dir.file_type().expect("failed to get file_type").is_dir() {
+            entries.push(file_name);
         }
     }
 
-    packages.sort_by(|a, b| a.name.cmp(&b.name));
+    entries.sort();
+
+    let mut packages: Vec<Package> = Vec::new();
+    for entry in entries.iter() {
+        packages.push(Package::from_path(&format!("/apps/{}", entry)));
+    }
 
     packages
 }
