@@ -205,7 +205,7 @@ fn main() {
     } else {
         let packages = get_packages();
 
-        let start = Image::from_path("/ui/apps/kde.bmp").unwrap_or(Image::default());
+        let start = Image::from_path("/ui/start.png").unwrap_or(Image::default());
 
         let shutdown = Image::from_path("/ui/actions/system-shutdown.bmp").unwrap_or(Image::default());
 
