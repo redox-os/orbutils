@@ -10,7 +10,7 @@ use std::fs::File;
 use std::path::Path;
 use std::process::Command;
 
-use orbclient::{Color, EventOption, Window};
+use orbclient::{Color, EventOption, Window, K_ESC};
 use orbimage::Image;
 use orbfont::Font;
 
@@ -265,7 +265,7 @@ fn main() {
 
                             if i == selected {
                                 let start_h = packages.len() as u32 * 32;
-                                let mut start_window = Window::new(0, height - 32 - start_h as i32, 400, start_h, "Start").unwrap();
+                                let mut start_window = Window::new(0, height - 32 - start_h as i32, 400, start_h, "").unwrap();
                                 let font = Font::find(None, None, None).unwrap();
 
                                 draw_chooser(&mut start_window, &font, &packages, -1, -1);
@@ -286,6 +286,12 @@ fn main() {
                                                         }
                                                         y += 32;
                                                     }
+                                                }
+                                            },
+                                            EventOption::Key(key_event) => {
+                                                match key_event.scancode {
+                                                    K_ESC => break 'start_choosing,
+                                                    _ => ()
                                                 }
                                             },
                                             EventOption::Quit(_) => break 'start_choosing,
