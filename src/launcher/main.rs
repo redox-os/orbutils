@@ -9,7 +9,6 @@ use std::env;
 use std::fs::File;
 use std::path::Path;
 use std::process::Command;
-use std::thread;
 
 use orbclient::{Color, EventOption, Window};
 use orbimage::Image;
@@ -69,13 +68,29 @@ fn get_packages() -> Vec<Package> {
     packages
 }
 
-fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &Image, selected: i32){
+fn draw(window: &mut Window, packages: &Vec<Package>, start: &Image, shutdown: &Image, selected: i32){
     let w = window.width();
     let h = window.height();
     window.set(BAR_COLOR);
 
     let mut x = 0;
     let mut i = 0;
+
+    {
+        let y = h as isize - start.height() as isize;
+
+        if i == selected {
+            window.rect(x as i32, y as i32,
+                              start.width() as u32, start.height() as u32,
+                              BAR_HIGHLIGHT_COLOR);
+        }
+
+        start.draw(window, x as i32, y as i32);
+
+        x += start.width() as i32;
+        i += 1;
+    }
+
     for package in packages.iter() {
         let y = h as isize - package.icon.height() as isize;
 
@@ -87,20 +102,22 @@ fn draw(window: &mut Window, packages: &Vec<Package>, shutdown: &Image, selected
 
         package.icon.draw(window, x as i32, y as i32);
 
-        x = x + package.icon.width() as i32;
+        x += package.icon.width() as i32;
         i += 1;
     }
 
-    x = w as i32 - shutdown.width() as i32;
-    let y = h as isize - shutdown.height() as isize;
+    {
+        x = w as i32 - shutdown.width() as i32;
+        let y = h as isize - shutdown.height() as isize;
 
-    if i == selected {
-        window.rect(x as i32, y as i32,
-                          shutdown.width() as u32, shutdown.height() as u32,
-                          BAR_HIGHLIGHT_COLOR);
+        if i == selected {
+            window.rect(x as i32, y as i32,
+                              shutdown.width() as u32, shutdown.height() as u32,
+                              BAR_HIGHLIGHT_COLOR);
+        }
+
+        shutdown.draw(window, x as i32, y as i32);
     }
-
-    shutdown.draw(window, x as i32, y as i32);
 
     window.sync();
 }
@@ -176,8 +193,6 @@ fn main() {
                             _ => ()
                         }
                     }
-
-                    thread::yield_now();
                 }
             } else if let Some(package) = packages.get(0) {
                 if let Err(err) = Command::new(&package.binary).arg(&path).spawn() {
@@ -190,6 +205,8 @@ fn main() {
     } else {
         let packages = get_packages();
 
+        let start = Image::from_path("/ui/apps/kde.bmp").unwrap_or(Image::default());
+
         let shutdown = Image::from_path("/ui/actions/system-shutdown.bmp").unwrap_or(Image::default());
 
         let (width, height) = get_display_size();
@@ -197,7 +214,7 @@ fn main() {
 
         let mut selected = -1;
 
-        draw(&mut window, &packages, &shutdown, selected);
+        draw(&mut window, &packages, &start, &shutdown, selected);
         'running: loop {
             for event in window.events() {
                 match event.to_option() {
@@ -207,31 +224,78 @@ fn main() {
                         {
                             let mut x = 0;
                             let mut i = 0;
+
+                            {
+                                let y = window.height() as i32 - start.height() as i32;
+                                if mouse_event.y >= y && mouse_event.x >= x &&
+                                   mouse_event.x < x + start.width() as i32 {
+                                       now_selected = i;
+                                }
+                                x += start.width() as i32;
+                                i += 1;
+                            }
+
                             for package in packages.iter() {
                                 let y = window.height() as i32 - package.icon.height() as i32;
                                 if mouse_event.y >= y && mouse_event.x >= x &&
                                    mouse_event.x < x + package.icon.width() as i32 {
                                     now_selected = i;
                                 }
-                                x = x + package.icon.width() as i32;
+                                x += package.icon.width() as i32;
                                 i += 1;
                             }
 
-                            x = window.width() as i32 - shutdown.width() as i32;
-                            let y = window.height() as i32 - shutdown.height() as i32;
-                            if mouse_event.y >= y && mouse_event.x >= x &&
-                               mouse_event.x < x + shutdown.width() as i32 {
-                                   now_selected = i;
+                            {
+                                x = window.width() as i32 - shutdown.width() as i32;
+                                let y = window.height() as i32 - shutdown.height() as i32;
+                                if mouse_event.y >= y && mouse_event.x >= x &&
+                                   mouse_event.x < x + shutdown.width() as i32 {
+                                       now_selected = i;
+                                }
                             }
                         }
 
                         if now_selected != selected {
                             selected = now_selected;
-                            draw(&mut window, &packages, &shutdown, selected);
+                            draw(&mut window, &packages, &start, &shutdown, selected);
                         }
 
                         if mouse_event.left_button {
                             let mut i = 0;
+
+                            if i == selected {
+                                let start_h = packages.len() as u32 * 32;
+                                let mut start_window = Window::new(0, height - 32 - start_h as i32, 400, start_h, "Start").unwrap();
+                                let font = Font::find(None, None, None).unwrap();
+
+                                draw_chooser(&mut start_window, &font, &packages, -1, -1);
+                                'start_choosing: loop {
+                                    for event in start_window.events() {
+                                        match event.to_option() {
+                                            EventOption::Mouse(mouse_event) => {
+                                                draw_chooser(&mut start_window, &font, &packages, mouse_event.x, mouse_event.y);
+
+                                                if mouse_event.left_button {
+                                                    let mut y = 0;
+                                                    for package in packages.iter() {
+                                                        if mouse_event.y >= y && mouse_event.y < y + 32 {
+                                                            if let Err(err) = Command::new(&package.binary).spawn() {
+                                                                println!("{}: Failed to launch: {}", package.binary, err);
+                                                            }
+                                                            break 'start_choosing;
+                                                        }
+                                                        y += 32;
+                                                    }
+                                                }
+                                            },
+                                            EventOption::Quit(_) => break 'start_choosing,
+                                            _ => ()
+                                        }
+                                    }
+                                }
+                            }
+                            i += 1;
+
                             for package in packages.iter() {
                                 if i == selected {
                                     if let Err(err) = Command::new(&package.binary).spawn() {
@@ -250,8 +314,6 @@ fn main() {
                     _ => ()
                 }
             }
-
-            thread::yield_now();
         }
     }
 }
