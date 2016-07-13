@@ -27,7 +27,7 @@ fn main() {
     env::set_var("LINES", format!("{}", height/16));
     match Command::new(&shell).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn() {
         Ok(process) => {
-            let output_mutex = Arc::new(Mutex::new(Vec::new()));
+            let output_mutex = Arc::new(Mutex::new(Some(Vec::new())));
 
             {
                 let mut stdout = process.stdout.unwrap();
@@ -39,11 +39,13 @@ fn main() {
                         let mut buf = [0; 4096];
                         match stdout.read(&mut buf) {
                             Ok(0) => break 'stdout,
-                            Ok(count) => {
-                                if let Ok(mut stdout_output) = stdout_output_mutex.lock() {
-                                    stdout_output.extend_from_slice(&buf[..count]);
-                                } else {
-                                    let _ = term_stderr.write(b"failed to lock stdout output mutex.\n");
+                            Ok(count) => match stdout_output_mutex.lock() {
+                                Ok(mut stdout_output_option) => match *stdout_output_option {
+                                    Some(ref mut stdout_output) => stdout_output.extend_from_slice(&buf[..count]),
+                                    None => break 'stdout
+                                },
+                                Err(_) => {
+                                    let _ = term_stderr.write(b"failed to lock stdout output mutex\n");
                                     break 'stdout;
                                 }
                             },
@@ -55,6 +57,7 @@ fn main() {
                             }
                         }
                     }
+                    stdout_output_mutex.lock().unwrap().take();
                 });
             }
 
@@ -67,13 +70,14 @@ fn main() {
                         let mut buf = [0; 4096];
                         match stderr.read(&mut buf) {
                             Ok(0) => break 'stderr,
-                            Ok(count) => {
-                                match stderr_output_mutex.lock() {
-                                    Ok(mut stderr_output) => stderr_output.extend_from_slice(&buf[..count]),
-                                    Err(_) => {
-                                        let _ = term_stderr.write(b"failed to lock stderr output mutex.\n");
-                                        break 'stderr;
-                                    }
+                            Ok(count) => match stderr_output_mutex.lock() {
+                                Ok(mut stderr_output_option) => match *stderr_output_option {
+                                    Some(ref mut stderr_output) => stderr_output.extend_from_slice(&buf[..count]),
+                                    None => break 'stderr
+                                },
+                                Err(_) => {
+                                    let _ = term_stderr.write(b"failed to lock stdout output mutex\n");
+                                    break 'stderr;
                                 }
                             },
                             Err(err) => {
@@ -84,6 +88,7 @@ fn main() {
                             }
                         }
                     }
+                    stderr_output_mutex.lock().unwrap().take();
                 });
             }
 
@@ -91,16 +96,17 @@ fn main() {
             let mut console = Console::new(width, height);
             'events: loop {
                 match output_mutex.lock() {
-                    Ok(mut output) => {
-                        if !output.is_empty() {
+                    Ok(mut output_option) => match *output_option {
+                        Some(ref mut output) => if !output.is_empty() {
                             console.write(&output);
                             output.clear();
-                        }
+                        },
+                        None => break 'events
                     },
                     Err(_) => {
                         let term_stderr = io::stderr();
                         let mut term_stderr = term_stderr.lock();
-                        let _ = term_stderr.write(b"failed to lock stdout mutex.\n");
+                        let _ = term_stderr.write(b"failed to lock stdout mutex\n");
                         break 'events;
                     }
                 }
@@ -125,6 +131,8 @@ fn main() {
 
                 thread::sleep(Duration::new(0, 1000000));
             }
+
+            output_mutex.lock().unwrap().take();
         },
         Err(err) => {
             let term_stderr = io::stderr();
