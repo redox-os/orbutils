@@ -23,7 +23,7 @@ impl Console {
         Console {
             window: window,
             inner: ransid::Console::new(width as usize/8, height as usize/16),
-            font: Font::find(Some("Mono"), None, Some("Regular")).unwrap(),
+            font: Font::find(Some("Mono"), None, None).unwrap(),
             font_bold: Font::find(Some("Mono"), None, Some("Bold")).unwrap(),
             command: String::new(),
         }

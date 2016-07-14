@@ -3,7 +3,7 @@ name = "orbutils"
 version = "0.1.10"
 dependencies = [
  "orbclient 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbfont 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbimage 0.1.1 (git+https://github.com/redox-os/orbimage.git)",
  "orbtk 0.1.3 (git+https://github.com/redox-os/orbtk.git)",
  "ransid 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -162,7 +162,7 @@ dependencies = [
 
 [[package]]
 name = "orbfont"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "orbclient 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -184,7 +184,7 @@ version = "0.1.3"
 source = "git+https://github.com/redox-os/orbtk.git#3af3d169febb163457894f79bd1ce7df8fbc9359"
 dependencies = [
  "orbclient 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbfont 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbimage 0.1.1 (git+https://github.com/redox-os/orbimage.git)",
 ]
 
