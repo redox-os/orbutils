@@ -102,18 +102,20 @@ impl Console {
                         data: block.bg.data
                     });
                     if block.c != ' ' {
-                        match block.style {
-                            ransid::Style::Normal => {
-                                self.font.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
-                                    data: block.fg.data
-                                });
-                            },
-                            ransid::Style::Bold => {
-                                self.font_bold.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
-                                    data: block.fg.data
-                                });
-                            }
+                        if block.bold {
+                            self.font_bold.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
+                                data: block.fg.data
+                            });
+                        } else {
+                            self.font.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
+                                data: block.fg.data
+                            });
                         }
+                    }
+                    if block.underlined {
+                        self.window.rect(x as i32 * 8, y as i32 * 16 + 15, 8, 1, Color {
+                            data: block.fg.data
+                        });
                     }
                 }
             }
