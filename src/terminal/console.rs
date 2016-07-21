@@ -113,7 +113,7 @@ impl Console {
                         }
                     }
                     if block.underlined {
-                        self.window.rect(x as i32 * 8, y as i32 * 16 + 15, 8, 1, Color {
+                        self.window.rect(x as i32 * 8, y as i32 * 16 + 14, 8, 1, Color {
                             data: block.fg.data
                         });
                     }
