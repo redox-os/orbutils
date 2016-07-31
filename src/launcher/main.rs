@@ -207,7 +207,7 @@ fn main() {
 
         let start = Image::from_path("/ui/start.png").unwrap_or(Image::default());
 
-        let shutdown = Image::from_path("/ui/actions/system-shutdown.bmp").unwrap_or(Image::default());
+        let shutdown = Image::from_path("/ui/actions/system-shutdown.png").unwrap_or(Image::default());
 
         let (width, height) = get_display_size();
         let mut window = Window::new(0, height - 32, width as u32, 32, "").unwrap();
