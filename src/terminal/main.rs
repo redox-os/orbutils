@@ -59,7 +59,7 @@ fn main() {
                             Ok(0) => break 'stdout,
                             Ok(count) => match stdout_output_mutex.lock() {
                                 Ok(mut stdout_output_option) => match *stdout_output_option {
-                                    Some(ref mut stdout_output) => stdout_output.extend_from_slice(&buf[..count]),
+                                    Some(ref mut stdout_output) => stdout_output.push((buf[0], Vec::from(&buf[1..count]))),
                                     None => break 'stdout
                                 },
                                 Err(_) => {
@@ -83,9 +83,11 @@ fn main() {
             'events: loop {
                 match output_mutex.lock() {
                     Ok(mut output_option) => match *output_option {
-                        Some(ref mut output) => if !output.is_empty() {
-                            console.write(&output);
-                            output.clear();
+                        Some(ref mut output) => for packet in output.drain(..) {
+                            if packet.0 == 1 {
+                                console.inner.redraw = true;
+                            }
+                            console.write(&packet.1)
                         },
                         None => break 'events
                     },

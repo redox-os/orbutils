@@ -88,8 +88,7 @@ impl Console {
 
     pub fn write(&mut self, bytes: &[u8]) {
         self.inner.write(bytes);
-        //TODO: if self.inner.redraw
-        {
+        if self.inner.redraw {
             self.inner.redraw = false;
 
             self.window.set(Color {
