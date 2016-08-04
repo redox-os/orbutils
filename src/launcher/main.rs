@@ -23,26 +23,6 @@ const BAR_HIGHLIGHT_COLOR: Color = Color::rgb(80, 86, 102);
 const TEXT_COLOR: Color = Color::rgb(204, 210, 224);
 const TEXT_HIGHLIGHT_COLOR: Color = Color::rgb(235, 241, 255);
 
-//TODO: Implement display size in orbclient
-#[cfg(target_os = "redox")]
-fn get_display_size() -> (i32, i32) {
-    match File::open("display:") {
-        Ok(display) => {
-            let path = display.path().map(|path| path.into_os_string().into_string().unwrap_or(String::new())).unwrap_or(String::new());
-            let res = path.split(":").nth(1).unwrap_or("");
-            let width = res.split("/").nth(0).unwrap_or("").parse::<i32>().unwrap_or(0);
-            let height = res.split("/").nth(1).unwrap_or("").parse::<i32>().unwrap_or(0);
-            (width, height)
-        },
-        Err(err) => panic!("launcher: failed to get display size: {}", err)
-    }
-}
-
-#[cfg(not(target_os = "redox"))]
-fn get_display_size() -> (i32, i32) {
-    panic!("launcher: failed to get display size")
-}
-
 fn get_packages() -> Vec<Package> {
     let read_dir = Path::new("/apps/").read_dir().expect("failed to read_dir on /apps/");
 
@@ -209,8 +189,8 @@ fn main() {
 
         let shutdown = Image::from_path("/ui/actions/system-shutdown.png").unwrap_or(Image::default());
 
-        let (width, height) = get_display_size();
-        let mut window = Window::new(0, height - 32, width as u32, 32, "").unwrap();
+        let (width, height) = orbclient::get_display_size().unwrap();
+        let mut window = Window::new(0, height as i32 - 32, width, 32, "").unwrap();
 
         let mut selected = -1;
 
@@ -265,7 +245,7 @@ fn main() {
 
                             if i == selected {
                                 let start_h = packages.len() as u32 * 32;
-                                let mut start_window = Window::new(0, height - 32 - start_h as i32, 400, start_h, "").unwrap();
+                                let mut start_window = Window::new(0, height as i32 - 32 - start_h as i32, 400, start_h, "").unwrap();
                                 let font = Font::find(None, None, None).unwrap();
 
                                 draw_chooser(&mut start_window, &font, &packages, -1, -1);

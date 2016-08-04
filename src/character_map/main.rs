@@ -34,12 +34,12 @@ fn error_msg(window: &mut Window, msg: &str) {
 }
 
 fn main() {
-    let url = match env::args().nth(1) {
-        Some(arg) => arg,
-        None => "/ui/fonts/Mono/Fira/Regular.ttf".to_string(),
+    let (title, font_res) = match env::args().nth(1) {
+        Some(arg) => (arg.clone(), Font::from_path(&arg)),
+        None => ("Default Font".to_string(), Font::find(None, None, None)),
     };
 
-    match Font::from_path(&url) {
+    match font_res {
         Ok(font) => {
             let lines = [
                 font.render("ABCDEFGHIJK", 64.0),
@@ -59,7 +59,7 @@ fn main() {
                                          -1,
                                          max(320, width),
                                          max(32, height),
-                                         &("Character Map (".to_string() + &url + ")"))
+                                         &("Character Map (".to_string() + &title + ")"))
                                  .unwrap();
             window.set(Color::rgb(255, 255, 255));
             let mut y = 0;
@@ -75,7 +75,7 @@ fn main() {
                                          -1,
                                          320,
                                          32,
-                                         &("Character Map (".to_string() + &url + ")"))
+                                         &("Character Map (".to_string() + &title + ")"))
                                  .unwrap();
             window.set(Color::rgb(0, 0, 0));
             error_msg(&mut window, &format!("{}", err));
