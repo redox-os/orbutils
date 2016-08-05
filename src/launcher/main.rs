@@ -185,9 +185,9 @@ fn main() {
     } else {
         let packages = get_packages();
 
-        let start = Image::from_path("/ui/start.png").unwrap_or(Image::default());
+        let start = Image::from_path("/ui/icons/start.png").unwrap_or(Image::default());
 
-        let shutdown = Image::from_path("/ui/actions/system-shutdown.png").unwrap_or(Image::default());
+        let shutdown = Image::from_path("/ui/icons/actions/system-shutdown.png").unwrap_or(Image::default());
 
         let (width, height) = orbclient::get_display_size().unwrap();
         let mut window = Window::new(0, height as i32 - 32, width, 32, "").unwrap();
