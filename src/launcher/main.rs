@@ -274,6 +274,9 @@ fn main() {
                                                     _ => ()
                                                 }
                                             },
+                                            EventOption::Focus(focus_event) => if ! focus_event.focused {
+                                                break 'start_choosing;
+                                            },
                                             EventOption::Quit(_) => break 'start_choosing,
                                             _ => ()
                                         }
