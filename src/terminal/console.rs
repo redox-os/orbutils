@@ -13,6 +13,7 @@ pub struct Console {
     pub inner: ransid::Console,
     pub font: Font,
     pub font_bold: Font,
+    pub focused: bool,
     pub command: String,
 }
 
@@ -25,6 +26,7 @@ impl Console {
             inner: ransid::Console::new(width as usize/8, height as usize/16),
             font: Font::find(Some("Mono"), None, None).unwrap(),
             font_bold: Font::find(Some("Mono"), None, Some("Bold")).unwrap(),
+            focused: true,
             command: String::new(),
         }
     }
@@ -80,6 +82,11 @@ impl Console {
                     }
                 }
             },
+            EventOption::Focus(focus_event) => if self.focused != focus_event.focused {
+                self.focused = focus_event.focused;
+                self.inner.redraw = true;
+                self.write(&[]);
+            },
             _ => (),
         }
 
@@ -122,6 +129,11 @@ impl Console {
                 self.window.rect(self.inner.x as i32 * 8, self.inner.y as i32 * 16, 8, 16, Color {
                     data: self.inner.foreground.data
                 });
+                if ! self.focused {
+                    self.window.rect(self.inner.x as i32 * 8 + 1, self.inner.y as i32 * 16 + 1, 6, 14, Color {
+                        data: self.inner.background.data
+                    });
+                }
             }
             self.window.sync();
         }
