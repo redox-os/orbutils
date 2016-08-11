@@ -20,6 +20,10 @@ name = "editor"
 path = "src/editor/main.rs"
 
 [[bin]]
+name = "file_manager"
+path = "src/file_manager/main.rs"
+
+[[bin]]
 name = "launcher"
 path = "src/launcher/main.rs"
 
