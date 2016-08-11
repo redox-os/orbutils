@@ -98,41 +98,40 @@ impl Console {
         if self.inner.redraw {
             self.inner.redraw = false;
 
-            self.window.set(Color {
-                data: self.inner.background.data
-            });
             for y in 0..self.inner.h {
-                for x in 0..self.inner.w {
-                    let block = self.inner.display[y * self.inner.w + x];
-                    self.window.rect(x as i32 * 8, y as i32 * 16, 8, 16, Color {
-                        data: block.bg.data
+                if self.inner.changed[y] {
+                    self.inner.changed[y] = false;
+
+                    self.window.rect(0, y as i32 * 16, self.inner.h as u32 * 8, 16, Color {
+                        data: self.inner.background.data
                     });
-                    if block.c != ' ' {
-                        if block.bold {
-                            self.font_bold.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
-                                data: block.fg.data
-                            });
-                        } else {
-                            self.font.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
-                                data: block.fg.data
+                    for x in 0..self.inner.w {
+                        let block = self.inner.display[y * self.inner.w + x];
+                        let (bg, fg) = if self.inner.cursor && self.inner.y == y && self.inner.x == x {
+                            (block.fg.data, block.bg.data)
+                        }else{
+                            (block.bg.data, block.fg.data)
+                        };
+                        self.window.rect(x as i32 * 8, y as i32 * 16, 8, 16, Color {
+                            data: bg
+                        });
+                        if block.c != ' ' {
+                            if block.bold {
+                                self.font_bold.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
+                                    data: fg
+                                });
+                            } else {
+                                self.font.render(&block.c.to_string(), 16.0).draw(&mut self.window, x as i32 * 8, y as i32 * 16, Color {
+                                    data: fg
+                                });
+                            }
+                        }
+                        if block.underlined {
+                            self.window.rect(x as i32 * 8, y as i32 * 16 + 14, 8, 1, Color {
+                                data: fg
                             });
                         }
                     }
-                    if block.underlined {
-                        self.window.rect(x as i32 * 8, y as i32 * 16 + 14, 8, 1, Color {
-                            data: block.fg.data
-                        });
-                    }
-                }
-            }
-            if self.inner.cursor {
-                self.window.rect(self.inner.x as i32 * 8, self.inner.y as i32 * 16, 8, 16, Color {
-                    data: self.inner.foreground.data
-                });
-                if ! self.focused {
-                    self.window.rect(self.inner.x as i32 * 8 + 1, self.inner.y as i32 * 16 + 1, 6, 14, Color {
-                        data: self.inner.background.data
-                    });
                 }
             }
             self.window.sync();
