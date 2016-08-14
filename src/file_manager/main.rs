@@ -1,4 +1,5 @@
 #![deny(warnings)]
+#![feature(inclusive_range_syntax)]
 
 extern crate orbclient;
 extern crate orbimage;
@@ -104,10 +105,35 @@ enum FileManagerCommand {
     Quit,
 }
 
+#[derive(PartialEq)]
+enum SortPredicate {
+    Name,
+    Size,
+    Type,
+}
+
+#[derive(PartialEq)]
+enum SortDirection {
+    Asc,
+    Desc,
+}
+
+impl SortDirection {
+    fn invert(&mut self) {
+        match *self {
+            SortDirection::Asc => *self = SortDirection::Desc,
+            SortDirection::Desc => *self = SortDirection::Asc,
+        }
+    }
+}
+
 pub struct FileManager {
     file_types_info: FileTypesInfo,
     files: Vec<(String, String)>,
     selected: isize,
+    column: [i32; 2], // The x-coordinates of the "size" and "type" columns
+    sort_predicate: SortPredicate,
+    sort_direction: SortDirection,
     last_mouse_event: MouseEvent,
     window: Window,
     font: Font,
@@ -129,6 +155,9 @@ impl FileManager {
             file_types_info: FileTypesInfo::new(),
             files: Vec::new(),
             selected: -1,
+            column: [0, 0],
+            sort_predicate: SortPredicate::Name,
+            sort_direction: SortDirection::Asc,
             last_mouse_event: MouseEvent {
                 x: 0,
                 y: 0,
@@ -143,43 +172,46 @@ impl FileManager {
 
     fn draw_content(&mut self) {
         self.window.set(Color::rgb(255, 255, 255));
-        let column = {
-            let mut tmp = [0; 2];
-            for file in self.files.iter() {
-                if tmp[0] < file.0.len() {
-                    tmp[0] = file.0.len();
-                }
-                if tmp[1] < file.1.len() {
-                    tmp[1] = file.1.len();
-                }
-            }
-
-            tmp[0] += 1;
-
-            tmp[1] += tmp[0] + 1;
-
-            tmp
-        };
-        self.draw_header_row(column);
-        self.draw_file_list(column);
+        self.draw_header_row();
+        self.draw_file_list();
         self.window.sync();
     }
 
-    fn draw_header_row(&mut self, column: [usize; 2]) {
+    fn draw_sort_direction_arrow(&mut self, x: i32, y: i32) {
+        let color = Color::rgb(140, 140, 140);
+        let tip_y = match self.sort_direction {
+            SortDirection::Asc => 2,
+            SortDirection::Desc => -2,
+        };
+        for dy in -1...0 {
+            for dx in -2...2 { self.window.pixel(x + dx, y + dy - tip_y, color); }
+            for dx in -1...1 { self.window.pixel(x + dx, y + dy, color); }
+            self.window.pixel(x, y + dy + tip_y, color);
+        }
+    }
+
+    fn draw_header_row(&mut self) {
         // TODO: Remove duplication between this function and draw_file_list()
         let row = 0;
 
         let mut col = 0;
         self.font.render("Name", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
-        col = column[0] as u32;
+        col = self.column[0];
         self.font.render("Size", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
-        col = column[1] as u32;
+        col = self.column[1];
         self.font.render("Type", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+
+        let column = self.column;
+        match self.sort_predicate {
+            SortPredicate::Name => self.draw_sort_direction_arrow(80, 16),
+            SortPredicate::Size => self.draw_sort_direction_arrow(8 * column[0] as i32 + 80, 16),
+            SortPredicate::Type => self.draw_sort_direction_arrow(8 * column[1] as i32 + 80, 16),
+        }
     }
 
-    fn draw_file_list(&mut self, column: [usize; 2]) {
+    fn draw_file_list(&mut self) {
         let mut i = 0;
         let mut row = 1; // Start at 1 because the header row is 0
         for file in self.files.iter() {
@@ -198,10 +230,10 @@ impl FileManager {
             let mut col = 0;
             self.font.render(&file.0, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
-            col = column[0] as u32;
+            col = self.column[0];
             self.font.render(&file.1, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
-            col = column[1] as u32;
+            col = self.column[1];
             let description = self.file_types_info.description_for(&file.0);
             self.font.render(&description, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
@@ -304,9 +336,22 @@ impl FileManager {
                     }
                 }
 
-                self.files.sort_by(|a, b| {
-                    a.0.cmp(&b.0)
-                });
+                self.sort_files();
+
+                self.column = {
+                    let mut tmp = [0; 2];
+                    for file in self.files.iter() {
+                        if tmp[0] < file.0.len() {
+                            tmp[0] = file.0.len();
+                        }
+                        if tmp[1] < file.1.len() {
+                            tmp[1] = file.1.len();
+                        }
+                    }
+                    tmp[0] += 1;
+                    tmp[1] += tmp[0] + 1;
+                    [tmp[0] as i32, tmp[1] as i32]
+                };
 
                 height = cmp::max(height, (self.files.len() + 1) * 32) // +1 for the header row
             },
@@ -324,6 +369,20 @@ impl FileManager {
         self.window = Window::new(x, y, w, h, &path).unwrap();
 
         self.draw_content();
+    }
+
+    fn sort_files(&mut self) {
+        match self.sort_predicate {
+            SortPredicate::Name => self.files.sort_by(|a, b| a.0.cmp(&b.0)),
+            SortPredicate::Size => self.files.sort_by(|a, b| a.1.cmp(&b.1)),
+            SortPredicate::Type => {
+                let file_types_info = &self.file_types_info;
+                self.files.sort_by_key(|file| file_types_info.description_for(&file.0).to_lowercase())
+            },
+        }
+        if self.sort_direction == SortDirection::Desc {
+            self.files.reverse();
+        }
     }
 
     fn event_loop(&mut self) -> Vec<FileManagerCommand> {
@@ -418,8 +477,29 @@ impl FileManager {
                     }
 
                     if mouse_event.left_button {
-                        if self.last_mouse_event.x == mouse_event.x &&
-                           self.last_mouse_event.y == mouse_event.y {
+                        if mouse_event.y < 32 { // Header row clicked
+                            if mouse_event.x < 8 * self.column[0] as i32 + 40 {
+                                if self.sort_predicate != SortPredicate::Name {
+                                    self.sort_predicate = SortPredicate::Name;
+                                } else {
+                                    self.sort_direction.invert();
+                                }
+                            } else if mouse_event.x < 8 * self.column[1] as i32 + 40 {
+                                if self.sort_predicate != SortPredicate::Size {
+                                    self.sort_predicate = SortPredicate::Size;
+                                } else {
+                                    self.sort_direction.invert();
+                                }
+                            } else {
+                                if self.sort_predicate != SortPredicate::Type {
+                                    self.sort_predicate = SortPredicate::Type;
+                                } else {
+                                    self.sort_direction.invert();
+                                }
+                            }
+                            self.sort_files();
+                        } else if self.last_mouse_event.x == mouse_event.x &&
+                                  self.last_mouse_event.y == mouse_event.y {
                             if self.selected >= 0 && self.selected < self.files.len() as isize {
                                 if let Some(file) = self.files.get(self.selected as usize) {
                                     if file.0.ends_with('/') {
