@@ -143,9 +143,6 @@ impl FileManager {
 
     fn draw_content(&mut self) {
         self.window.set(Color::rgb(255, 255, 255));
-
-        let mut i = 0;
-        let mut row = 0;
         let column = {
             let mut tmp = [0; 2];
             for file in self.files.iter() {
@@ -163,6 +160,28 @@ impl FileManager {
 
             tmp
         };
+        self.draw_header_row(column);
+        self.draw_file_list(column);
+        self.window.sync();
+    }
+
+    fn draw_header_row(&mut self, column: [usize; 2]) {
+        // TODO: Remove duplication between this function and draw_file_list()
+        let row = 0;
+
+        let mut col = 0;
+        self.font.render("Name", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+
+        col = column[0] as u32;
+        self.font.render("Size", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+
+        col = column[1] as u32;
+        self.font.render("Type", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+    }
+
+    fn draw_file_list(&mut self, column: [usize; 2]) {
+        let mut i = 0;
+        let mut row = 1; // Start at 1 because the header row is 0
         for file in self.files.iter() {
             if i == self.selected {
                 let width = self.window.width();
@@ -189,8 +208,6 @@ impl FileManager {
             row += 1;
             i += 1;
         }
-
-        self.window.sync();
     }
 
     fn get_parent_directory() -> Option<String> {
@@ -291,9 +308,7 @@ impl FileManager {
                     a.0.cmp(&b.0)
                 });
 
-                if height < self.files.len() * 32 {
-                    height = self.files.len() * 32;
-                }
+                height = cmp::max(height, (self.files.len() + 1) * 32) // +1 for the header row
             },
             Err(err) => println!("failed to readdir {}: {}", path, err)
         }
@@ -377,8 +392,8 @@ impl FileManager {
                     for file in self.files.iter() {
                         let mut col = 0;
                         for c in file.0.chars() {
-                            if mouse_event.y >= 32 * row as i32 &&
-                               mouse_event.y < 32 * row as i32 + 32 {
+                            if mouse_event.y >= 32 * (row as i32 + 1) && // +1 for the header row
+                               mouse_event.y < 32 * (row as i32 + 2) {
                                 self.selected = i;
                             }
 
