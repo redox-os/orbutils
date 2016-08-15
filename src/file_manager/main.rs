@@ -16,6 +16,45 @@ use orbclient::{event, Color, EventOption, MouseEvent, Window};
 use orbimage::Image;
 use orbfont::Font;
 
+struct FileInfo {
+    name: String,
+    size: u64,
+    size_str: String,
+    is_dir: bool,
+}
+
+impl FileInfo {
+    fn new(name: String, is_dir: bool) -> FileInfo {
+        let (size, size_str) = {
+            if is_dir {
+                FileManager::get_num_entries(&name)
+            } else {
+                match fs::metadata(&name) {
+                    Ok(metadata) => {
+                        let size = metadata.len();
+                        if size >= 1_000_000_000 {
+                            (size, format!("{:.1} GB", (size as u64) / 1_000_000_000))
+                        } else if size >= 1_000_000 {
+                            (size, format!("{:.1} MB", (size as u64) / 1_000_000))
+                        } else if size >= 1_000 {
+                            (size, format!("{:.1} KB", (size as u64) / 1_000))
+                        } else {
+                            (size, format!("{:.1} bytes", size))
+                        }
+                    }
+                    Err(err) => (0, format!("Failed to open: {}", err)),
+                }
+            }
+        };
+        FileInfo {
+            name: name,
+            size: size,
+            size_str: size_str,
+            is_dir: is_dir,
+        }
+    }
+}
+
 struct FileType {
     description: &'static str,
     icon: Image,
@@ -129,7 +168,7 @@ impl SortDirection {
 
 pub struct FileManager {
     file_types_info: FileTypesInfo,
-    files: Vec<(String, String)>,
+    files: Vec<FileInfo>,
     selected: isize,
     column: [i32; 2], // The x-coordinates of the "size" and "type" columns
     sort_predicate: SortPredicate,
@@ -224,17 +263,17 @@ impl FileManager {
                                  Color::rgba(224, 224, 224, 255));
             }
 
-            let icon = self.file_types_info.icon_for(&file.0);
+            let icon = self.file_types_info.icon_for(&file.name);
             icon.draw(&mut self.window, 0, 32 * row as i32);
 
             let mut col = 0;
-            self.font.render(&file.0, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&file.name, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
             col = self.column[0];
-            self.font.render(&file.1, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&file.size_str, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
             col = self.column[1];
-            let description = self.file_types_info.description_for(&file.0);
+            let description = self.file_types_info.description_for(&file.name);
             self.font.render(&description, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
             row += 1;
@@ -254,15 +293,15 @@ impl FileManager {
         None
     }
 
-    fn get_num_entries(path: &str) -> String {
+    fn get_num_entries(path: &str) -> (u64, String) {
         let count = match fs::read_dir(path) {
             Ok(entry_readdir) => entry_readdir.count(),
             Err(_) => 0,
         };
         if count == 1 {
-            "1 entry".to_string()
+            (count as u64, "1 entry".to_string())
         } else {
-            format!("{} entries", count)
+            (count as u64, format!("{} entries", count))
         }
     }
 
@@ -279,8 +318,8 @@ impl FileManager {
                 self.files.clear();
 
                 // check to see if parent directory exists
-                if let Some(parent_dir) = FileManager::get_parent_directory() {
-                    self.files.push(("../".to_string(), FileManager::get_num_entries(&parent_dir)));
+                if let Some(_) = FileManager::get_parent_directory() {
+                    self.files.push(FileInfo::new("../".to_string(), true));
                 }
 
                 for entry_result in readdir {
@@ -306,30 +345,13 @@ impl FileManager {
                                 }
                             };
 
-                            self.files.push((entry_path.clone(), if directory {
-                                FileManager::get_num_entries(&(path.to_string() + &entry_path))
-                            } else {
-                                match fs::metadata(&entry_path) {
-                                    Ok(metadata) => {
-                                        let size = metadata.len();
-                                        if size >= 1_000_000_000 {
-                                            format!("{:.1} GB", (size as u64) / 1_000_000_000)
-                                        } else if size >= 1_000_000 {
-                                            format!("{:.1} MB", (size as u64) / 1_000_000)
-                                        } else if size >= 1_000 {
-                                            format!("{:.1} KB", (size as u64) / 1_000)
-                                        } else {
-                                            format!("{:.1} bytes", size)
-                                        }
-                                    }
-                                    Err(err) => format!("Failed to open: {}", err),
-                                }
-                            }));
+                            self.files.push(FileInfo::new(entry_path.clone(), directory));
+
                             // Unwrapping the last file size will not panic since it has
                             // been at least pushed once in the vector
                             let description = self.file_types_info.description_for(&entry_path);
                             width[0] = cmp::max(width[0], 48 + (entry_path.len()) * 8);
-                            width[1] = cmp::max(width[1], 8 + (self.files.last().unwrap().1.len()) * 8);
+                            width[1] = cmp::max(width[1], 8 + (self.files.last().unwrap().size_str.len()) * 8);
                             width[2] = cmp::max(width[2], 8 + (description.len()) * 8);
                         },
                         Err(err) => println!("failed to read dir entry: {}", err)
@@ -341,11 +363,11 @@ impl FileManager {
                 self.column = {
                     let mut tmp = [0; 2];
                     for file in self.files.iter() {
-                        if tmp[0] < file.0.len() {
-                            tmp[0] = file.0.len();
+                        if tmp[0] < file.name.len() {
+                            tmp[0] = file.name.len();
                         }
-                        if tmp[1] < file.1.len() {
-                            tmp[1] = file.1.len();
+                        if tmp[1] < file.size_str.len() {
+                            tmp[1] = file.size_str.len();
                         }
                     }
                     tmp[0] += 1;
@@ -373,11 +395,18 @@ impl FileManager {
 
     fn sort_files(&mut self) {
         match self.sort_predicate {
-            SortPredicate::Name => self.files.sort_by(|a, b| a.0.cmp(&b.0)),
-            SortPredicate::Size => self.files.sort_by(|a, b| a.1.cmp(&b.1)),
+            SortPredicate::Name => self.files.sort_by(|a, b| a.name.cmp(&b.name)),
+            SortPredicate::Size => {
+                self.files.sort_by(|a, b|
+                    if a.is_dir != b.is_dir {
+                        b.is_dir.cmp(&a.is_dir) // Sort directories first
+                    } else {
+                        a.size.cmp(&b.size)
+                    })
+            },
             SortPredicate::Type => {
                 let file_types_info = &self.file_types_info;
-                self.files.sort_by_key(|file| file_types_info.description_for(&file.0).to_lowercase())
+                self.files.sort_by_key(|file| file_types_info.description_for(&file.name).to_lowercase())
             },
         }
         if self.sort_direction == SortDirection::Desc {
@@ -416,10 +445,10 @@ impl FileManager {
                                            self.selected < self.files.len() as isize {
                                             match self.files.get(self.selected as usize) {
                                                 Some(file) => {
-                                                    if file.0.ends_with('/') {
-                                                        commands.push(FileManagerCommand::ChangeDir(file.0.clone()));
+                                                    if file.name.ends_with('/') {
+                                                        commands.push(FileManagerCommand::ChangeDir(file.name.clone()));
                                                     } else {
-                                                        commands.push(FileManagerCommand::Execute(file.0.clone()));
+                                                        commands.push(FileManagerCommand::Execute(file.name.clone()));
                                                     }
                                                 }
                                                 None => (),
@@ -429,7 +458,7 @@ impl FileManager {
                                     _ => {
                                         let mut i = 0;
                                         for file in self.files.iter() {
-                                            if file.0.starts_with(key_event.character) {
+                                            if file.name.starts_with(key_event.character) {
                                                 self.selected = i;
                                                 break;
                                             }
@@ -450,7 +479,7 @@ impl FileManager {
                     let mut row = 0;
                     for file in self.files.iter() {
                         let mut col = 0;
-                        for c in file.0.chars() {
+                        for c in file.name.chars() {
                             if mouse_event.y >= 32 * (row as i32 + 1) && // +1 for the header row
                                mouse_event.y < 32 * (row as i32 + 2) {
                                 self.selected = i;
@@ -502,10 +531,10 @@ impl FileManager {
                                   self.last_mouse_event.y == mouse_event.y {
                             if self.selected >= 0 && self.selected < self.files.len() as isize {
                                 if let Some(file) = self.files.get(self.selected as usize) {
-                                    if file.0.ends_with('/') {
-                                        commands.push(FileManagerCommand::ChangeDir(file.0.clone()));
+                                    if file.name.ends_with('/') {
+                                        commands.push(FileManagerCommand::ChangeDir(file.name.clone()));
                                     } else {
-                                        commands.push(FileManagerCommand::Execute(file.0.clone()));
+                                        commands.push(FileManagerCommand::Execute(file.name.clone()));
                                     }
                                 }
                             }
