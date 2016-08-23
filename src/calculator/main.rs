@@ -2,7 +2,7 @@
 
 extern crate orbtk;
 
-use orbtk::{Button, Point, Rect, TextBox, Window};
+use orbtk::{Button, Point, Rect, TextBox, Window, WidgetPlace};
 use orbtk::callback::{Click, Enter};
 use orbtk::place::Place;
 
@@ -279,7 +279,7 @@ fn eval(input: &str) -> String {
 }
 
 fn main(){
-    let mut window = Window::new(Rect::new(100, 100, 148, 200), "Calculator");
+    let window = Window::new(Rect::new(100, 100, 148, 200), "Calculator");
 
     {
         let text_box = TextBox::new()
@@ -291,7 +291,7 @@ fn main(){
                 text_box.text_i.set(result.len());
                 text_box.text.set(result);
             })
-            .place(&mut window);
+            .place(&window);
 
         let mut col = 0;
         let mut row = 0;
@@ -318,7 +318,7 @@ fn main(){
 
                         text_box_clone.text_i.set(text_i + name.len());
                     })
-                    .place(&mut window);
+                    .place(&window);
                 col += 1;
                 if col >= 4 {
                     col = 0;
@@ -343,7 +343,7 @@ fn main(){
                 .on_click(move |_button: &Button, _point: Point| {
                     text_box_clone.emit_enter();
                 })
-                .place(&mut window);
+                .place(&window);
         }
     }
 
