@@ -84,14 +84,24 @@ fn main(){
             text_box.text.set(path.clone());
         }
 
-        let window_close = window.clone();
+        let window_cancel = window.clone();
         Button::new()
             .position(0, 16)
-            .size(576, 16)
+            .size(576/2, 16)
+            .text("Cancel")
+            .on_click(move |_button: &Button, _point: Point| {
+                window_cancel.close();
+            })
+            .place(&window);
+
+        let window_save_as = window.clone();
+        Button::new()
+            .position(576/2, 16)
+            .size(576/2, 16)
             .text("Save As")
             .on_click(move |_button: &Button, _point: Point| {
                 println!("Save {}", text_box.text.get());
-                window_close.close();
+                window_save_as.close();
             })
             .place(&window);
 
