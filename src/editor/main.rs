@@ -2,9 +2,8 @@
 
 extern crate orbtk;
 
-use orbtk::{Action, Button, Menu, Point, Rect, TextBox, Window, WidgetPlace};
+use orbtk::{Action, Button, Menu, Placeable, Point, Rect, TextBox, Window};
 use orbtk::callback::Click;
-use orbtk::place::Place;
 
 use std::env;
 use std::fs::File;

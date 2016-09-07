@@ -2,9 +2,8 @@
 
 extern crate orbtk;
 
-use orbtk::{Button, Point, Rect, TextBox, Window, WidgetPlace};
+use orbtk::{Button, Placeable, Point, Rect, TextBox, Window};
 use orbtk::callback::{Click, Enter};
-use orbtk::place::Place;
 
 #[derive(Debug, Clone)]
 pub enum Token {
