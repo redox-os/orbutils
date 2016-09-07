@@ -11,9 +11,9 @@ use std::io::{Read, Write};
 use std::sync::Arc;
 
 fn main(){
-    let path_option = Arc::new(env::args().nth(1));
+    let path_option = env::args().nth(1);
 
-    let title = if let Some(ref path) = *path_option {
+    let title = if let Some(ref path) = path_option {
         format!("{} - Editor", path)
     } else {
         format!("Editor")
@@ -26,7 +26,7 @@ fn main(){
         .size(576, 404)
         .place(&window);
 
-    if let Some(ref path) = *path_option {
+    if let Some(ref path) = path_option {
         match File::open(path) {
             Ok(mut file) => {
                 let mut text = String::new();
@@ -48,13 +48,15 @@ fn main(){
     menu.add_separator();
 
     let save_path_option = path_option.clone();
+    let save_text_box = text_box.clone();
     menu.add_action(Action::new("Save").on_click(move |_action: &Action, _point: Point| {
         println!("Save");
-        if let Some(ref path) = *save_path_option {
+        if let Some(ref path) = save_path_option {
+            println!("Create {}", path);
             match File::create(path) {
                 Ok(mut file) => {
-                    let text = text_box.text.get();
-                    match file.write(&mut text.as_bytes()) {
+                    let text = save_text_box.text.borrow();
+                    match file.write(&text.as_bytes()) {
                         Ok(_) => match file.set_len(text.len() as u64) {
                             Ok(_) => println!("Successfully saved {}", path),
                             Err(err) => println!("Failed to truncate {}: {}", path, err)
@@ -79,7 +81,7 @@ fn main(){
             .size(576, 16)
             .place(&window);
 
-        if let Some(ref path) = *save_as_path_option {
+        if let Some(ref path) = save_as_path_option {
             text_box.text.set(path.clone());
         }
 
