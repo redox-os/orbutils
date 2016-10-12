@@ -28,6 +28,10 @@ name = "launcher"
 path = "src/launcher/main.rs"
 
 [[bin]]
+name = "orblogin"
+path = "src/orblogin/main.rs"
+
+[[bin]]
 name = "terminal"
 path = "src/terminal/main.rs"
 
@@ -41,3 +45,4 @@ orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.1"
 ransid = "0.1"
+userutils = { path = "../userutils/" }

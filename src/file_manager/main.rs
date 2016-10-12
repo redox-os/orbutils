@@ -588,6 +588,10 @@ impl FileManager {
 fn main() {
     match env::args().nth(1) {
         Some(ref arg) => FileManager::new().main(arg),
-        None => FileManager::new().main("/home/"),
+        None => if let Some(home) = env::home_dir() {
+            FileManager::new().main(home.into_os_string().to_str().unwrap_or("."))
+        } else {
+            FileManager::new().main(".")
+        }
     }
 }

@@ -6,7 +6,6 @@ extern crate orbimage;
 extern crate orbfont;
 
 use std::env;
-use std::fs::File;
 use std::path::Path;
 use std::process::Command;
 
@@ -187,7 +186,7 @@ fn main() {
 
         let start = Image::from_path("/ui/icons/start.png").unwrap_or(Image::default());
 
-        let shutdown = Image::from_path("/ui/icons/actions/system-shutdown.png").unwrap_or(Image::default());
+        let shutdown = Image::from_path("/ui/icons/actions/system-log-out.png").unwrap_or(Image::default());
 
         let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
         let mut window = Window::new(0, height as i32 - 32, width, 32, "").expect("launcher: failed to open window");
@@ -295,7 +294,7 @@ fn main() {
                             }
 
                             if i == selected {
-                                   File::create("acpi:off").unwrap();
+                                   break 'running;
                             }
                         }
                     },
