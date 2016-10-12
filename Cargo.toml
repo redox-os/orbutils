@@ -38,6 +38,6 @@ path = "src/viewer/main.rs"
 [dependencies]
 orbclient = "0.1"
 orbfont = "0.1"
-orbimage = { git = "https://github.com/redox-os/orbimage.git" }
-orbtk = { git = "https://github.com/redox-os/orbtk.git" }
+orbimage = "0.1"
+orbtk = "0.1"
 ransid = "0.1"
