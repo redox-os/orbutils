@@ -474,7 +474,7 @@ impl FileManager {
                     }
                 }
                 EventOption::Mouse(mouse_event) => {
-                    redraw = true;
+                    redraw = false;
                     let mut i = 0;
                     let mut row = 0;
                     for file in self.files.iter() {
@@ -482,7 +482,10 @@ impl FileManager {
                         for c in file.name.chars() {
                             if mouse_event.y >= 32 * (row as i32 + 1) && // +1 for the header row
                                mouse_event.y < 32 * (row as i32 + 2) {
-                                self.selected = i;
+                                if i != self.selected {
+                                    self.selected = i;
+                                    redraw = true;
+                                }
                             }
 
                             if c == '\n' {
@@ -555,6 +558,9 @@ impl FileManager {
 
     fn main(&mut self, path: &str) {
         let mut current_path = path.to_string();
+        if ! current_path.ends_with('/') {
+            current_path.push('/');
+        }
         self.set_path(path);
         self.draw_content();
         'events: loop {
@@ -565,9 +571,15 @@ impl FileManager {
                         if dir == "../" {
                             if let Some(parent_dir) = FileManager::get_parent_directory() {
                                 current_path = parent_dir;
+                                if ! current_path.ends_with('/') {
+                                    current_path.push('/');
+                                }
                             }
                         } else {
-                            current_path = current_path + &dir;
+                            if ! current_path.ends_with('/') {
+                                current_path.push('/');
+                            }
+                            current_path.push_str(&dir);
                         }
                         self.set_path(&current_path);
                     }
