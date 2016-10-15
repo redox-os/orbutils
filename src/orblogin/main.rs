@@ -99,7 +99,7 @@ pub fn main() {
             }
 
             if let Some(passwd) = passwd_option {
-                let mut command = Command::new("/bin/launcher");
+                let mut command = Command::new("launcher");
 
                 command.uid(passwd.uid);
                 command.gid(passwd.gid);
@@ -108,7 +108,6 @@ pub fn main() {
 
                 command.env("USER", &user);
                 command.env("HOME", passwd.home);
-                command.env("PATH", "file:bin");
 
                 match command.spawn() {
                     Ok(mut child) => match child.wait() {
