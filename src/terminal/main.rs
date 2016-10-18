@@ -128,7 +128,7 @@ fn main() {
                 match output_mutex.lock() {
                     Ok(mut output_option) => match *output_option {
                         Some(ref mut output) => for packet in output.drain(..) {
-                            if packet.0 == 1 {
+                            if packet.0 & 1 == 1 {
                                 console.inner.redraw = true;
                             }
                             console.write(&packet.1)
