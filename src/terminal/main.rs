@@ -8,9 +8,10 @@ use orbclient::event;
 use std::{env, str, thread};
 use std::error::Error;
 use std::fs::File;
-use std::io::{Read, Write, self};
-use std::os::unix::io::{FromRawFd, IntoRawFd};
+use std::io::{self, Read, Write};
+use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::process::{Command, Stdio};
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -18,22 +19,53 @@ use console::Console;
 
 mod console;
 
-fn main() {
-    let shell = env::args().nth(1).unwrap_or("sh".to_string());
+#[cfg(target_os="linux")]
+fn getpty() -> (RawFd, PathBuf) {
+    use std::ffi::CStr;
+    use std::fs::OpenOptions;
+    extern "C" {
+        fn ptsname(fd: i32) -> *const i8;
+        fn grantpt(fd: i32) -> i32;
+        fn unlockpt(fd: i32) -> i32;
+    }
 
+    let master_fd = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/ptmx")
+        .unwrap()
+        .into_raw_fd();
+    unsafe {
+        grantpt(master_fd);
+        unlockpt(master_fd);
+    }
+
+    let tty_path = unsafe { PathBuf::from(CStr::from_ptr(ptsname(master_fd)).to_string_lossy().into_owned()) };
+    (master_fd, tty_path)
+}
+
+#[cfg(target_os="redox")]
+fn getpty() -> (RawFd, PathBuf) {
     let master = File::create("pty:").unwrap();
     let tty_path = master.path().unwrap();
     let master_fd = master.into_raw_fd();
+    (master_fd, tty_path)
+}
+
+fn main() {
+    let shell = env::args().nth(1).unwrap_or("sh".to_string());
+
+    let (master_fd, tty_path) = getpty();
 
     let slave_stdin = File::open(&tty_path).unwrap();
-    let slave_stdout = File::open(&tty_path).unwrap();
-    let slave_stderr = File::open(&tty_path).unwrap();
+    let slave_stdout = File::create(&tty_path).unwrap();
+    let slave_stderr = File::create(&tty_path).unwrap();
 
     let width = 640;
     let height = 480;
 
-    env::set_var("COLUMNS", format!("{}", width/8));
-    env::set_var("LINES", format!("{}", height/16));
+    env::set_var("COLUMNS", format!("{}", width / 8));
+    env::set_var("LINES", format!("{}", height / 16));
     env::set_var("TTY", format!("{}", tty_path.display()));
 
     match unsafe {
