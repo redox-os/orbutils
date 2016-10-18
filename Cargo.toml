@@ -46,3 +46,6 @@ orbimage = "0.1"
 orbtk = "0.1"
 ransid = "0.1"
 userutils = { path = "../userutils/" }
+
+[target.'cfg(not(target_os = "redox"))'.dependencies]
+libc = "0.2"

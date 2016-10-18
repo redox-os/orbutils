@@ -20,13 +20,21 @@ use console::Console;
 mod console;
 
 #[cfg(target_os="linux")]
+extern crate libc;
+
+#[cfg(target_os="linux")]
 fn getpty() -> (RawFd, PathBuf) {
+    use libc::{c_char, c_int, c_ulong};
     use std::ffi::CStr;
     use std::fs::OpenOptions;
+    use std::io::Error;
+
+    const TIOCPKT: c_ulong = 0x5420;
     extern "C" {
-        fn ptsname(fd: i32) -> *const i8;
-        fn grantpt(fd: i32) -> i32;
-        fn unlockpt(fd: i32) -> i32;
+        fn ptsname(fd: c_int) -> *const c_char;
+        fn grantpt(fd: c_int) -> c_int;
+        fn unlockpt(fd: c_int) -> c_int;
+        fn ioctl(fd: c_int, request: c_ulong, ...) -> c_int;
     }
 
     let master_fd = OpenOptions::new()
@@ -36,6 +44,10 @@ fn getpty() -> (RawFd, PathBuf) {
         .unwrap()
         .into_raw_fd();
     unsafe {
+        let mut flag: c_int = 1;
+        if ioctl(master_fd, TIOCPKT, &mut flag as *mut c_int) < 0 {
+            panic!("ioctl: {:?}", Error::last_os_error());
+        }
         grantpt(master_fd);
         unlockpt(master_fd);
     }
