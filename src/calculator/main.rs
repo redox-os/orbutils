@@ -286,9 +286,11 @@ fn main(){
             .size(300, 16)
             .on_enter(move |text_box: &TextBox| {
                 let input = text_box.text.get();
-                let result = eval(&input);
-                text_box.text_i.set(result.len());
-                text_box.text.set(result);
+                if ! input.is_empty() {
+                    let result = eval(&input);
+                    text_box.text_i.set(result.len());
+                    text_box.text.set(result);
+                }
             })
             .place(&window);
 
