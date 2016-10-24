@@ -86,11 +86,9 @@ pub fn main() {
             }
 
             if passwd_option.is_none() {
-                let password_hash = Passwd::encode(&pass);
-
                 for line in passwd_string.lines() {
                     if let Ok(passwd) = Passwd::parse(line) {
-                        if user == passwd.user && password_hash == passwd.hash {
+                        if user == passwd.user && passwd.verify(&pass) {
                             passwd_option = Some(passwd);
                             break;
                         }
