@@ -30,7 +30,7 @@ impl Package {
             url: url.to_string(),
             id: String::new(),
             name: String::new(),
-            binary: url.to_string() + "/main.bin",
+            binary: String::new(),
             icon: Image::default(),
             accepts: Vec::new(),
             authors: Vec::new(),
@@ -46,7 +46,7 @@ impl Package {
 
         let mut info = String::new();
 
-        if let Ok(mut file) = File::open(&(url.to_string() + "/_REDOX")) {
+        if let Ok(mut file) = File::open(url) {
             let _ = file.read_to_string(&mut info);
         }
 
@@ -54,7 +54,7 @@ impl Package {
             if line.starts_with("name=") {
                 package.name = line[5..].to_string();
             } else if line.starts_with("binary=") {
-                package.binary = url.to_string() + &line[7..];
+                package.binary = line[7..].to_string();
             } else if line.starts_with("icon=") {
                 package.icon = Image::from_path(&line[5..]).unwrap_or(Image::default());
             } else if line.starts_with("accept=") {

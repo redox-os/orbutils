@@ -8,7 +8,6 @@ use orbtk::callback::Click;
 use std::env;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::sync::Arc;
 
 fn main(){
     let path_option = env::args().nth(1);
@@ -19,7 +18,7 @@ fn main(){
         format!("Editor")
     };
 
-    let window = Arc::new(Window::new(Rect::new(100, 100, 576, 420), &title));
+    let mut window = Window::new(Rect::new(100, 100, 576, 420), &title);
 
     let text_box = TextBox::new()
         .position(0, 16)
@@ -74,7 +73,7 @@ fn main(){
     let save_as_path_option = path_option.clone();
     menu.add_action(Action::new("Save As").on_click(move |_action: &Action, _point: Point| {
         println!("Save As");
-        let window = Arc::new(Window::new(Rect::new(100, 100, 576, 32), "Save As"));
+        let mut window = Window::new(Rect::new(100, 100, 576, 32), "Save As");
 
         let text_box = TextBox::new()
             .position(0, 0)
@@ -85,24 +84,24 @@ fn main(){
             text_box.text.set(path.clone());
         }
 
-        let window_cancel = window.clone();
+        let window_cancel = &mut window as *mut Window;
         Button::new()
             .position(0, 16)
             .size(576/2, 16)
             .text("Cancel")
             .on_click(move |_button: &Button, _point: Point| {
-                window_cancel.close();
+                unsafe { (&mut *window_cancel).close(); }
             })
             .place(&window);
 
-        let window_save_as = window.clone();
+        let window_save_as = &mut window as *mut Window;
         Button::new()
             .position(576/2, 16)
             .size(576/2, 16)
             .text("Save As")
             .on_click(move |_button: &Button, _point: Point| {
                 println!("Save {}", text_box.text.get());
-                window_save_as.close();
+                unsafe { (&mut *window_save_as).close(); }
             })
             .place(&window);
 
@@ -111,10 +110,10 @@ fn main(){
 
     menu.add_separator();
 
-    let window_close = window.clone();
+    let window_close = &mut window as *mut Window;
     menu.add_action(Action::new("Close").on_click(move |_action: &Action, _point: Point| {
         println!("Close");
-        window_close.close();
+        unsafe { (&mut *window_close).close(); }
     }));
 
     menu.place(&window);

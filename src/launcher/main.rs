@@ -6,7 +6,6 @@ extern crate orbimage;
 extern crate orbfont;
 
 use std::env;
-use std::fs::File;
 use std::path::Path;
 use std::process::Command;
 
@@ -24,7 +23,7 @@ const TEXT_COLOR: Color = Color::rgb(204, 210, 224);
 const TEXT_HIGHLIGHT_COLOR: Color = Color::rgb(235, 241, 255);
 
 fn get_packages() -> Vec<Package> {
-    let read_dir = Path::new("/apps/").read_dir().expect("failed to read_dir on /apps/");
+    let read_dir = Path::new("/ui/apps/").read_dir().expect("failed to read_dir on /ui/apps/");
 
     let mut entries = vec![];
     for dir in read_dir {
@@ -33,7 +32,7 @@ fn get_packages() -> Vec<Package> {
             Err(_) => continue,
         };
         let file_name = dir.file_name().to_string_lossy().into_owned();
-        if dir.file_type().expect("failed to get file_type").is_dir() {
+        if dir.file_type().expect("failed to get file_type").is_file() {
             entries.push(file_name);
         }
     }
@@ -42,7 +41,7 @@ fn get_packages() -> Vec<Package> {
 
     let mut packages: Vec<Package> = Vec::new();
     for entry in entries.iter() {
-        packages.push(Package::from_path(&format!("/apps/{}", entry)));
+        packages.push(Package::from_path(&format!("/ui/apps/{}", entry)));
     }
 
     packages
@@ -146,8 +145,8 @@ fn main() {
             });
 
             if packages.len() > 1 {
-                let mut window = Window::new(-1, -1, 400, packages.len() as u32 * 32, path).unwrap();
-                let font = Font::find(None, None, None).unwrap();
+                let mut window = Window::new(-1, -1, 400, packages.len() as u32 * 32, path).expect("launcher: failed to open window");
+                let font = Font::find(None, None, None).expect("launcher: failed to open font");
 
                 draw_chooser(&mut window, &font, &packages, -1, -1);
                 'choosing: loop {
@@ -161,7 +160,7 @@ fn main() {
                                     for package in packages.iter() {
                                         if mouse_event.y >= y && mouse_event.y < y + 32 {
                                             if let Err(err) = Command::new(&package.binary).arg(path).spawn() {
-                                                println!("{}: Failed to launch: {}", package.binary, err);
+                                                println!("launcher: failed to launch {}: {}", package.binary, err);
                                             }
                                             break 'choosing;
                                         }
@@ -187,10 +186,10 @@ fn main() {
 
         let start = Image::from_path("/ui/icons/start.png").unwrap_or(Image::default());
 
-        let shutdown = Image::from_path("/ui/icons/actions/system-shutdown.png").unwrap_or(Image::default());
+        let shutdown = Image::from_path("/ui/icons/actions/system-log-out.png").unwrap_or(Image::default());
 
-        let (width, height) = orbclient::get_display_size().unwrap();
-        let mut window = Window::new(0, height as i32 - 32, width, 32, "").unwrap();
+        let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
+        let mut window = Window::new(0, height as i32 - 32, width, 32, "").expect("launcher: failed to open window");
 
         let mut selected = -1;
 
@@ -260,7 +259,7 @@ fn main() {
                                                     for package in packages.iter() {
                                                         if mouse_event.y >= y && mouse_event.y < y + 32 {
                                                             if let Err(err) = Command::new(&package.binary).spawn() {
-                                                                println!("{}: Failed to launch: {}", package.binary, err);
+                                                                println!("launcher: failed to launch {}: {}", package.binary, err);
                                                             }
                                                             break 'start_choosing;
                                                         }
@@ -295,7 +294,7 @@ fn main() {
                             }
 
                             if i == selected {
-                                   File::create("acpi:off").unwrap();
+                                   break 'running;
                             }
                         }
                     },

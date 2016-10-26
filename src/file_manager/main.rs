@@ -7,7 +7,7 @@ extern crate orbfont;
 
 use std::{cmp, env};
 use std::collections::BTreeMap;
-use std::fs::{self, File};
+use std::fs;
 use std::process::Command;
 use std::string::{String, ToString};
 use std::vec::Vec;
@@ -282,12 +282,9 @@ impl FileManager {
     }
 
     fn get_parent_directory() -> Option<String> {
-        match File::open("../") {
-            Ok(parent_dir) => match parent_dir.path() {
-                Ok(path) => return Some(path.into_os_string().into_string().unwrap_or("/".to_string())),
-                Err(err) => println!("failed to get path: {}", err)
-            },
-            Err(err) => println!("failed to open parent dir: {}", err)
+        match fs::canonicalize("../") {
+            Ok(path) => return Some(path.into_os_string().into_string().unwrap_or("/".to_string())),
+            Err(err) => println!("failed to get path: {}", err)
         }
 
         None
@@ -474,7 +471,7 @@ impl FileManager {
                     }
                 }
                 EventOption::Mouse(mouse_event) => {
-                    redraw = true;
+                    redraw = false;
                     let mut i = 0;
                     let mut row = 0;
                     for file in self.files.iter() {
@@ -482,7 +479,10 @@ impl FileManager {
                         for c in file.name.chars() {
                             if mouse_event.y >= 32 * (row as i32 + 1) && // +1 for the header row
                                mouse_event.y < 32 * (row as i32 + 2) {
-                                self.selected = i;
+                                if i != self.selected {
+                                    self.selected = i;
+                                    redraw = true;
+                                }
                             }
 
                             if c == '\n' {
@@ -555,6 +555,9 @@ impl FileManager {
 
     fn main(&mut self, path: &str) {
         let mut current_path = path.to_string();
+        if ! current_path.ends_with('/') {
+            current_path.push('/');
+        }
         self.set_path(path);
         self.draw_content();
         'events: loop {
@@ -565,9 +568,15 @@ impl FileManager {
                         if dir == "../" {
                             if let Some(parent_dir) = FileManager::get_parent_directory() {
                                 current_path = parent_dir;
+                                if ! current_path.ends_with('/') {
+                                    current_path.push('/');
+                                }
                             }
                         } else {
-                            current_path = current_path + &dir;
+                            if ! current_path.ends_with('/') {
+                                current_path.push('/');
+                            }
+                            current_path.push_str(&dir);
                         }
                         self.set_path(&current_path);
                     }
@@ -588,6 +597,10 @@ impl FileManager {
 fn main() {
     match env::args().nth(1) {
         Some(ref arg) => FileManager::new().main(arg),
-        None => FileManager::new().main("/home/"),
+        None => if let Some(home) = env::home_dir() {
+            FileManager::new().main(home.into_os_string().to_str().unwrap_or("."))
+        } else {
+            FileManager::new().main(".")
+        }
     }
 }
