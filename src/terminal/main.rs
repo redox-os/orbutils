@@ -42,68 +42,70 @@ fn main() {
             .stderr(Stdio::from_raw_fd(slave_stderr.into_raw_fd()))
             .spawn()
     } {
-        Ok(_process) => {
-            let mut console = Console::new(width, height);
+        Ok(mut process) => {
+            {
+                let mut console = Console::new(width, height);
+                
+                let mut event_file = File::open("event:").expect("terminal: failed to open event file");
 
-            let mut event_file = File::open("event:").expect("terminal: failed to open event file");
+                let window_fd = console.window.as_raw_fd();
+                syscall::fevent(window_fd, syscall::flag::EVENT_READ).expect("terminal: failed to fevent console window");
 
-            let window_fd = console.window.as_raw_fd();
-            syscall::fevent(window_fd, syscall::flag::EVENT_READ).expect("terminal: failed to fevent console window");
+                let mut master = unsafe { File::from_raw_fd(master_fd) };
+                syscall::fevent(master_fd, syscall::flag::EVENT_READ).expect("terminal: failed to fevent master PTY");
 
-            let mut master = unsafe { File::from_raw_fd(master_fd) };
-            syscall::fevent(master_fd, syscall::flag::EVENT_READ).expect("terminal: failed to fevent master PTY");
-
-            let mut handle_event = |event_id: usize, event_count: usize| -> bool {
-                if event_id == window_fd {
-                    for event in console.window.events() {
-                        if event.code == event::EVENT_QUIT {
-                            println!("window quit");
-                            return false;
-                        }
-
-                        if let Some(line) = console.event(event) {
-                            if let Err(err) = master.write(&line.as_bytes()) {
-                                let term_stderr = io::stderr();
-                                let mut term_stderr = term_stderr.lock();
-
-                                let _ = term_stderr.write(b"failed to write stdin: ");
-                                let _ = term_stderr.write(err.description().as_bytes());
-                                let _ = term_stderr.write(b"\n");
+                let mut handle_event = |event_id: usize, event_count: usize| -> bool {
+                    if event_id == window_fd {
+                        for event in console.window.events() {
+                            if event.code == event::EVENT_QUIT {
                                 return false;
                             }
+
+                            if let Some(line) = console.event(event) {
+                                if let Err(err) = master.write(&line.as_bytes()) {
+                                    let term_stderr = io::stderr();
+                                    let mut term_stderr = term_stderr.lock();
+
+                                    let _ = term_stderr.write(b"failed to write stdin: ");
+                                    let _ = term_stderr.write(err.description().as_bytes());
+                                    let _ = term_stderr.write(b"\n");
+                                    return false;
+                                }
+                            }
                         }
-                    }
-                } else if event_id == master_fd {
-                    let mut packet = [0; 4096];
-                    let count = master.read(&mut packet).expect("terminal: failed to read master PTY");
-                    if count == 0 {
-                        if event_count == 0 {
-                            return false;
+                    } else if event_id == master_fd {
+                        let mut packet = [0; 4096];
+                        let count = master.read(&mut packet).expect("terminal: failed to read master PTY");
+                        if count == 0 {
+                            if event_count == 0 {
+                                return false;
+                            }
+                        } else {
+                            if packet[0] & 1 == 1 {
+                                console.inner.redraw = true;
+                            }
+                            console.write(&packet[1..count])
                         }
                     } else {
-                        if packet[0] & 1 == 1 {
-                            console.inner.redraw = true;
-                        }
-                        console.write(&packet[1..count])
+                        println!("Unknown event {}", event_id);
                     }
-                } else {
-                    println!("Unknown event {}", event_id);
+
+                    true
+                };
+
+                handle_event(window_fd, 0);
+                handle_event(master_fd, 0);
+
+                'events: loop {
+                    let mut sys_event = syscall::Event::default();
+                    event_file.read(&mut sys_event).expect("terminal: failed to read event file");
+                    if ! handle_event(sys_event.id, sys_event.data) {
+                        break 'events;
+                    }
                 }
-
-                true
-            };
-
-            handle_event(window_fd, 0);
-            handle_event(master_fd, 0);
-
-            'events: loop {
-                let mut sys_event = syscall::Event::default();
-                event_file.read(&mut sys_event).expect("terminal: failed to read event file");
-                if ! handle_event(sys_event.id, sys_event.data) {
-                    break 'events;
-                }
-                println!("handled");
             }
+
+            process.wait().expect("terminal: failed to wait on shell");
         },
         Err(err) => {
             let term_stderr = io::stderr();
