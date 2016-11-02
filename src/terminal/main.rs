@@ -1,4 +1,5 @@
 #![deny(warnings)]
+#![feature(asm)]
 #![feature(const_fn)]
 
 extern crate orbclient;
@@ -45,7 +46,7 @@ fn main() {
         Ok(mut process) => {
             {
                 let mut console = Console::new(width, height);
-                
+
                 let mut event_file = File::open("event:").expect("terminal: failed to open event file");
 
                 let window_fd = console.window.as_raw_fd();
@@ -61,17 +62,20 @@ fn main() {
                                 return false;
                             }
 
-                            if let Some(line) = console.event(event) {
-                                if let Err(err) = master.write(&line.as_bytes()) {
-                                    let term_stderr = io::stderr();
-                                    let mut term_stderr = term_stderr.lock();
+                            console.input(&event);
+                        }
 
-                                    let _ = term_stderr.write(b"failed to write stdin: ");
-                                    let _ = term_stderr.write(err.description().as_bytes());
-                                    let _ = term_stderr.write(b"\n");
-                                    return false;
-                                }
+                        if ! console.input.is_empty()  {
+                            if let Err(err) = master.write(&console.input) {
+                                let term_stderr = io::stderr();
+                                let mut term_stderr = term_stderr.lock();
+
+                                let _ = term_stderr.write(b"failed to write stdin: ");
+                                let _ = term_stderr.write(err.description().as_bytes());
+                                let _ = term_stderr.write(b"\n");
+                                return false;
                             }
+                            console.input.clear();
                         }
                     } else if event_id == master_fd {
                         let mut packet = [0; 4096];
@@ -81,10 +85,11 @@ fn main() {
                                 return false;
                             }
                         } else {
+                            console.write(&packet[1..count], true).expect("terminal: failed to write to console");
+
                             if packet[0] & 1 == 1 {
-                                console.inner.redraw = true;
+                                console.redraw();
                             }
-                            console.write(&packet[1..count])
                         }
                     } else {
                         println!("Unknown event {}", event_id);
