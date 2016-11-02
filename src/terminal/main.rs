@@ -2,67 +2,22 @@
 #![feature(const_fn)]
 
 extern crate orbclient;
+extern crate syscall;
 
 use orbclient::event;
 
-use std::{env, str, thread};
+use std::{env, str};
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, Read, Write};
-use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
+use std::os::unix::io::{AsRawFd, FromRawFd, IntoRawFd};
 use std::process::{Command, Stdio};
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use console::Console;
+use getpty::getpty;
 
 mod console;
-
-#[cfg(target_os="linux")]
-extern crate libc;
-
-#[cfg(target_os="linux")]
-fn getpty() -> (RawFd, PathBuf) {
-    use libc::{c_char, c_int, c_ulong};
-    use std::ffi::CStr;
-    use std::fs::OpenOptions;
-    use std::io::Error;
-
-    const TIOCPKT: c_ulong = 0x5420;
-    extern "C" {
-        fn ptsname(fd: c_int) -> *const c_char;
-        fn grantpt(fd: c_int) -> c_int;
-        fn unlockpt(fd: c_int) -> c_int;
-        fn ioctl(fd: c_int, request: c_ulong, ...) -> c_int;
-    }
-
-    let master_fd = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open("/dev/ptmx")
-        .unwrap()
-        .into_raw_fd();
-    unsafe {
-        let mut flag: c_int = 1;
-        if ioctl(master_fd, TIOCPKT, &mut flag as *mut c_int) < 0 {
-            panic!("ioctl: {:?}", Error::last_os_error());
-        }
-        grantpt(master_fd);
-        unlockpt(master_fd);
-    }
-
-    let tty_path = unsafe { PathBuf::from(CStr::from_ptr(ptsname(master_fd)).to_string_lossy().into_owned()) };
-    (master_fd, tty_path)
-}
-
-#[cfg(target_os="redox")]
-fn getpty() -> (RawFd, PathBuf) {
-    let master = File::create("pty:").unwrap();
-    let tty_path = master.path().unwrap();
-    let master_fd = master.into_raw_fd();
-    (master_fd, tty_path)
-}
+mod getpty;
 
 fn main() {
     let shell = env::args().nth(1).unwrap_or("sh".to_string());
@@ -88,83 +43,67 @@ fn main() {
             .spawn()
     } {
         Ok(_process) => {
-            let output_mutex = Arc::new(Mutex::new(Some(Vec::new())));
-            let mut master_stdin = unsafe { File::from_raw_fd(master_fd) };
+            let mut console = Console::new(width, height);
 
-            {
-                let stdout_output_mutex = output_mutex.clone();
-                thread::spawn(move || {
-                    let mut master_stdout = unsafe { File::from_raw_fd(master_fd) };
-                    let term_stderr = io::stderr();
-                    let mut term_stderr = term_stderr.lock();
-                    'stdout: loop {
-                        let mut buf = [0; 4096];
-                        match master_stdout.read(&mut buf) {
-                            Ok(0) => break 'stdout,
-                            Ok(count) => match stdout_output_mutex.lock() {
-                                Ok(mut stdout_output_option) => match *stdout_output_option {
-                                    Some(ref mut stdout_output) => stdout_output.push((buf[0], Vec::from(&buf[1..count]))),
-                                    None => break 'stdout
-                                },
-                                Err(_) => {
-                                    let _ = term_stderr.write(b"failed to lock stdout output mutex\n");
-                                    break 'stdout;
-                                }
-                            },
-                            Err(err) => {
-                                let _ = term_stderr.write(b"failed to read stdout: ");
+            let mut event_file = File::open("event:").expect("terminal: failed to open event file");
+
+            let window_fd = console.window.as_raw_fd();
+            syscall::fevent(window_fd, syscall::flag::EVENT_READ).expect("terminal: failed to fevent console window");
+
+            let mut master = unsafe { File::from_raw_fd(master_fd) };
+            syscall::fevent(master_fd, syscall::flag::EVENT_READ).expect("terminal: failed to fevent master PTY");
+
+            let mut handle_event = |event_id: usize, event_count: usize| -> bool {
+                if event_id == window_fd {
+                    for event in console.window.events() {
+                        if event.code == event::EVENT_QUIT {
+                            println!("window quit");
+                            return false;
+                        }
+
+                        if let Some(line) = console.event(event) {
+                            if let Err(err) = master.write(&line.as_bytes()) {
+                                let term_stderr = io::stderr();
+                                let mut term_stderr = term_stderr.lock();
+
+                                let _ = term_stderr.write(b"failed to write stdin: ");
                                 let _ = term_stderr.write(err.description().as_bytes());
                                 let _ = term_stderr.write(b"\n");
-                                break 'stdout;
+                                return false;
                             }
                         }
                     }
-                    stdout_output_mutex.lock().unwrap().take();
-                });
-            }
+                } else if event_id == master_fd {
+                    let mut packet = [0; 4096];
+                    let count = master.read(&mut packet).expect("terminal: failed to read master PTY");
+                    if count == 0 {
+                        if event_count == 0 {
+                            return false;
+                        }
+                    } else {
+                        if packet[0] & 1 == 1 {
+                            console.inner.redraw = true;
+                        }
+                        console.write(&packet[1..count])
+                    }
+                } else {
+                    println!("Unknown event {}", event_id);
+                }
 
-            let mut console = Console::new(width, height);
+                true
+            };
+
+            handle_event(window_fd, 0);
+            handle_event(master_fd, 0);
+
             'events: loop {
-                match output_mutex.lock() {
-                    Ok(mut output_option) => match *output_option {
-                        Some(ref mut output) => for packet in output.drain(..) {
-                            if packet.0 & 1 == 1 {
-                                console.inner.redraw = true;
-                            }
-                            console.write(&packet.1)
-                        },
-                        None => break 'events
-                    },
-                    Err(_) => {
-                        let term_stderr = io::stderr();
-                        let mut term_stderr = term_stderr.lock();
-                        let _ = term_stderr.write(b"failed to lock stdout mutex\n");
-                        break 'events;
-                    }
+                let mut sys_event = syscall::Event::default();
+                event_file.read(&mut sys_event).expect("terminal: failed to read event file");
+                if ! handle_event(sys_event.id, sys_event.data) {
+                    break 'events;
                 }
-
-                for event in console.window.events() {
-                    if event.code == event::EVENT_QUIT {
-                        break 'events;
-                    }
-
-                    if let Some(line) = console.event(event) {
-                        if let Err(err) = master_stdin.write(&line.as_bytes()) {
-                            let term_stderr = io::stderr();
-                            let mut term_stderr = term_stderr.lock();
-
-                            let _ = term_stderr.write(b"failed to write stdin: ");
-                            let _ = term_stderr.write(err.description().as_bytes());
-                            let _ = term_stderr.write(b"\n");
-                            break 'events;
-                        }
-                    }
-                }
-
-                thread::sleep(Duration::new(0, 1000000));
+                println!("handled");
             }
-
-            output_mutex.lock().unwrap().take();
         },
         Err(err) => {
             let term_stderr = io::stderr();

@@ -8,6 +8,7 @@ dependencies = [
  "orbimage 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbtk 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "ransid 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syscall 0.1.0 (git+https://github.com/redox-os/syscall.git)",
  "userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)",
 ]
 
