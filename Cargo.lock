@@ -3,12 +3,12 @@ name = "orbutils"
 version = "0.1.10"
 dependencies = [
  "libc 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbclient 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbimage 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbtk 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "ransid 0.1.2 (git+https://github.com/redox-os/ransid.git?branch=new_api)",
- "syscall 0.1.0 (git+https://github.com/redox-os/syscall.git)",
+ "ransid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)",
 ]
 
@@ -26,7 +26,7 @@ version = "0.3.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "nodrop 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "odds 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
+ "odds 0.2.24 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -82,7 +82,7 @@ name = "nodrop"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "odds 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
+ "odds 0.2.24 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -153,14 +153,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "odds"
-version = "0.2.23"
+version = "0.2.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "orbclient"
-version = "0.1.19"
+version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
+ "redox_syscall 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -169,7 +170,7 @@ name = "orbfont"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "orbclient 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "rusttype 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -178,7 +179,7 @@ name = "orbimage"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "orbclient 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "png 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -187,7 +188,7 @@ name = "orbtk"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "orbclient 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbimage 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -217,8 +218,13 @@ dependencies = [
 
 [[package]]
 name = "ransid"
-version = "0.1.2"
-source = "git+https://github.com/redox-os/ransid.git?branch=new_api#75807f9671ff4ab0977dc74d1cf4cf38c6ceed18"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "redox_syscall"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-serialize"
@@ -265,11 +271,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "syscall"
-version = "0.1.0"
-source = "git+https://github.com/redox-os/syscall.git#5a687dfeb578343431992f3a4d854f303a904486"
-
-[[package]]
 name = "termion"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -280,11 +281,11 @@ dependencies = [
 [[package]]
 name = "userutils"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/userutils.git#5ae17129d3124b990b38391c60b1b4ad150b3112"
+source = "git+https://github.com/redox-os/userutils.git#359fe4b01830227f0ed9214af2e576ef219ff3f7"
 dependencies = [
  "argon2rs 0.2.5 (git+https://github.com/redox-os/argon2rs.git)",
  "rand 0.3.14 (git+https://github.com/redox-os/rand.git)",
- "syscall 0.1.0 (git+https://github.com/redox-os/syscall.git)",
+ "redox_syscall 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "termion 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -308,20 +309,20 @@ dependencies = [
 "checksum num-iter 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)" = "287a1c9969a847055e1122ec0ea7a5c5d6f72aad97934e131c83d5c08ab4e45c"
 "checksum num-rational 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "54ff603b8334a72fbb27fe66948aac0abaaa40231b3cecd189e76162f6f38aaf"
 "checksum num-traits 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)" = "a16a42856a256b39c6d3484f097f6713e14feacd9bfb02290917904fae46c81c"
-"checksum odds 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)" = "e04630a62b3f1cc8c58b4d8f2555a40136f02b420e158242936ef286a72d33a0"
-"checksum orbclient 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)" = "b7b94be07d52f31836c55948f121a7cace1030b48fceb04b069486ae998ef06c"
+"checksum odds 0.2.24 (registry+https://github.com/rust-lang/crates.io-index)" = "97b2d7c12734955740d14f7a6723d8dd8ed53cf16770ab38ca6a1aaf3124fc0d"
+"checksum orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)" = "02b1e91e98661890faa3ac8643fc10c8109dfe21f841211e4d8a88300c8c3b8f"
 "checksum orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3b5d8c0fa6c5cd5252283e25241dc242f57d0d89d694a3e4467a716575f6076b"
 "checksum orbimage 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "6479402fcdf9ad764e283bed819ec367265de38cad84ca7eb39c0967930ccf7b"
 "checksum orbtk 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "4508b9fa2b712f0b4ebc6d43ac0a198f9b37380d34dacfd12477ff09934bb242"
 "checksum png 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "06208e2ee243e3118a55dda9318f821f206d8563fb8d4df258767f8e62bb0997"
 "checksum rand 0.3.14 (git+https://github.com/redox-os/rand.git)" = "<none>"
 "checksum rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "2791d88c6defac799c3f20d74f094ca33b9332612d9aef9078519c82e4fe04a5"
-"checksum ransid 0.1.2 (git+https://github.com/redox-os/ransid.git?branch=new_api)" = "<none>"
+"checksum ransid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce0c1b4c0dc24c14bcc71fa373d1bce433ea250691313b0cc1bc73e333a2bda0"
+"checksum redox_syscall 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "35a48131ab10dbeb17202bd1dcb9c9798963a58a50c9ec31640f237358832094"
 "checksum rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)" = "6159e4e6e559c81bd706afe9c8fd68f547d3e851ce12e76b1de7914bab61691b"
 "checksum rusttype 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c3c64ffc93b0cc5a6f5e5e84da2a4082b0271e0a1dd76e821bdac570bda7797e"
 "checksum sdl2 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9cf70f3d302b61311856bcbd9c9d000aadc7c595574214335cf09035fdced2c9"
 "checksum sdl2-sys 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "657e3a3a175fda33c05d943923a768c7bf94c3b5fad05dcb31fc0321b11f47bd"
 "checksum stb_truetype 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a0955c15cfb412f0c4fdfb3d07d2b1915869e472b35646cc3a3a104a8f79517b"
-"checksum syscall 0.1.0 (git+https://github.com/redox-os/syscall.git)" = "<none>"
 "checksum termion 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b38671f376ed6147ce4bc7df3f216f68631beb17433c205e2adb30a2d6b33e45"
 "checksum userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)" = "<none>"

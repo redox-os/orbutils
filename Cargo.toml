@@ -44,11 +44,11 @@ orbclient = "0.1"
 orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.1"
-ransid = { git = "https://github.com/redox-os/ransid.git", branch="new_api" }
+ransid = "0.2"
 userutils = { git = "https://github.com/redox-os/userutils.git" }
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
 libc = "0.2"
 
 [target.'cfg(target_os = "redox")'.dependencies]
-syscall = { git = "https://github.com/redox-os/syscall.git" }
+redox_syscall = "0.1"
