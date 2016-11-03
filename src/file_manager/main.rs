@@ -527,6 +527,7 @@ impl FileManager {
                                 }
                             }
                             self.sort_files();
+                            redraw = true;
                         } else if self.last_mouse_event.x == mouse_event.x &&
                                   self.last_mouse_event.y == mouse_event.y {
                             if self.selected >= 0 && self.selected < self.files.len() as isize {
