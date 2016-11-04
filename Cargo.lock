@@ -224,7 +224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "redox_syscall"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/syscall.git#77c43866dbd5275eaa5188b1fd5efadaee8530c3"
+source = "git+https://github.com/redox-os/syscall.git#2d238fada7e11972693f9e767dfda571e7afe66d"
 
 [[package]]
 name = "redox_syscall"
@@ -286,7 +286,7 @@ dependencies = [
 [[package]]
 name = "userutils"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/userutils.git#8a7f4bba830a82473588d9b41f8725a3105ac614"
+source = "git+https://github.com/redox-os/userutils.git#24859cb7a68849d03ece0525d876f77a71ba7d89"
 dependencies = [
  "argon2rs 0.2.5 (git+https://github.com/redox-os/argon2rs.git)",
  "rand 0.3.14 (git+https://github.com/redox-os/rand.git)",
