@@ -4,14 +4,14 @@ extern crate orbclient;
 extern crate orbfont;
 extern crate tendril;
 
-use std::env;
+use std::{cmp, env};
 use std::iter::repeat;
 use std::default::Default;
 use std::string::String;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
-use orbclient::{Color, Window, EventOption, K_ESC};
+use orbclient::{Color, Window, EventOption, K_ESC, K_DOWN, K_UP};
 use orbfont::Font;
 use tendril::TendrilSink;
 
@@ -27,9 +27,11 @@ struct Block<'a> {
 }
 
 impl<'a> Block<'a> {
-    fn draw(&self, window: &mut Window) {
-        if self.x < window.width() as i32 && self.y < window.height() as i32 {
-            self.text.draw(window, self.x, self.y, self.color);
+    fn draw(&self, window: &mut Window, offset: i32) {
+        let x = self.x;
+        let y = self.y - offset;
+        if x + self.w > 0 && x < window.width() as i32 && y + self.h > 0 && y < window.height() as i32 {
+            self.text.draw(window, x, y, self.color);
         }
     }
 }
@@ -185,6 +187,9 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                     bold = true;
                     new_line = true;
                 },
+                "hr" => {
+                    new_line = true;
+                },
                 "li" => {
                     new_line = true;
                 },
@@ -197,6 +202,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                 "link" => ignore = true,
                 "meta" => ignore = true,
                 "script" => ignore = true,
+                "style" => ignore = true,
                 _ => ()
             }
         }
@@ -276,14 +282,49 @@ fn main() {
                                              480,
                                              &("Browser (".to_string() + &title + ")"))
                                      .unwrap();
-                window.set(Color::rgb(255, 255, 255));
-                let block_len = blocks.len();
-                for (block_i, block) in blocks.iter().enumerate() {
-                    println!("Draw block {}/{}", block_i, block_len);
-                    block.draw(&mut window);
+
+                let mut offset = 0;
+                let mut max_offset = 0;
+                for block in blocks.iter() {
+                    if block.y + block.h > max_offset {
+                        max_offset = block.y + block.h;
+                    }
                 }
-                window.sync();
-                event_loop(&mut window);
+
+                let mut redraw = true;
+                loop {
+                    if redraw {
+                        redraw = false;
+
+                        window.set(Color::rgb(255, 255, 255));
+                        for block in blocks.iter() {
+                            block.draw(&mut window, offset);
+                        }
+                        window.sync();
+                    }
+
+                    for event in window.events() {
+                        if let EventOption::Key(key_event) = event.to_option() {
+                            if key_event.pressed {
+                                match key_event.scancode {
+                                    K_ESC => return,
+                                    K_UP => {
+                                        redraw = true;
+                                        offset = cmp::max(0, offset - 128);
+                                    },
+                                    K_DOWN => {
+                                        redraw = true;
+                                        offset = cmp::min(max_offset, offset + 128);
+                                    },
+                                    _ => ()
+                                }
+                            }
+                        }
+                        if let EventOption::Quit(_) = event.to_option() {
+                            return;
+                        }
+                    }
+                }
             },
             Err(err) => {
                 let mut window = Window::new(-1,
