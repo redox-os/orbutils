@@ -34,6 +34,7 @@ pub fn main() {
             let user_text_box = TextBox::new()
                 .position(0, 16)
                 .size(576, 16)
+                .grab_focus(true)
                 .on_enter(|_| {
                 })
                 .place(&window);
@@ -47,24 +48,47 @@ pub fn main() {
             let pass_text_box = TextBox::new()
                 .position(0, 64)
                 .size(576, 16)
-                .on_enter(|_| {
-                })
                 .place(&window);
 
-            let user_login = user_lock.clone();
-            let pass_login = pass_lock.clone();
-            let window_login = &mut window as *mut Window;
-            Button::new()
-                .position(0, 96)
-                .size(576, 16)
-                .text("Login")
-                .on_click(move |_button: &Button, _point: Point| {
+            // Pressing enter in user text box will transfer focus to password text box
+            {
+                let pass_text_box = pass_text_box.clone();
+                *user_text_box.on_enter.borrow_mut() = Some(Arc::new(move |_| {
+                    pass_text_box.grab_focus.set(true);
+                }));
+            }
+
+            // Pressing enter in password text box will try to login
+            {
+                let user_lock = user_lock.clone();
+                let pass_lock = pass_lock.clone();
+                let user_text_box = user_text_box.clone();
+                let window_login = &mut window as *mut Window;
+                *pass_text_box.on_enter.borrow_mut() = Some(Arc::new(move |me: &TextBox| {
                     println!("Login {}", user_text_box.text.get());
-                    *user_login.lock().unwrap() = user_text_box.text.get();
-                    *pass_login.lock().unwrap() = pass_text_box.text.get();
+                    *user_lock.lock().unwrap() = user_text_box.text.get();
+                    *pass_lock.lock().unwrap() = me.text.get();
                     unsafe { (&mut *window_login).close(); }
-                })
-                .place(&window);
+                }));
+            }
+
+            // Add a login button
+            {
+                let user_lock = user_lock.clone();
+                let pass_lock = pass_lock.clone();
+                let window_login = &mut window as *mut Window;
+                Button::new()
+                    .position(0, 96)
+                    .size(576, 16)
+                    .text("Login")
+                    .on_click(move |_button: &Button, _point: Point| {
+                        println!("Login {}", user_text_box.text.get());
+                        *user_lock.lock().unwrap() = user_text_box.text.get();
+                        *pass_lock.lock().unwrap() = pass_text_box.text.get();
+                        unsafe { (&mut *window_login).close(); }
+                    })
+                    .place(&window);
+            }
 
             window.exec();
         }
