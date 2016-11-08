@@ -2,6 +2,7 @@
 extern crate html5ever;
 extern crate orbclient;
 extern crate orbfont;
+extern crate orbimage;
 extern crate tendril;
 extern crate url;
 
@@ -29,7 +30,8 @@ struct Block<'a> {
     color: Color,
     string: String,
     link: Option<String>,
-    text: orbfont::Text<'a>
+    image: Option<orbimage::Image>,
+    text: Option<orbfont::Text<'a>>,
 }
 
 impl<'a> Block<'a> {
@@ -44,9 +46,63 @@ impl<'a> Block<'a> {
         let x = self.x;
         let y = self.y - offset;
         if x + self.w > 0 && x < window.width() as i32 && y + self.h > 0 && y < window.height() as i32 {
-            self.text.draw(window, x, y, self.color);
+            if let Some(ref image) = self.image {
+                image.draw(window, x, y);
+            }
+
+            if let Some(ref text) = self.text {
+                text.draw(window, x, y, self.color);
+            }
         }
     }
+}
+
+fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool, color: Color, link: Option<String>, font: &'a Font, font_bold: &'a Font, blocks: &mut Vec<Block<'a>>) {
+    let trimmed_left = string.trim_left();
+    let left_margin = string.len() as i32 - trimmed_left.len() as i32;
+    let trimmed_right = trimmed_left.trim_right();
+    let right_margin = trimmed_left.len() as i32 - trimmed_right.len() as i32;
+
+    let escaped_text = escape_default(&trimmed_right);
+    println!("#text: block {} at {}, {}: '{}'", blocks.len(), *x, *y, escaped_text);
+
+    *x += left_margin * 8;
+
+    for (word_i, word) in trimmed_right.split(' ').enumerate() {
+        if word_i > 0 {
+            *x += 8;
+        }
+
+        let text = if bold {
+            font_bold.render(word, size)
+        } else {
+            font.render(word, size)
+        };
+
+        let w = text.width() as i32;
+        let h = text.height() as i32;
+
+        if *x + w >= 640 && *x > 0 {
+            *x = 0;
+            *y += size.ceil() as i32;
+        }
+
+        blocks.push(Block {
+            x: *x,
+            y: *y,
+            w: w,
+            h: h,
+            color: color,
+            string: word.to_string(),
+            link: link.clone(),
+            image: None,
+            text: Some(text)
+        });
+
+        *x += w;
+    }
+
+    *x += right_margin * 8;
 }
 
 fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f32, mut bold: bool, mut color: Color, mut ignore: bool, whitespace: &mut bool, mut link: Option<String>, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
@@ -68,7 +124,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
 
         Text(ref text)
             => {
-                let mut block_text = String::new();
+                let mut string = String::new();
 
                 for c in text.chars() {
                     match c {
@@ -77,65 +133,22 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                         } else {
                             // Set whitespace
                             *whitespace = true;
-                            block_text.push(' ');
+                            string.push(' ');
                         },
                         _ => {
                             if *whitespace {
                                 *whitespace = false;
                             }
-                            block_text.push(c);
+                            string.push(c);
                         }
                     }
                 }
 
-                if ! block_text.is_empty() {
+                if ! string.is_empty() {
                     if ignore {
                         println!("#text: ignored");
                     } else {
-                        let trimmed_left = block_text.trim_left();
-                        let left_margin = block_text.len() as i32 - trimmed_left.len() as i32;
-                        let trimmed_right = trimmed_left.trim_right();
-                        let right_margin = trimmed_left.len() as i32 - trimmed_right.len() as i32;
-
-                        let escaped_text = escape_default(&trimmed_right);
-                        println!("#text: block {} at {}, {}: '{}'", blocks.len(), *x, *y, escaped_text);
-
-                        *x += left_margin * 8;
-
-                        for (word_i, word) in trimmed_right.split(' ').enumerate() {
-                            if word_i > 0 {
-                                *x += 8;
-                            }
-
-                            let text = if bold {
-                                font_bold.render(word, size)
-                            } else {
-                                font.render(word, size)
-                            };
-
-                            let w = text.width() as i32;
-                            let h = text.height() as i32;
-
-                            if *x + w >= 640 && *x > 0 {
-                                *x = 0;
-                                *y += size.ceil() as i32;
-                            }
-
-                            blocks.push(Block {
-                                x: *x,
-                                y: *y,
-                                w: w,
-                                h: h,
-                                color: color,
-                                string: word.to_string(),
-                                link: link.clone(),
-                                text: text
-                            });
-
-                            *x += w;
-                        }
-
-                        *x += right_margin * 8;
+                        text_block(&string, x, y, size, bold, color, link.clone(), font, font_bold, blocks);
                     }
                 } else {
                     println!("#text: empty");
@@ -212,6 +225,26 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                     new_line = true;
                 },
                 "hr" => {
+                    new_line = true;
+                },
+                "img" => {
+                    if ! ignore {
+                        let mut src_opt = None;
+                        let mut alt_opt = None;
+                        for attr in attrs.iter() {
+                            match &*attr.name.local {
+                                "src" => src_opt = Some(attr.value.to_string()),
+                                "alt" => alt_opt = Some(attr.value.to_string()),
+                                _ => ()
+                            }
+                        }
+
+                        if let Some(alt) = alt_opt {
+                            text_block(&alt, x, y, size, bold, color, link.clone(), font, font_bold, blocks);
+                        }
+                    }
+
+                    ignore = true;
                     new_line = true;
                 },
                 "li" => {
