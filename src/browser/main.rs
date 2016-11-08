@@ -6,6 +6,7 @@ extern crate tendril;
 extern crate url;
 
 use std::{cmp, env, str};
+use std::collections::BTreeMap;
 use std::iter::repeat;
 use std::default::Default;
 use std::fs::File;
@@ -15,7 +16,7 @@ use std::string::String;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
-use orbclient::{Color, Window, EventOption, K_ESC, K_DOWN, K_UP};
+use orbclient::{Color, Window, EventOption, K_ESC, K_DOWN, K_PGDN, K_UP, K_PGUP};
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;
@@ -48,7 +49,7 @@ impl<'a> Block<'a> {
     }
 }
 
-fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f32, mut bold: bool, mut color: Color, mut ignore: bool, whitespace: &mut bool, mut link: Option<String>, font: &'a Font, font_bold: &'a Font, blocks: &mut Vec<Block<'a>>) {
+fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f32, mut bold: bool, mut color: Color, mut ignore: bool, whitespace: &mut bool, mut link: Option<String>, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let node = handle.borrow();
 
     let mut new_line = false;
@@ -160,7 +161,12 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                     color = Color::rgb(0, 0, 255);
                     for attr in attrs.iter() {
                         match &*attr.name.local {
-                            "href" => link = Some(attr.value.to_string()),
+                            "name" => {
+                                anchors.insert(attr.value.to_string(), *y);
+                            },
+                            "href" => {
+                                link = Some(attr.value.to_string());
+                            },
                             _ => ()
                         }
                     }
@@ -230,7 +236,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
     }
 
     for child in node.children.iter() {
-        walk(child.clone(), indent + 4, x, y, size, bold, color, ignore, whitespace, link.clone(), font, font_bold, blocks);
+        walk(child.clone(), indent + 4, x, y, size, bold, color, ignore, whitespace, link.clone(), font, font_bold, anchors, blocks);
     }
 
     if new_line {
@@ -245,7 +251,8 @@ pub fn escape_default(s: &str) -> String {
     s.chars().flat_map(|c| c.escape_default()).collect()
 }
 
-fn read_blocks<'a, R: Read>(r: &mut R, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'a>> {
+fn read_parse<'a, R: Read>(r: &mut R, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+    let mut anchors = BTreeMap::new();
     let mut blocks = vec![];
 
     let dom = parse_document(RcDom::default(), Default::default())
@@ -256,7 +263,7 @@ fn read_blocks<'a, R: Read>(r: &mut R, font: &'a Font, font_bold: &'a Font) -> V
     let mut x = 0;
     let mut y = 0;
     let mut whitespace = false;
-    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, font, font_bold, &mut blocks);
+    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, font, font_bold, &mut anchors, &mut blocks);
 
     if !dom.errors.is_empty() {
         /*
@@ -267,18 +274,18 @@ fn read_blocks<'a, R: Read>(r: &mut R, font: &'a Font, font_bold: &'a Font) -> V
         */
     }
 
-    blocks
+    (anchors, blocks)
 }
 
-fn file_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'a>> {
+fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
     if let Ok(mut file) = File::open(url.path()) {
-        read_blocks(&mut file, &font, &font_bold)
+        read_parse(&mut file, &font, &font_bold)
     } else {
-        vec![]
+        (BTreeMap::new(), vec![])
     }
 }
 
-fn http_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'a>> {
+fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
     let host = url.host_str().unwrap_or("");
     let port = url.port().unwrap_or(80);
     let mut path = url.path().to_string();
@@ -324,16 +331,16 @@ fn http_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<
         write!(stderr(), "> {}\n", line).unwrap();
     }
 
-    read_blocks(&mut &response[header_end + 4 ..], font, font_bold)
+    read_parse(&mut &response[header_end + 4 ..], font, font_bold)
 }
 
-fn url_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'a>> {
+fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
     if url.scheme() == "http" {
-        http_blocks(url, font, font_bold)
+        http_parse(url, font, font_bold)
     } else if url.scheme() == "file" {
-        file_blocks(url, font, font_bold)
+        file_parse(url, font, font_bold)
     } else {
-        vec![]
+        (BTreeMap::new(), vec![])
     }
 }
 
@@ -342,7 +349,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
     let mut window = Window::new(-1, -1, 640, 480,  &format!("Browser ({})", arg)).unwrap();
 
-    let mut blocks = url_blocks(&url, &font, &font_bold);
+    let (mut anchors, mut blocks) = url_parse(&url, &font, &font_bold);
 
     let mut offset = 0;
     let mut max_offset = 0;
@@ -375,11 +382,19 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                         K_ESC => return,
                         K_UP => {
                             redraw = true;
-                            offset = cmp::max(0, offset - 128);
+                            offset = cmp::max(0, offset - 60);
+                        },
+                        K_PGUP => {
+                            redraw = true;
+                            offset = cmp::max(0, offset - 480);
                         },
                         K_DOWN => {
                             redraw = true;
-                            offset = cmp::min(max_offset, offset + 128);
+                            offset = cmp::min(max_offset, offset + 60);
+                        },
+                        K_PGDN => {
+                            redraw = true;
+                            offset = cmp::min(max_offset, offset + 480);
                         },
                         _ => ()
                     }
@@ -402,13 +417,21 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
                     if let Some(link) = link_opt {
                         if link.starts_with('#') {
-                            println!("Find anchor {}", link);
+                            if let Some(anchor) = anchors.get(&link[1..]) {
+                                println!("Anchor {}: {}", link, *anchor);
+                                offset = *anchor;
+                                redraw = true;
+                            } else {
+                                println!("Anchor {} not found", link);
+                            }
                         } else {
                             url = url.join(&link).unwrap();
 
                             println!("Navigate {}: {:#?}", link, url);
 
-                            blocks = url_blocks(&url, &font, &font_bold);
+                            let parsed = url_parse(&url, &font, &font_bold);
+                            anchors = parsed.0;
+                            blocks = parsed.1;
 
                             offset = 0;
                             max_offset = 0;
