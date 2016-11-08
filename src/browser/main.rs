@@ -184,10 +184,13 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                     size = 10.0;
                     bold = true;
                     new_line = true;
-                }
+                },
+                "li" => {
+                    new_line = true;
+                },
                 "p" => {
                     new_line = true;
-                }
+                },
 
                 "head" => ignore = true,
                 "title" => ignore = true, //TODO: Grab title
