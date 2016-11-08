@@ -8,6 +8,10 @@ readme = "README.md"
 authors = ["Jeremy Soller <jackpot51@gmail.com>"]
 
 [[bin]]
+name = "browser"
+path = "src/browser/main.rs"
+
+[[bin]]
 name = "calculator"
 path = "src/calculator/main.rs"
 
@@ -40,11 +44,14 @@ name = "viewer"
 path = "src/viewer/main.rs"
 
 [dependencies]
+html5ever = "*"
+html5ever-atoms = "*"
 orbclient = "0.1"
 orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.1"
 ransid = "0.2"
+tendril = "*"
 userutils = { git = "https://github.com/redox-os/userutils.git" }
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
@@ -55,3 +62,4 @@ redox_syscall = { git = "https://github.com/redox-os/syscall.git" }
 
 [replace]
 "libc:0.2.17" = { git = "https://github.com/redox-os/liblibc.git", branch = "redox" }
+"rand:0.3.14" = { git = "https://github.com/redox-os/rand.git", branch = "redox" }
