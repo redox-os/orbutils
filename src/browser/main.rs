@@ -3,6 +3,7 @@ extern crate html5ever;
 extern crate orbclient;
 extern crate orbfont;
 extern crate tendril;
+extern crate url;
 
 use std::{cmp, env, str};
 use std::iter::repeat;
@@ -17,38 +18,7 @@ use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle}
 use orbclient::{Color, Window, EventOption, K_ESC, K_DOWN, K_UP};
 use orbfont::Font;
 use tendril::TendrilSink;
-
-#[derive(Clone, Debug)]
-struct Url {
-    scheme: String,
-    host: String,
-    port: u16,
-    path: Vec<String>
-}
-
-impl Url {
-    fn new(url: &str) -> Url {
-        let (scheme, reference) = url.split_at(url.find(':').unwrap_or(0));
-
-        let mut parts = reference.split('/').skip(2); //skip first two slashes
-        let remote = parts.next().unwrap_or("");
-        let mut remote_parts = remote.split(':');
-        let host = remote_parts.next().unwrap_or("");
-        let port = remote_parts.next().unwrap_or("").parse::<u16>().unwrap_or(80);
-
-        let mut path = Vec::new();
-        for part in parts {
-            path.push(part.to_string());
-        }
-
-        Url {
-            scheme: scheme.to_string(),
-            host: host.to_string(),
-            port: port,
-            path: path
-        }
-    }
-}
+use url::Url;
 
 struct Block<'a> {
     x: i32,
@@ -301,14 +271,7 @@ fn read_blocks<'a, R: Read>(r: &mut R, font: &'a Font, font_bold: &'a Font) -> V
 }
 
 fn file_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'a>> {
-    let mut parts = url.path.iter();
-    let mut path = parts.next().map_or(String::new(), |s| s.clone());
-    for part in parts {
-        path.push('/');
-        path.push_str(part);
-    }
-
-    if let Ok(mut file) = File::open(&path) {
+    if let Ok(mut file) = File::open(url.path()) {
         read_blocks(&mut file, &font, &font_bold)
     } else {
         vec![]
@@ -316,20 +279,21 @@ fn file_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<
 }
 
 fn http_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'a>> {
-    let mut parts = url.path.iter();
-    let mut path = parts.next().map_or(String::new(), |s| s.clone());
-    for part in parts {
-        path.push('/');
-        path.push_str(part);
+    let host = url.host_str().unwrap_or("");
+    let port = url.port().unwrap_or(80);
+    let mut path = url.path().to_string();
+    if let Some(query) = url.query() {
+        path.push('?');
+        path.push_str(query);
     }
 
-    write!(stderr(), "* Connecting to {}:{}\n", url.host, url.port).unwrap();
+    write!(stderr(), "* Connecting to {}:{}\n", host, port).unwrap();
 
-    let mut stream = TcpStream::connect((url.host.as_str(), url.port)).unwrap();
+    let mut stream = TcpStream::connect((host, port)).unwrap();
 
     write!(stderr(), "* Requesting {}\n", path).unwrap();
 
-    let request = format!("GET /{} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n", path, url.host);
+    let request = format!("GET /{} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n", path, host);
     stream.write(request.as_bytes()).unwrap();
     stream.flush().unwrap();
 
@@ -364,9 +328,9 @@ fn http_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<
 }
 
 fn url_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'a>> {
-    if url.scheme == "http" {
+    if url.scheme() == "http" {
         http_blocks(url, font, font_bold)
-    } else if url.scheme == "file" || url.scheme.is_empty() {
+    } else if url.scheme() == "file" {
         file_blocks(url, font, font_bold)
     } else {
         vec![]
@@ -374,7 +338,7 @@ fn url_blocks<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> Vec<Block<'
 }
 
 fn main_window(arg: &str, font: &Font, font_bold: &Font) {
-    let mut url = Url::new(arg);
+    let mut url = Url::parse(arg).unwrap();
 
     let mut window = Window::new(-1, -1, 640, 480,  &format!("Browser ({})", arg)).unwrap();
 
@@ -440,18 +404,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                         if link.starts_with('#') {
                             println!("Find anchor {}", link);
                         } else {
-                            if link.find(':').is_some() {
-                                url = Url::new(&link);
-                            } else if link.starts_with('/') {
-                                url.path.clear();
-                                for part in link[1..].split('/') {
-                                    url.path.push(part.to_string());
-                                }
-                            } else if link.starts_with('?') {
-                                println!("TODO: GET Request");
-                            } else {
-                                url.path.push(link.clone());
-                            };
+                            url = url.join(&link).unwrap();
 
                             println!("Navigate {}: {:#?}", link, url);
 

@@ -52,6 +52,7 @@ orbimage = "0.1"
 orbtk = "0.1"
 ransid = "0.2"
 tendril = "*"
+url = { git = "https://github.com/servo/rust-url" }
 userutils = { git = "https://github.com/redox-os/userutils.git" }
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
