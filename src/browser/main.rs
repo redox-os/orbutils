@@ -447,6 +447,8 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                                 for part in link[1..].split('/') {
                                     url.path.push(part.to_string());
                                 }
+                            } else if link.starts_with('?') {
+                                println!("TODO: GET Request");
                             } else {
                                 url.path.push(link.clone());
                             };
