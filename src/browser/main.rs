@@ -105,7 +105,7 @@ fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool,
     *x += right_margin * 8;
 }
 
-fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f32, mut bold: bool, mut color: Color, mut ignore: bool, whitespace: &mut bool, mut link: Option<String>, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f32, mut bold: bool, mut color: Color, mut ignore: bool, whitespace: &mut bool, mut link: Option<String>, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let node = handle.borrow();
 
     let mut new_line = false;
@@ -239,8 +239,36 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                             }
                         }
 
-                        if let Some(alt) = alt_opt {
-                            text_block(&alt, x, y, size, bold, color, link.clone(), font, font_bold, blocks);
+                        let mut use_alt = true;
+                        if let Some(src) = src_opt {
+                            if src.ends_with(".png") {
+                                let img_url = url.join(&src).unwrap();
+                                let img_data = http_download(&img_url);
+                                if let Ok(img) = orbimage::parse_png(&img_data) {
+                                    let w = img.width() as i32;
+                                    let h = img.height() as i32;
+
+                                    blocks.push(Block {
+                                        x: *x,
+                                        y: *y,
+                                        w: w,
+                                        h: h,
+                                        color: color,
+                                        string: String::new(),
+                                        link: link.clone(),
+                                        image: Some(img),
+                                        text: None
+                                    });
+
+                                    *y += h;
+                                }
+                            }
+                        }
+
+                        if use_alt {
+                            if let Some(alt) = alt_opt {
+                                text_block(&alt, x, y, size, bold, color, link.clone(), font, font_bold, blocks);
+                            }
                         }
                     }
 
@@ -269,7 +297,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
     }
 
     for child in node.children.iter() {
-        walk(child.clone(), indent + 4, x, y, size, bold, color, ignore, whitespace, link.clone(), font, font_bold, anchors, blocks);
+        walk(child.clone(), indent + 4, x, y, size, bold, color, ignore, whitespace, link.clone(), url, font, font_bold, anchors, blocks);
     }
 
     if new_line {
@@ -284,41 +312,7 @@ pub fn escape_default(s: &str) -> String {
     s.chars().flat_map(|c| c.escape_default()).collect()
 }
 
-fn read_parse<'a, R: Read>(r: &mut R, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
-    let mut anchors = BTreeMap::new();
-    let mut blocks = vec![];
-
-    let dom = parse_document(RcDom::default(), Default::default())
-        .from_utf8()
-        .read_from(r)
-        .unwrap();
-
-    let mut x = 0;
-    let mut y = 0;
-    let mut whitespace = false;
-    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, font, font_bold, &mut anchors, &mut blocks);
-
-    if !dom.errors.is_empty() {
-        /*
-        println!("\nParse errors:");
-        for err in dom.errors.into_iter() {
-            println!("    {}", err);
-        }
-        */
-    }
-
-    (anchors, blocks)
-}
-
-fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
-    if let Ok(mut file) = File::open(url.path()) {
-        read_parse(&mut file, &font, &font_bold)
-    } else {
-        (BTreeMap::new(), vec![])
-    }
-}
-
-fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+fn http_download(url: &Url) -> Vec<u8> {
     let host = url.host_str().unwrap_or("");
     let port = url.port().unwrap_or(80);
     let mut path = url.path().to_string();
@@ -364,7 +358,46 @@ fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<S
         write!(stderr(), "> {}\n", line).unwrap();
     }
 
-    read_parse(&mut &response[header_end + 4 ..], font, font_bold)
+    response.split_off(header_end + 4)
+}
+
+fn read_parse<'a, R: Read>(r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+    let mut anchors = BTreeMap::new();
+    let mut blocks = vec![];
+
+    let dom = parse_document(RcDom::default(), Default::default())
+        .from_utf8()
+        .read_from(r)
+        .unwrap();
+
+    let mut x = 0;
+    let mut y = 0;
+    let mut whitespace = false;
+    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, url, font, font_bold, &mut anchors, &mut blocks);
+
+    if !dom.errors.is_empty() {
+        /*
+        println!("\nParse errors:");
+        for err in dom.errors.into_iter() {
+            println!("    {}", err);
+        }
+        */
+    }
+
+    (anchors, blocks)
+}
+
+fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+    if let Ok(mut file) = File::open(url.path()) {
+        read_parse(&mut file, url, &font, &font_bold)
+    } else {
+        (BTreeMap::new(), vec![])
+    }
+}
+
+fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+    let response = http_download(url);
+    read_parse(&mut response.as_slice(), url, font, font_bold)
 }
 
 fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
