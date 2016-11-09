@@ -363,10 +363,7 @@ fn http_download(url: &Url) -> Vec<u8> {
     response.split_off(header_end + 4)
 }
 
-fn read_parse<'a, R: Read>(r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
-    let mut anchors = BTreeMap::new();
-    let mut blocks = vec![];
-
+fn read_parse<'a, R: Read>(r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let dom = parse_document(RcDom::default(), Default::default())
         .from_utf8()
         .read_from(r)
@@ -375,7 +372,7 @@ fn read_parse<'a, R: Read>(r: &mut R, url: &Url, font: &'a Font, font_bold: &'a 
     let mut x = 0;
     let mut y = 0;
     let mut whitespace = false;
-    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, url, font, font_bold, &mut anchors, &mut blocks);
+    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, url, font, font_bold, anchors, blocks);
 
     if !dom.errors.is_empty() {
         /*
@@ -385,30 +382,24 @@ fn read_parse<'a, R: Read>(r: &mut R, url: &Url, font: &'a Font, font_bold: &'a 
         }
         */
     }
-
-    (anchors, blocks)
 }
 
-fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     if let Ok(mut file) = File::open(url.path()) {
-        read_parse(&mut file, url, &font, &font_bold)
-    } else {
-        (BTreeMap::new(), vec![])
+        read_parse(&mut file, url, &font, &font_bold, anchors, blocks);
     }
 }
 
-fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let response = http_download(url);
-    read_parse(&mut response.as_slice(), url, font, font_bold)
+    read_parse(&mut response.as_slice(), url, font, font_bold, anchors, blocks);
 }
 
-fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<String, i32>, Vec<Block<'a>>) {
+fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     if url.scheme() == "http" {
-        http_parse(url, font, font_bold)
+        http_parse(url, font, font_bold, anchors, blocks)
     } else if url.scheme() == "file" {
-        file_parse(url, font, font_bold)
-    } else {
-        (BTreeMap::new(), vec![])
+        file_parse(url, font, font_bold, anchors, blocks)
     }
 }
 
@@ -417,7 +408,9 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
     let mut window = Window::new(-1, -1, 800, 600,  &format!("Browser ({})", arg)).unwrap();
 
-    let (mut anchors, mut blocks) = url_parse(&url, &font, &font_bold);
+    let mut anchors = BTreeMap::new();
+    let mut blocks = Vec::new();
+    url_parse(&url, &font, &font_bold, &mut anchors, &mut blocks);
 
     let mut offset = 0;
     let mut max_offset = 0;
@@ -497,9 +490,9 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
                             println!("Navigate {}: {:#?}", link, url);
 
-                            let parsed = url_parse(&url, &font, &font_bold);
-                            anchors = parsed.0;
-                            blocks = parsed.1;
+                            anchors.clear();
+                            blocks.clear();
+                            url_parse(&url, &font, &font_bold, &mut anchors, &mut blocks);
 
                             offset = 0;
                             max_offset = 0;
@@ -548,14 +541,11 @@ fn main() {
         }
     };
 
-    match env::args().nth(1) {
-        Some(path) => match Font::find(None, None, None) {
-            Ok(font) => match Font::find(None, None, Some("Bold")) {
-                Ok(font_bold) => main_window(&path, &font, &font_bold),
-                Err(err) => err_window(&format!("{}", err))
-            },
+    match Font::find(None, None, None) {
+        Ok(font) => match Font::find(None, None, Some("Bold")) {
+            Ok(font_bold) => main_window(&env::args().nth(1).unwrap_or("http://www.redox-os.org".to_string()), &font, &font_bold),
             Err(err) => err_window(&format!("{}", err))
         },
-        None => err_window("no file argument")
+        Err(err) => err_window(&format!("{}", err))
     }
 }
