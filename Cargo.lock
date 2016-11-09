@@ -12,7 +12,7 @@ dependencies = [
  "ransid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_syscall 0.1.0 (git+https://github.com/redox-os/syscall.git)",
  "tendril 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.2.3 (git+https://github.com/servo/rust-url)",
+ "url 1.2.3 (git+https://github.com/redox-os/rust-url?branch=redox)",
  "userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)",
 ]
 
@@ -163,7 +163,7 @@ dependencies = [
 [[package]]
 name = "idna"
 version = "0.1.0"
-source = "git+https://github.com/servo/rust-url#23601ba92fe8ca42179a93a0164a925ff4eea913"
+source = "git+https://github.com/redox-os/rust-url?branch=redox#0cf4805c393749b9990e5c88e84bd70e4b8c216f"
 dependencies = [
  "matches 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicode-bidi 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -540,9 +540,9 @@ dependencies = [
 [[package]]
 name = "url"
 version = "1.2.3"
-source = "git+https://github.com/servo/rust-url#23601ba92fe8ca42179a93a0164a925ff4eea913"
+source = "git+https://github.com/redox-os/rust-url?branch=redox#0cf4805c393749b9990e5c88e84bd70e4b8c216f"
 dependencies = [
- "idna 0.1.0 (git+https://github.com/servo/rust-url)",
+ "idna 0.1.0 (git+https://github.com/redox-os/rust-url?branch=redox)",
  "matches 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -589,7 +589,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum futf 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e7a9689380a2553b51c564b3d9178075c68ebd0b397972c783acfd28b46c28ad"
 "checksum html5ever 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7f8b7dd0ad2b3813f090b4f6ff8799debef84bca012c1af9e854f20d9ae19ea7"
 "checksum html5ever-atoms 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "daefa106438c66af58309c84842b5db1df2733fe35849f39adde6fdf63583d40"
-"checksum idna 0.1.0 (git+https://github.com/servo/rust-url)" = "<none>"
+"checksum idna 0.1.0 (git+https://github.com/redox-os/rust-url?branch=redox)" = "<none>"
 "checksum inflate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e7e0062d2dc2f17d2f13750d95316ae8a2ff909af0fda957084f5defd87c43bb"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
 "checksum libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "e32a70cf75e5846d53a673923498228bbec6a8624708a9ea5645f075d6276122"
@@ -639,7 +639,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum unicode-normalization 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "26643a2f83bac55f1976fb716c10234485f9202dcd65cfbdf9da49867b271172"
 "checksum unicode-xid 0.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "36dff09cafb4ec7c8cf0023eb0b686cb6ce65499116a12201c9e11840ca01beb"
 "checksum unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1f2ae5ddb18e1c92664717616dd9549dde73f539f01bd7b77c2edb2446bdff91"
-"checksum url 1.2.3 (git+https://github.com/servo/rust-url)" = "<none>"
+"checksum url 1.2.3 (git+https://github.com/redox-os/rust-url?branch=redox)" = "<none>"
 "checksum userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)" = "<none>"
 "checksum utf-8 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a9aee9ba280438b56d1ebc5329f2094f0ff457f811eeeff0b278d75aa99db400"
 "checksum void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6a02e4885ed3bc0f2de90ea6dd45ebcbb66dacffe03547fadbb0eeae2770887d"
