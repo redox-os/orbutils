@@ -82,7 +82,7 @@ fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool,
         let w = text.width() as i32;
         let h = text.height() as i32;
 
-        if *x + w >= 640 && *x > 0 {
+        if *x + w >= 800 && *x > 0 {
             *x = 0;
             *y += size.ceil() as i32;
         }
@@ -245,6 +245,8 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                                 let img_url = url.join(&src).unwrap();
                                 let img_data = http_download(&img_url);
                                 if let Ok(img) = orbimage::parse_png(&img_data) {
+                                    use_alt = false;
+
                                     let w = img.width() as i32;
                                     let h = img.height() as i32;
 
@@ -413,7 +415,7 @@ fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font) -> (BTreeMap<St
 fn main_window(arg: &str, font: &Font, font_bold: &Font) {
     let mut url = Url::parse(arg).unwrap();
 
-    let mut window = Window::new(-1, -1, 640, 480,  &format!("Browser ({})", arg)).unwrap();
+    let mut window = Window::new(-1, -1, 800, 600,  &format!("Browser ({})", arg)).unwrap();
 
     let (mut anchors, mut blocks) = url_parse(&url, &font, &font_bold);
 
@@ -452,7 +454,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                         },
                         K_PGUP => {
                             redraw = true;
-                            offset = cmp::max(0, offset - 480);
+                            offset = cmp::max(0, offset - 600);
                         },
                         K_DOWN => {
                             redraw = true;
@@ -460,7 +462,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                         },
                         K_PGDN => {
                             redraw = true;
-                            offset = cmp::min(max_offset, offset + 480);
+                            offset = cmp::min(max_offset, offset + 600);
                         },
                         _ => ()
                     }
