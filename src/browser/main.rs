@@ -17,7 +17,7 @@ use std::string::String;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
-use orbclient::{Color, Window, EventOption, K_ESC, K_DOWN, K_PGDN, K_UP, K_PGUP};
+use orbclient::{Color, Window, EventOption, K_BKSP, K_ESC, K_DOWN, K_PGDN, K_UP, K_PGUP};
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;
@@ -404,26 +404,42 @@ fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut B
 }
 
 fn main_window(arg: &str, font: &Font, font_bold: &Font) {
+    let mut history = vec![];
+
     let mut url = Url::parse(arg).unwrap();
 
     let mut window = Window::new(-1, -1, 800, 600,  &format!("Browser ({})", arg)).unwrap();
 
     let mut anchors = BTreeMap::new();
     let mut blocks = Vec::new();
-    url_parse(&url, &font, &font_bold, &mut anchors, &mut blocks);
 
     let mut offset = 0;
     let mut max_offset = 0;
-    for block in blocks.iter() {
-        if block.y + block.h > max_offset {
-            max_offset = block.y + block.h;
-        }
-    }
 
     let mut mouse_down = false;
 
+    let mut reload = true;
     let mut redraw = true;
     loop {
+        if reload {
+            reload = false;
+
+            anchors.clear();
+            blocks.clear();
+            url_parse(&url, &font, &font_bold, &mut anchors, &mut blocks);
+
+            offset = 0;
+            max_offset = 0;
+
+            for block in blocks.iter() {
+                if block.y + block.h > max_offset {
+                    max_offset = block.y + block.h;
+                }
+            }
+
+            redraw = true;
+        }
+
         if redraw {
             redraw = false;
 
@@ -457,6 +473,10 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                             redraw = true;
                             offset = cmp::min(max_offset, offset + 600);
                         },
+                        K_BKSP => if let Some(last_url) = history.pop() {
+                            url = last_url;
+                            reload = true;
+                        },
                         _ => ()
                     }
                 },
@@ -486,23 +506,13 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                                 println!("Anchor {} not found", link);
                             }
                         } else {
+                            history.push(url.clone());
+
                             url = url.join(&link).unwrap();
 
                             println!("Navigate {}: {:#?}", link, url);
 
-                            anchors.clear();
-                            blocks.clear();
-                            url_parse(&url, &font, &font_bold, &mut anchors, &mut blocks);
-
-                            offset = 0;
-                            max_offset = 0;
-                            for block in blocks.iter() {
-                                if block.y + block.h > max_offset {
-                                    max_offset = block.y + block.h;
-                                }
-                            }
-
-                            redraw = true;
+                            reload = true;
                         }
                     }
                 },
