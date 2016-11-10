@@ -1,5 +1,6 @@
 extern crate ransid;
 
+use std::cmp;
 use std::collections::{BTreeSet, VecDeque};
 
 use orbclient::{Color, Event, EventOption, Window};
@@ -144,12 +145,45 @@ impl Console {
         }
     }
 
+    pub fn invert(&mut self, x: usize, y: usize, w: usize, h: usize) {
+        let width = self.window.width() as usize;
+        let height = self.window.height() as usize;
+
+        let start_y = cmp::min(height - 1, y);
+        let end_y = cmp::min(height, y + h);
+
+        let start_x = cmp::min(width - 1, x);
+        let len = cmp::min(width, x + w) - start_x;
+
+        let mut offscreen_ptr = self.window.data_mut().as_mut_ptr() as usize;
+
+        let stride = width * 4;
+
+        let offset = y * stride + start_x * 4;
+        offscreen_ptr += offset;
+
+        let mut rows = end_y - start_y;
+        while rows > 0 {
+            let mut row_ptr = offscreen_ptr;
+            let mut cols = len;
+            while cols > 0 {
+                unsafe {
+                    let color = *(row_ptr as *mut u32);
+                    *(row_ptr as *mut u32) = !color;
+                }
+                row_ptr += 4;
+                cols -= 1;
+            }
+            offscreen_ptr += stride;
+            rows -= 1;
+        }
+    }
+
     pub fn write(&mut self, buf: &[u8], sync: bool) -> Result<usize> {
         if self.console.cursor && self.console.x < self.console.w && self.console.y < self.console.h {
             let x = self.console.x;
             let y = self.console.y;
-            let color = self.console.background;
-            self.window.rect(x as i32 * 8, y as i32 * 16, 8, 16, Color { data: color.data });
+            self.invert(x * 8, y * 16, 8, 16);
             self.changed.insert(y);
         }
 
@@ -195,8 +229,7 @@ impl Console {
         if self.console.cursor && self.console.x < self.console.w && self.console.y < self.console.h {
             let x = self.console.x;
             let y = self.console.y;
-            let color = self.console.foreground;
-            self.window.rect(x as i32 * 8, y as i32 * 16, 8, 16, Color { data: color.data });
+            self.invert(x * 8, y * 16, 8, 16);
             self.changed.insert(y as usize);
         }
 
