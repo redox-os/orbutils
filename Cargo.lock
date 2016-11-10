@@ -2,8 +2,8 @@
 name = "orbutils"
 version = "0.1.10"
 dependencies = [
- "html5ever 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "html5ever-atoms 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "html5ever 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "html5ever-atoms 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -137,23 +137,23 @@ dependencies = [
 
 [[package]]
 name = "html5ever"
-version = "0.10.0"
+version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "html5ever-atoms 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "html5ever-atoms 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mac 0.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "phf 0.7.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "phf_codegen 0.7.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tendril 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "html5ever-atoms"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "string_cache 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -188,7 +188,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "libc"
 version = "0.2.17"
-source = "git+https://github.com/rust-lang/libc.git#9195462a49857ac4a22293f00cee6c79443c7272"
+source = "git+https://github.com/rust-lang/libc.git#6e8c1b490ccbe5e84d248bab883515bc85394b5f"
 
 [[package]]
 name = "libc"
@@ -245,7 +245,7 @@ dependencies = [
  "num-integer 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -254,7 +254,7 @@ version = "0.1.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "num-traits 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -282,7 +282,7 @@ dependencies = [
  "num-bigint 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-integer 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -409,7 +409,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rustc-serialize"
-version = "0.3.20"
+version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -549,7 +549,7 @@ dependencies = [
 [[package]]
 name = "userutils"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/userutils.git#69a21ddd1fcad95ea0e04a0bdde90d326e54fb92"
+source = "git+https://github.com/redox-os/userutils.git#61203b6a72dae7e27c173e95521a8ab46f2d76d2"
 dependencies = [
  "argon2rs 0.2.5 (git+https://github.com/redox-os/argon2rs.git)",
  "rand 0.3.14 (git+https://github.com/rust-lang-nursery/rand.git)",
@@ -587,8 +587,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum encoding-index-tradchinese 1.20141219.5 (registry+https://github.com/rust-lang/crates.io-index)" = "fd0e20d5688ce3cab59eb3ef3a2083a5c77bf496cb798dc6fcdb75f323890c18"
 "checksum encoding_index_tests 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a246d82be1c9d791c5dfde9a2bd045fc3cbba3fa2b11ad558f27d01712f00569"
 "checksum futf 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e7a9689380a2553b51c564b3d9178075c68ebd0b397972c783acfd28b46c28ad"
-"checksum html5ever 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7f8b7dd0ad2b3813f090b4f6ff8799debef84bca012c1af9e854f20d9ae19ea7"
-"checksum html5ever-atoms 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "daefa106438c66af58309c84842b5db1df2733fe35849f39adde6fdf63583d40"
+"checksum html5ever 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "47e8b18bb73cb3535597d23fbd1998fb45fe88cb12b9acf183a0188331f6d915"
+"checksum html5ever-atoms 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "fd3fc831590ee7fcf693c673e4e3cbe14fbda44dc0f26d9bdc79cfc9f551dc05"
 "checksum idna 0.1.0 (git+https://github.com/redox-os/rust-url?branch=redox)" = "<none>"
 "checksum inflate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e7e0062d2dc2f17d2f13750d95316ae8a2ff909af0fda957084f5defd87c43bb"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
@@ -623,7 +623,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum ransid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce0c1b4c0dc24c14bcc71fa373d1bce433ea250691313b0cc1bc73e333a2bda0"
 "checksum redox_syscall 0.1.0 (git+https://github.com/redox-os/syscall.git)" = "<none>"
 "checksum redox_syscall 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "35a48131ab10dbeb17202bd1dcb9c9798963a58a50c9ec31640f237358832094"
-"checksum rustc-serialize 0.3.20 (registry+https://github.com/rust-lang/crates.io-index)" = "0c11e5465fcfde38cd9068f031d9eae19d2530bee91b129fed44f2b122697749"
+"checksum rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)" = "bff9fc1c79f2dec76b253273d07682e94a978bd8f132ded071188122b2af9818"
 "checksum rusttype 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c3c64ffc93b0cc5a6f5e5e84da2a4082b0271e0a1dd76e821bdac570bda7797e"
 "checksum sdl2 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9cf70f3d302b61311856bcbd9c9d000aadc7c595574214335cf09035fdced2c9"
 "checksum sdl2-sys 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "657e3a3a175fda33c05d943923a768c7bf94c3b5fad05dcb31fc0321b11f47bd"
