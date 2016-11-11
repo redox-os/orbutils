@@ -549,7 +549,7 @@ dependencies = [
 [[package]]
 name = "userutils"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/userutils.git#61203b6a72dae7e27c173e95521a8ab46f2d76d2"
+source = "git+https://github.com/redox-os/userutils.git#48938fa3fd32e0822df94b1fd19277c3c7bf47b2"
 dependencies = [
  "argon2rs 0.2.5 (git+https://github.com/redox-os/argon2rs.git)",
  "rand 0.3.14 (git+https://github.com/rust-lang-nursery/rand.git)",
