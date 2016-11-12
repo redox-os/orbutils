@@ -1,6 +1,6 @@
 #[macro_use] extern crate html5ever_atoms;
 extern crate html5ever;
-extern crate mime_guess;
+//extern crate mime_guess;
 extern crate orbclient;
 extern crate orbfont;
 extern crate orbimage;
@@ -477,14 +477,14 @@ fn read_parse<'a, R: Read>(headers: &Vec<String>, r: &mut R, url: &Url, font: &'
 fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     if let Ok(path) = url.to_file_path() {
         if let Ok(mut file) = File::open(&path) {
-            let mut headers = Vec::new();
+            let headers = Vec::new();
 
-            {
+            /* TODO {
                 let extension = path.extension().unwrap_or(OsStr::new("")).to_str().unwrap_or("");
                 let mime_type = mime_guess::get_mime_type_str(extension).unwrap_or("application/octet-stream");
                 println!("{:?}", mime_type);
                 headers.push(format!("Content-Type: {}", mime_type));
-            }
+            } */
 
             read_parse(&headers, &mut file, url, &font, &font_bold, anchors, blocks);
         } else {
