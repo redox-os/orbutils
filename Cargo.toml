@@ -46,6 +46,7 @@ path = "src/viewer/main.rs"
 [dependencies]
 html5ever = "*"
 html5ever-atoms = "*"
+mime_guess = "*"
 orbclient = "0.1"
 orbfont = "0.1"
 orbimage = "0.1"

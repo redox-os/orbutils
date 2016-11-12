@@ -1,5 +1,6 @@
 #[macro_use] extern crate html5ever_atoms;
 extern crate html5ever;
+extern crate mime_guess;
 extern crate orbclient;
 extern crate orbfont;
 extern crate orbimage;
@@ -10,6 +11,7 @@ use std::{cmp, env, str};
 use std::collections::BTreeMap;
 use std::iter::repeat;
 use std::default::Default;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{stderr, Read, Write};
 use std::net::TcpStream;
@@ -17,7 +19,7 @@ use std::string::String;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
-use orbclient::{Color, Window, EventOption, K_BKSP, K_ESC, K_DOWN, K_PGDN, K_UP, K_PGUP};
+use orbclient::{Color, Window, EventOption, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP};
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;
@@ -35,16 +37,16 @@ struct Block<'a> {
 }
 
 impl<'a> Block<'a> {
-    fn contains(&self, m_x: i32, m_y: i32, offset: i32) -> bool {
-        let x = self.x;
-        let y = self.y - offset;
+    fn contains(&self, m_x: i32, m_y: i32, offset: (i32, i32)) -> bool {
+        let x = self.x - offset.0;
+        let y = self.y - offset.1;
 
         m_x >= x && m_x < x + self.w && m_y >= y && m_y < y + self.h
     }
 
-    fn draw(&self, window: &mut Window, offset: i32) {
-        let x = self.x;
-        let y = self.y - offset;
+    fn draw(&self, window: &mut Window, offset: (i32, i32)) {
+        let x = self.x - offset.0;
+        let y = self.y - offset.1;
         if x + self.w > 0 && x < window.width() as i32 && y + self.h > 0 && y < window.height() as i32 {
             if let Some(ref image) = self.image {
                 image.draw(window, x, y);
@@ -64,7 +66,7 @@ fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool,
     let right_margin = trimmed_left.len() as i32 - trimmed_right.len() as i32;
 
     let escaped_text = escape_default(&trimmed_right);
-    println!("#text: block {} at {}, {}: '{}'", blocks.len(), *x, *y, escaped_text);
+    //println!("#text: block {} at {}, {}: '{}'", blocks.len(), *x, *y, escaped_text);
 
     *x += left_margin * 8;
 
@@ -110,16 +112,16 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
 
     let mut new_line = false;
 
-    print!("{}", repeat(" ").take(indent).collect::<String>());
+    //print!("{}", repeat(" ").take(indent).collect::<String>());
     match node.node {
         Document
             => {
-                println!("#Document")
+                //println!("#Document")
             },
 
         Doctype(ref name, ref public, ref system)
             => {
-                println!("<!DOCTYPE {} \"{}\" \"{}\">", *name, *public, *system);
+                //println!("<!DOCTYPE {} \"{}\" \"{}\">", *name, *public, *system);
             },
 
         Text(ref text)
@@ -146,28 +148,28 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
 
                 if ! string.is_empty() {
                     if ignore {
-                        println!("#text: ignored");
+                        //println!("#text: ignored");
                     } else {
                         text_block(&string, x, y, size, bold, color, link.clone(), font, font_bold, blocks);
                     }
                 } else {
-                    println!("#text: empty");
+                    //println!("#text: empty");
                 }
             },
 
         Comment(ref text)
             => {
-                println!("<!-- {} -->", escape_default(text))
+                //println!("<!-- {} -->", escape_default(text))
             },
 
         Element(ref name, _, ref attrs) => {
             assert!(name.ns == ns!(html));
-            print!("<{}", name.local);
+            //print!("<{}", name.local);
             for attr in attrs.iter() {
                 assert!(attr.name.ns == ns!());
-                print!(" {}=\"{}\"", attr.name.local, attr.value);
+                //print!(" {}=\"{}\"", attr.name.local, attr.value);
             }
-            println!(">");
+            //println!(">");
 
             match &*name.local {
                 "a" => {
@@ -243,7 +245,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                         if let Some(src) = src_opt {
                             if src.ends_with(".png") {
                                 let img_url = url.join(&src).unwrap();
-                                let img_data = http_download(&img_url);
+                                let (img_headers, img_data) = http_download(&img_url);
                                 if let Ok(img) = orbimage::parse_png(&img_data) {
                                     use_alt = false;
 
@@ -314,7 +316,7 @@ pub fn escape_default(s: &str) -> String {
     s.chars().flat_map(|c| c.escape_default()).collect()
 }
 
-fn http_download(url: &Url) -> Vec<u8> {
+fn http_download(url: &Url) -> (Vec<String>, Vec<u8>) {
     let host = url.host_str().unwrap_or("");
     let port = url.port().unwrap_or(80);
     let mut path = url.path().to_string();
@@ -351,55 +353,158 @@ fn http_download(url: &Url) -> Vec<u8> {
     let mut header_end = 0;
     while header_end < response.len() {
         if response[header_end..].starts_with(b"\r\n\r\n") {
+            header_end += 4;
             break;
         }
         header_end += 1;
     }
 
+    let mut headers = Vec::new();
     for line in unsafe { str::from_utf8_unchecked(&response[..header_end]) }.lines() {
-        write!(stderr(), "> {}\n", line).unwrap();
+        if ! line.is_empty() {
+            write!(stderr(), "> {}\n", line).unwrap();
+            headers.push(line.to_string());
+        }
     }
 
-    response.split_off(header_end + 4)
+    (headers, response.split_off(header_end))
 }
 
-fn read_parse<'a, R: Read>(r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
-    let dom = parse_document(RcDom::default(), Default::default())
-        .from_utf8()
-        .read_from(r)
-        .unwrap();
-
-    let mut x = 0;
-    let mut y = 0;
-    let mut whitespace = false;
-    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, url, font, font_bold, anchors, blocks);
-
-    if !dom.errors.is_empty() {
-        /*
-        println!("\nParse errors:");
-        for err in dom.errors.into_iter() {
-            println!("    {}", err);
+fn read_parse<'a, R: Read>(headers: &Vec<String>, r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+    let mut content_type = "text/plain";
+    for header in headers.iter() {
+        if header.starts_with("Content-Type: ") {
+            if let Some(new_type) = header[14..].split(';').next() {
+                content_type = new_type;
+                break;
+            }
         }
-        */
+    }
+
+    match content_type {
+        "text/plain" => {
+            let mut string = String::new();
+            match r.read_to_string(&mut string) {
+                Ok(_) => {
+                    let mut y = 0;
+                    for line in string.lines() {
+                        text_block(line, &mut 0, &mut y, 12.0, false, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                        y += 12;
+                    }
+                },
+                Err(err) => {
+                    let error = format!("Text data not readable: {}", err);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                }
+            }
+        },
+        "text/html" => {
+            match parse_document(RcDom::default(), Default::default()).from_utf8().read_from(r) {
+                Ok(dom) => {
+                    let mut x = 0;
+                    let mut y = 0;
+                    let mut whitespace = false;
+                    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, url, font, font_bold, anchors, blocks);
+
+                    if !dom.errors.is_empty() {
+                        /*
+                        println!("\nParse errors:");
+                        for err in dom.errors.into_iter() {
+                            println!("    {}", err);
+                        }
+                        */
+                    }
+                },
+                Err(err) => {
+                    let error = format!("HTML data not readable: {}", err);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                }
+            }
+        },
+        "image/png" => {
+            let mut data = Vec::new();
+            r.read_to_end(&mut data).unwrap();
+            match orbimage::parse_png(&data) {
+                Ok(img) => {
+                    blocks.push(Block {
+                        x: 0,
+                        y: 0,
+                        w: img.width() as i32,
+                        h: img.height() as i32,
+                        color: Color::rgb(0, 0, 0),
+                        string: String::new(),
+                        link: None,
+                        image: Some(img),
+                        text: None
+                    });
+                },
+                Err(err) => {
+                    let error = format!("PNG data not readable: {}", err);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                }
+            }
+        },
+        "image/x-ms-bmp" => {
+            let mut data = Vec::new();
+            r.read_to_end(&mut data).unwrap();
+            match orbimage::parse_bmp(&data) {
+                Ok(img) => {
+                    blocks.push(Block {
+                        x: 0,
+                        y: 0,
+                        w: img.width() as i32,
+                        h: img.height() as i32,
+                        color: Color::rgb(0, 0, 0),
+                        string: String::new(),
+                        link: None,
+                        image: Some(img),
+                        text: None
+                    });
+                },
+                Err(err) => {
+                    let error = format!("BMP data not readable: {}", err);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                }
+            }
+        },
+        _ => {
+            let error = format!("Unsupported content type: {}", content_type);
+            text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+        }
     }
 }
 
 fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
-    if let Ok(mut file) = File::open(url.path()) {
-        read_parse(&mut file, url, &font, &font_bold, anchors, blocks);
+    if let Ok(path) = url.to_file_path() {
+        if let Ok(mut file) = File::open(&path) {
+            let mut headers = Vec::new();
+
+            {
+                let extension = path.extension().unwrap_or(OsStr::new("")).to_str().unwrap_or("");
+                let mime_type = mime_guess::get_mime_type_str(extension).unwrap_or("application/octet-stream");
+                println!("{:?}", mime_type);
+                headers.push(format!("Content-Type: {}", mime_type));
+            }
+
+            read_parse(&headers, &mut file, url, &font, &font_bold, anchors, blocks);
+        } else {
+            println!("{} not found", path.display());
+        }
     }
 }
 
 fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
-    let response = http_download(url);
-    read_parse(&mut response.as_slice(), url, font, font_bold, anchors, blocks);
+    let (headers, response) = http_download(url);
+    read_parse(&headers, &mut response.as_slice(), url, font, font_bold, anchors, blocks);
 }
 
 fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
-    if url.scheme() == "http" {
+    if url.scheme() == "http" || url.scheme() == "https" {
         http_parse(url, font, font_bold, anchors, blocks)
     } else if url.scheme() == "file" {
         file_parse(url, font, font_bold, anchors, blocks)
+    } else {
+        println!("{} scheme not found", url.scheme());
     }
 }
 
@@ -408,13 +513,15 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
     let mut url = Url::parse(arg).unwrap();
 
-    let mut window = Window::new(-1, -1, 800, 600,  &format!("Browser ({})", arg)).unwrap();
+    let window_w = 800;
+    let window_h = 600;
+    let mut window = Window::new(-1, -1, window_w as u32, window_h as u32,  &format!("Browser ({})", arg)).unwrap();
 
     let mut anchors = BTreeMap::new();
     let mut blocks = Vec::new();
 
-    let mut offset = 0;
-    let mut max_offset = 0;
+    let mut offset = (0, 0);
+    let mut max_offset = (0, 0);
 
     let mut mouse_down = false;
 
@@ -428,12 +535,15 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
             blocks.clear();
             url_parse(&url, &font, &font_bold, &mut anchors, &mut blocks);
 
-            offset = 0;
-            max_offset = 0;
+            offset = (0, 0);
+            max_offset = (0, 0);
 
             for block in blocks.iter() {
-                if block.y + block.h > max_offset {
-                    max_offset = block.y + block.h;
+                if block.x + block.w > max_offset.0 {
+                    max_offset.0 = block.x + block.w;
+                }
+                if block.y + block.h > max_offset.1 {
+                    max_offset.1 = block.y + block.h;
                 }
             }
 
@@ -457,21 +567,29 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                 EventOption::Key(key_event) => if key_event.pressed {
                     match key_event.scancode {
                         K_ESC => return,
+                        K_LEFT => {
+                            redraw = true;
+                            offset.0 = cmp::max(0, offset.0 - 60);
+                        },
+                        K_RIGHT => {
+                            redraw = true;
+                            offset.0 = cmp::min(cmp::max(0, max_offset.0 - window_w), offset.0 + 60);
+                        },
                         K_UP => {
                             redraw = true;
-                            offset = cmp::max(0, offset - 60);
+                            offset.1 = cmp::max(0, offset.1 - 60);
                         },
                         K_PGUP => {
                             redraw = true;
-                            offset = cmp::max(0, offset - 600);
+                            offset.1 = cmp::max(0, offset.1 - 600);
                         },
                         K_DOWN => {
                             redraw = true;
-                            offset = cmp::min(max_offset, offset + 60);
+                            offset.1 = cmp::min(cmp::max(0, max_offset.1 - window_h), offset.1 + 60);
                         },
                         K_PGDN => {
                             redraw = true;
-                            offset = cmp::min(max_offset, offset + 600);
+                            offset.1 = cmp::min(cmp::max(0, max_offset.1 - window_h), offset.1 + 600);
                         },
                         K_BKSP => if let Some(last_url) = history.pop() {
                             url = last_url;
@@ -500,7 +618,8 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                         if link.starts_with('#') {
                             if let Some(anchor) = anchors.get(&link[1..]) {
                                 println!("Anchor {}: {}", link, *anchor);
-                                offset = *anchor;
+                                offset.0 = 0;
+                                offset.1 = *anchor;
                                 redraw = true;
                             } else {
                                 println!("Anchor {} not found", link);
