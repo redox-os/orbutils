@@ -16,6 +16,18 @@ use orbclient::{event, Color, EventOption, MouseEvent, Window};
 use orbimage::Image;
 use orbfont::Font;
 
+#[cfg(target_os = "redox")]
+static UI_PATH: &'static str = "/ui";
+
+#[cfg(not(target_os = "redox"))]
+static UI_PATH: &'static str = "ui";
+
+#[cfg(target_os = "redox")]
+static LAUNCH_COMMAND: &'static str = "launcher";
+
+#[cfg(not(target_os = "redox"))]
+static LAUNCH_COMMAND: &'static str = "xdg-open";
+
 struct FileInfo {
     name: String,
     size: u64,
@@ -82,6 +94,8 @@ impl FileTypesInfo {
         file_types.insert("bin",
                           FileType::new("Executable", "application-x-executable"));
         file_types.insert("bmp", FileType::new("Bitmap Image", "image-x-generic"));
+        file_types.insert("jpg", FileType::new("JPG Image", "image-x-generic"));
+        file_types.insert("jpeg", FileType::new("JPG Image", "image-x-generic"));
         file_types.insert("png", FileType::new("PNG Image", "image-x-generic"));
         file_types.insert("rs", FileType::new("Rust source code", "text-x-makefile"));
         file_types.insert("crate",
@@ -170,7 +184,7 @@ pub struct FileManager {
     file_types_info: FileTypesInfo,
     files: Vec<FileInfo>,
     selected: isize,
-    column: [i32; 2], // The x-coordinates of the "size" and "type" columns
+    column: [i32; 3], // The x-coordinates of the "size" and "type" columns
     sort_predicate: SortPredicate,
     sort_direction: SortDirection,
     last_mouse_event: MouseEvent,
@@ -179,7 +193,7 @@ pub struct FileManager {
 }
 
 fn load_icon(path: &str) -> Image {
-    match Image::from_path(&format!("/ui/icons/mimetypes/{}.png", path)) {
+    match Image::from_path(&format!("{}/icons/mimetypes/{}.png", UI_PATH, path)) {
         Ok(icon) => icon,
         Err(err) => {
             println!("Failed to load icon {}: {}", path, err);
@@ -194,7 +208,7 @@ impl FileManager {
             file_types_info: FileTypesInfo::new(),
             files: Vec::new(),
             selected: -1,
-            column: [0, 0],
+            column: [0, 0, 0],
             sort_predicate: SortPredicate::Name,
             sort_direction: SortDirection::Asc,
             last_mouse_event: MouseEvent {
@@ -233,20 +247,15 @@ impl FileManager {
         // TODO: Remove duplication between this function and draw_file_list()
         let row = 0;
 
-        let mut col = 0;
-        self.font.render("Name", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-
-        col = self.column[0];
-        self.font.render("Size", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-
-        col = self.column[1];
-        self.font.render("Type", 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+        self.font.render("Name", 16.0).draw(&mut self.window, self.column[0], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+        self.font.render("Size", 16.0).draw(&mut self.window, self.column[1], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+        self.font.render("Type", 16.0).draw(&mut self.window, self.column[2], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
         let column = self.column;
         match self.sort_predicate {
-            SortPredicate::Name => self.draw_sort_direction_arrow(80, 16),
-            SortPredicate::Size => self.draw_sort_direction_arrow(8 * column[0] as i32 + 80, 16),
-            SortPredicate::Type => self.draw_sort_direction_arrow(8 * column[1] as i32 + 80, 16),
+            SortPredicate::Name => self.draw_sort_direction_arrow(column[0] + 80, 16),
+            SortPredicate::Size => self.draw_sort_direction_arrow(column[1] + 80, 16),
+            SortPredicate::Type => self.draw_sort_direction_arrow(column[2] + 80, 16),
         }
     }
 
@@ -266,15 +275,11 @@ impl FileManager {
             let icon = self.file_types_info.icon_for(&file.name);
             icon.draw(&mut self.window, 0, 32 * row as i32);
 
-            let mut col = 0;
-            self.font.render(&file.name, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&file.name, 16.0).draw(&mut self.window, self.column[0], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.column[1], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
-            col = self.column[0];
-            self.font.render(&file.size_str, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-
-            col = self.column[1];
             let description = self.file_types_info.description_for(&file.name);
-            self.font.render(&description, 16.0).draw(&mut self.window, 8 * col as i32 + 40, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&description, 16.0).draw(&mut self.window, self.column[2], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
             row += 1;
             i += 1;
@@ -342,14 +347,16 @@ impl FileManager {
                                 }
                             };
 
-                            self.files.push(FileInfo::new(entry_path.clone(), directory));
+                            let file_info = FileInfo::new(entry_path, directory);
 
                             // Unwrapping the last file size will not panic since it has
                             // been at least pushed once in the vector
-                            let description = self.file_types_info.description_for(&entry_path);
-                            width[0] = cmp::max(width[0], 48 + (entry_path.len()) * 8);
-                            width[1] = cmp::max(width[1], 8 + (self.files.last().unwrap().size_str.len()) * 8);
-                            width[2] = cmp::max(width[2], 8 + (description.len()) * 8);
+                            let description = self.file_types_info.description_for(&file_info.name);
+                            width[0] = cmp::max(width[0], 40 + (file_info.name.len() * 8) + 16);
+                            width[1] = cmp::max(width[1], 8 + (file_info.size_str.len() * 8) + 16);
+                            width[2] = cmp::max(width[2], 16 + (description.len() * 8) + 16);
+
+                            self.files.push(file_info);
                         },
                         Err(err) => println!("failed to read dir entry: {}", err)
                     }
@@ -357,20 +364,7 @@ impl FileManager {
 
                 self.sort_files();
 
-                self.column = {
-                    let mut tmp = [0; 2];
-                    for file in self.files.iter() {
-                        if tmp[0] < file.name.len() {
-                            tmp[0] = file.name.len();
-                        }
-                        if tmp[1] < file.size_str.len() {
-                            tmp[1] = file.size_str.len();
-                        }
-                    }
-                    tmp[0] += 1;
-                    tmp[1] += tmp[0] + 1;
-                    [tmp[0] as i32, tmp[1] as i32]
-                };
+                self.column = [40, width[0] as i32 + 8, width[0] as i32 + width[1] as i32 + 8];
 
                 height = cmp::max(height, (self.files.len() + 1) * 32) // +1 for the header row
             },
@@ -505,15 +499,15 @@ impl FileManager {
                         i += 1;
                     }
 
-                    if mouse_event.left_button {
+                    if ! mouse_event.left_button && self.last_mouse_event.left_button {
                         if mouse_event.y < 32 { // Header row clicked
-                            if mouse_event.x < 8 * self.column[0] as i32 + 40 {
+                            if mouse_event.x < self.column[1] as i32 {
                                 if self.sort_predicate != SortPredicate::Name {
                                     self.sort_predicate = SortPredicate::Name;
                                 } else {
                                     self.sort_direction.invert();
                                 }
-                            } else if mouse_event.x < 8 * self.column[1] as i32 + 40 {
+                            } else if mouse_event.x < self.column[2] as i32 {
                                 if self.sort_predicate != SortPredicate::Size {
                                     self.sort_predicate = SortPredicate::Size;
                                 } else {
@@ -582,7 +576,7 @@ impl FileManager {
                         self.set_path(&current_path);
                     }
                     FileManagerCommand::Execute(cmd) => {
-                        Command::new("launcher").arg(&(current_path.clone() + &cmd)).spawn().unwrap();
+                        Command::new(LAUNCH_COMMAND).arg(&(current_path.clone() + &cmd)).spawn().unwrap();
                     },
                     FileManagerCommand::Redraw => redraw = true,
                     FileManagerCommand::Quit => break 'events,
