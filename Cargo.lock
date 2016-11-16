@@ -7,7 +7,7 @@ dependencies = [
  "libc 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbimage 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbimage 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbtk 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "ransid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_syscall 0.1.4 (git+https://github.com/redox-os/syscall.git)",
@@ -57,6 +57,11 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "byteorder"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -67,6 +72,14 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "deque"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -174,6 +187,15 @@ dependencies = [
 name = "inflate"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "jpeg-decoder"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rayon 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "lazy_static"
@@ -291,6 +313,14 @@ version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "num_cpus"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "odds"
 version = "0.2.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -315,9 +345,10 @@ dependencies = [
 
 [[package]]
 name = "orbimage"
-version = "0.1.5"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
+ "jpeg-decoder 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "png 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -329,7 +360,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbimage 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbimage 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -396,6 +427,17 @@ replace = "rand 0.3.14 (git+https://github.com/rust-lang-nursery/rand.git)"
 name = "ransid"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "rayon"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "deque 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num_cpus 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "redox_syscall"
@@ -577,8 +619,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
 "checksum blake2-rfc 0.2.17 (registry+https://github.com/rust-lang/crates.io-index)" = "0c6a476f32fef3402f1161f89d0d39822809627754a126f8441ff2a9d45e2d59"
 "checksum byteorder 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "96c8b41881888cc08af32d47ac4edd52bc7fa27fef774be47a92443756451304"
+"checksum byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0fc10e8cc6b2580fda3f36eb6dc5316657f812a3df879a44a66fc9f0fdbc4855"
 "checksum constant_time_eq 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "07dcb7959f0f6f1cf662f9a7ff389bcb919924d99ac41cf31f10d611d8721323"
 "checksum debug_unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9a032eac705ca39214d169f83e3d3da290af06d8d1d344d1baad2fd002dca4b3"
+"checksum deque 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1614659040e711785ed8ea24219140654da1729f3ec8a47a9719d041112fe7bf"
 "checksum encoding 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)" = "6b0d943856b990d12d3b55b359144ff341533e516d94098b1d3fc1ac666d36ec"
 "checksum encoding-index-japanese 1.20141219.5 (registry+https://github.com/rust-lang/crates.io-index)" = "04e8b2ff42e9a05335dbf8b5c6f7567e5591d0d916ccef4e0b1710d32a0d0c91"
 "checksum encoding-index-korean 1.20141219.5 (registry+https://github.com/rust-lang/crates.io-index)" = "4dc33fb8e6bcba213fe2f14275f0963fd16f0a02c878e3095ecfdf5bee529d81"
@@ -591,6 +635,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum html5ever-atoms 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "fd3fc831590ee7fcf693c673e4e3cbe14fbda44dc0f26d9bdc79cfc9f551dc05"
 "checksum idna 0.1.0 (git+https://github.com/redox-os/rust-url?branch=redox)" = "<none>"
 "checksum inflate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e7e0062d2dc2f17d2f13750d95316ae8a2ff909af0fda957084f5defd87c43bb"
+"checksum jpeg-decoder 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "4be50b418a1fc5d198588d9a4f682ef808a55db4084dce39d09bb0562525bb8c"
 "checksum lazy_static 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6abe0ee2e758cd6bc8a2cd56726359007748fbf4128da998b65d0b70f881e19b"
 "checksum libc 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)" = "e32a70cf75e5846d53a673923498228bbec6a8624708a9ea5645f075d6276122"
 "checksum libc 0.2.17 (git+https://github.com/rust-lang/libc.git)" = "<none>"
@@ -607,10 +652,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum num-iter 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)" = "287a1c9969a847055e1122ec0ea7a5c5d6f72aad97934e131c83d5c08ab4e45c"
 "checksum num-rational 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "54ff603b8334a72fbb27fe66948aac0abaaa40231b3cecd189e76162f6f38aaf"
 "checksum num-traits 0.1.36 (registry+https://github.com/rust-lang/crates.io-index)" = "a16a42856a256b39c6d3484f097f6713e14feacd9bfb02290917904fae46c81c"
+"checksum num_cpus 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8890e6084723d57d0df8d2720b0d60c6ee67d6c93e7169630e4371e88765dcad"
 "checksum odds 0.2.24 (registry+https://github.com/rust-lang/crates.io-index)" = "97b2d7c12734955740d14f7a6723d8dd8ed53cf16770ab38ca6a1aaf3124fc0d"
 "checksum orbclient 0.1.20 (registry+https://github.com/rust-lang/crates.io-index)" = "02b1e91e98661890faa3ac8643fc10c8109dfe21f841211e4d8a88300c8c3b8f"
 "checksum orbfont 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3b5d8c0fa6c5cd5252283e25241dc242f57d0d89d694a3e4467a716575f6076b"
-"checksum orbimage 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f8b73300aebd8a993fa662e851b356217104b0c4e678619173536ba2553f517e"
+"checksum orbimage 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "c9efd280657ccb92b76507eb70fe2c164ba8cbbc2bd12f4f25aa6ebc00127fb5"
 "checksum orbtk 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "8b53cce6c7c9bd80e512e01ee45d44bd0bc08d3b8fdcba4b261e20bc05c85ddd"
 "checksum phf 0.7.19 (registry+https://github.com/rust-lang/crates.io-index)" = "95cb41511b13e592110b5c8323c1d489513b6db919148f909b8b804be73a74b5"
 "checksum phf_codegen 0.7.19 (registry+https://github.com/rust-lang/crates.io-index)" = "8b74506ea0ea5f6adbef815c1e964daa2d395e7c29b7196d390a67a31fa2a020"
@@ -621,6 +667,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rand 0.3.14 (git+https://github.com/rust-lang-nursery/rand.git)" = "<none>"
 "checksum rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "2791d88c6defac799c3f20d74f094ca33b9332612d9aef9078519c82e4fe04a5"
 "checksum ransid 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce0c1b4c0dc24c14bcc71fa373d1bce433ea250691313b0cc1bc73e333a2bda0"
+"checksum rayon 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3b6a6e05e0e6b703e9f2ad266eb63f3712e693a17a2702b95a23de14ce8defa9"
 "checksum redox_syscall 0.1.4 (git+https://github.com/redox-os/syscall.git)" = "<none>"
 "checksum redox_syscall 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "92ab1861b5db83be45e24a70126008dc1a281e7aec03520baa87f092a8dba56f"
 "checksum rustc-serialize 0.3.21 (registry+https://github.com/rust-lang/crates.io-index)" = "bff9fc1c79f2dec76b253273d07682e94a978bd8f132ded071188122b2af9818"

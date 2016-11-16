@@ -243,7 +243,30 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
 
                         let mut use_alt = true;
                         if let Some(src) = src_opt {
-                            if src.ends_with(".png") {
+                            if src.ends_with(".jpg") || src.ends_with(".jpeg") {
+                                let img_url = url.join(&src).unwrap();
+                                let (img_headers, img_data) = http_download(&img_url);
+                                if let Ok(img) = orbimage::parse_jpg(&img_data) {
+                                    use_alt = false;
+
+                                    let w = img.width() as i32;
+                                    let h = img.height() as i32;
+
+                                    blocks.push(Block {
+                                        x: *x,
+                                        y: *y,
+                                        w: w,
+                                        h: h,
+                                        color: color,
+                                        string: String::new(),
+                                        link: link.clone(),
+                                        image: Some(img),
+                                        text: None
+                                    });
+
+                                    *y += h;
+                                }
+                            } else if src.ends_with(".png") {
                                 let img_url = url.join(&src).unwrap();
                                 let (img_headers, img_data) = http_download(&img_url);
                                 if let Ok(img) = orbimage::parse_png(&img_data) {
@@ -417,6 +440,29 @@ fn read_parse<'a, R: Read>(headers: &Vec<String>, r: &mut R, url: &Url, font: &'
                 },
                 Err(err) => {
                     let error = format!("HTML data not readable: {}", err);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                }
+            }
+        },
+        "image/jpeg" => {
+            let mut data = Vec::new();
+            r.read_to_end(&mut data).unwrap();
+            match orbimage::parse_jpg(&data) {
+                Ok(img) => {
+                    blocks.push(Block {
+                        x: 0,
+                        y: 0,
+                        w: img.width() as i32,
+                        h: img.height() as i32,
+                        color: Color::rgb(0, 0, 0),
+                        string: String::new(),
+                        link: None,
+                        image: Some(img),
+                        text: None
+                    });
+                },
+                Err(err) => {
+                    let error = format!("JPG data not readable: {}", err);
                     text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
                 }
             }
