@@ -69,21 +69,22 @@ impl FileInfo {
 
 struct FileType {
     description: &'static str,
-    icon: Image,
+    icon: &'static str,
 }
 
 
 impl FileType {
-    fn new(desc: &'static str, icon: &str) -> FileType {
+    fn new(desc: &'static str, icon: &'static str) -> FileType {
         FileType {
             description: desc,
-            icon: load_icon(icon),
+            icon: icon,
         }
     }
 }
 
 struct FileTypesInfo {
     file_types: BTreeMap<&'static str, FileType>,
+    images: BTreeMap<&'static str, Image>,
 }
 
 impl FileTypesInfo {
@@ -119,7 +120,7 @@ impl FileTypesInfo {
         file_types.insert("json", FileType::new("JSON file", "text-x-generic"));
         file_types.insert("REDOX", FileType::new("Redox package", "text-x-generic"));
         file_types.insert("", FileType::new("Unknown file", "unknown"));
-        FileTypesInfo { file_types: file_types }
+        FileTypesInfo { file_types: file_types, images: BTreeMap::new() }
     }
 
     pub fn description_for(&self, file_name: &str) -> String {
@@ -136,8 +137,8 @@ impl FileTypesInfo {
         }
     }
 
-    pub fn icon_for(&self, file_name: &str) -> &Image {
-        if file_name.ends_with('/') {
+    pub fn icon_for(&mut self, file_name: &str) -> &Image {
+        let icon = if file_name.ends_with('/') {
             &self.file_types["/"].icon
         } else {
             let pos = file_name.rfind('.').unwrap_or(0) + 1;
@@ -147,7 +148,12 @@ impl FileTypesInfo {
             } else {
                 &self.file_types[""].icon
             }
+        };
+
+        if ! self.images.contains_key(icon) {
+            self.images.insert(icon, load_icon(icon));
         }
+        &self.images[icon]
     }
 }
 
@@ -193,6 +199,7 @@ pub struct FileManager {
 }
 
 fn load_icon(path: &str) -> Image {
+    println!("Load {}", path);
     match Image::from_path(&format!("{}/icons/mimetypes/{}.png", UI_PATH, path)) {
         Ok(icon) => icon,
         Err(err) => {
@@ -272,8 +279,10 @@ impl FileManager {
                                  Color::rgba(224, 224, 224, 255));
             }
 
-            let icon = self.file_types_info.icon_for(&file.name);
-            icon.draw(&mut self.window, 0, 32 * row as i32);
+            {
+                let icon = self.file_types_info.icon_for(&file.name);
+                icon.draw(&mut self.window, 0, 32 * row as i32);
+            }
 
             self.font.render(&file.name, 16.0).draw(&mut self.window, self.column[0], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
             self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.column[1], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
