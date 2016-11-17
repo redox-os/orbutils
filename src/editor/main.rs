@@ -18,11 +18,14 @@ fn main(){
         format!("Editor")
     };
 
-    let mut window = Window::new(Rect::new(100, 100, 576, 420), &title);
+    let width = 800;
+    let height = 600;
+
+    let mut window = Window::new(Rect::new(100, 100, width, height), &title);
 
     let text_box = TextBox::new()
         .position(0, 16)
-        .size(576, 404)
+        .size(width, height - 16)
         .place(&window);
 
     if let Some(ref path) = path_option {

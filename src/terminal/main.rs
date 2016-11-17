@@ -29,8 +29,8 @@ fn main() {
     let slave_stdout = File::create(&tty_path).unwrap();
     let slave_stderr = File::create(&tty_path).unwrap();
 
-    let width = 640;
-    let height = 480;
+    let width = 800;
+    let height = 600;
 
     env::set_var("COLUMNS", format!("{}", width / 8));
     env::set_var("LINES", format!("{}", height / 16));
