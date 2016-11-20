@@ -4,10 +4,12 @@
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
+extern crate syscall;
 
 use std::env;
+use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, ExitStatus};
 
 use orbclient::{Color, EventOption, Window, K_ESC};
 use orbimage::Image;
@@ -127,6 +129,8 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selec
 }
 
 fn bar_main() {
+    let mut children = Vec::new();
+
     let packages = get_packages();
 
     let start = Image::from_path("/ui/icons/start.png").unwrap_or(Image::default());
@@ -218,8 +222,9 @@ fn bar_main() {
                                                 let mut y = 0;
                                                 for package in packages.iter() {
                                                     if mouse_event.y >= y && mouse_event.y < y + 32 {
-                                                        if let Err(err) = Command::new(&package.binary).spawn() {
-                                                            println!("launcher: failed to launch {}: {}", package.binary, err);
+                                                        match Command::new(&package.binary).spawn() {
+                                                            Ok(child) => children.push(child),
+                                                            Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
                                                         }
                                                         break 'start_choosing;
                                                     }
@@ -246,8 +251,9 @@ fn bar_main() {
 
                         for package in packages.iter() {
                             if i == selected {
-                                if let Err(err) = Command::new(&package.binary).spawn() {
-                                    println!("{}: Failed to launch: {}", package.binary, err);
+                                match Command::new(&package.binary).spawn() {
+                                    Ok(child) => children.push(child),
+                                    Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
                                 }
                             }
                             i += 1;
@@ -261,6 +267,28 @@ fn bar_main() {
                 EventOption::Quit(_) => break 'running,
                 _ => ()
             }
+        }
+    }
+
+    for mut child in children {
+        let pid = child.id();
+        match child.kill() {
+            Ok(()) => (),
+            Err(err) => println!("launcher: failed to kill {}: {}", pid, err),
+        }
+        match child.wait() {
+            Ok(status) => println!("launcher: {} exited with {}", pid, status),
+            Err(err) => println!("launcher: failed to wait for {}: {}", pid, err),
+        }
+    }
+
+    loop {
+        let mut status = 0;
+        let pid = syscall::waitpid(0, &mut status, syscall::WNOHANG).unwrap();
+        if pid == 0 {
+            break;
+        } else {
+            println!("launcher: reaping zombie {}: {}", pid, ExitStatus::from_raw(status as i32));
         }
     }
 }
