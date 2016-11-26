@@ -5,11 +5,11 @@ extern crate orbclient;
 extern crate orbtk;
 extern crate userutils;
 
+use std::{env, str};
 use std::fs::File;
 use std::io::Read;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
-use std::str;
 use std::sync::{Arc, Mutex};
 
 use orbtk::{Button, Label, Placeable, Point, Rect, TextBox, Window};
@@ -17,6 +17,11 @@ use orbtk::callback::{Click, Enter};
 use userutils::Passwd;
 
 pub fn main() {
+    let mut args = env::args().skip(1);
+
+    let launcher_cmd = args.next().expect("orblogin: no window manager command");
+    let launcher_args: Vec<String> = args.collect();
+
     loop {
         let user_lock = Arc::new(Mutex::new(String::new()));
         let pass_lock = Arc::new(Mutex::new(String::new()));
@@ -121,7 +126,10 @@ pub fn main() {
             }
 
             if let Some(passwd) = passwd_option {
-                let mut command = Command::new("launcher");
+                let mut command = Command::new(&launcher_cmd);
+                for arg in launcher_args.iter() {
+                    command.arg(&arg);
+                }
 
                 command.uid(passwd.uid);
                 command.gid(passwd.gid);
