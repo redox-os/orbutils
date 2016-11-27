@@ -65,4 +65,3 @@ redox_syscall = { git = "https://github.com/redox-os/syscall.git" }
 [replace]
 "libc:0.2.17" = { git = "https://github.com/rust-lang/libc.git" }
 "jpeg-decoder:0.1.8" = { git = "https://github.com/redox-os/jpeg-decoder.git" }
-"rand:0.3.14" = { git = "https://github.com/rust-lang-nursery/rand.git" }
