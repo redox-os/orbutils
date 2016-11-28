@@ -23,7 +23,7 @@ static UI_PATH: &'static str = "/ui";
 static UI_PATH: &'static str = "ui";
 
 #[cfg(target_os = "redox")]
-static LAUNCH_COMMAND: &'static str = "launcher";
+static LAUNCH_COMMAND: &'static str = "/ui/bin/launcher";
 
 #[cfg(not(target_os = "redox"))]
 static LAUNCH_COMMAND: &'static str = "xdg-open";
