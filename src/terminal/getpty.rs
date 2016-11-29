@@ -1,4 +1,4 @@
-use std::os::unix::io::{IntoRawFd, RawFd};
+use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 
 #[cfg(target_os="linux")]
@@ -40,11 +40,10 @@ pub fn getpty() -> (RawFd, PathBuf) {
 
 #[cfg(target_os="redox")]
 pub fn getpty() -> (RawFd, PathBuf) {
-    use std::fs::File;
-    use std::os::unix::io::FromRawFd;
     use syscall;
 
-    let master = unsafe { File::from_raw_fd(syscall::open("pty:", syscall::O_RDWR | syscall::O_CREAT | syscall::O_NONBLOCK).unwrap()) };
-    let tty_path = master.path().unwrap();
-    (master.into_raw_fd(), tty_path)
+    let master = syscall::open("pty:", syscall::O_RDWR | syscall::O_CREAT | syscall::O_NONBLOCK).unwrap();
+    let mut buf: [u8; 4096] = [0; 4096];
+    let count = syscall::fpath(master, &mut buf).unwrap();
+    (master, PathBuf::from(unsafe { String::from_utf8_unchecked(Vec::from(&buf[..count])) }))
 }

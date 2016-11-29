@@ -1,7 +1,6 @@
 #![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
-#![feature(file_path)]
 
 extern crate orbclient;
 extern crate syscall;
