@@ -27,33 +27,54 @@ pub fn main() {
         let pass_lock = Arc::new(Mutex::new(String::new()));
 
         {
+            let mut issue = String::new();
+            if let Ok(mut issue_file) = File::open("/etc/issue") {
+                let _ = issue_file.read_to_string(&mut issue);
+            }
+
+            let window_height = 80 + issue.lines().count() as u32 * 16;
             let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-            let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - 112)/2, 576, 112), "");
+            let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height), "Orbital Login");
+
+            let mut y = 0;
+            for line in issue.lines() {
+                Label::new()
+                    .text(line)
+                    .position(0, y)
+                    .size(576, 16)
+                    .place(&window);
+                y += 16;
+            }
+
 
             Label::new()
                 .text("Username")
-                .position(0, 0)
+                .position(0, y)
                 .size(576, 16)
                 .place(&window);
+            y += 16;
 
             let user_text_box = TextBox::new()
-                .position(0, 16)
+                .position(0, y)
                 .size(576, 16)
                 .grab_focus(true)
                 .on_enter(|_| {
                 })
                 .place(&window);
+            y += 16;
 
             Label::new()
                 .text("Password")
-                .position(0, 48)
+                .position(0, y)
                 .size(576, 16)
                 .place(&window);
+            y += 16;
 
             let pass_text_box = TextBox::new()
-                .position(0, 64)
+                .position(0, y)
                 .size(576, 16)
                 .place(&window);
+            y += 16;
 
             // Pressing enter in user text box will transfer focus to password text box
             {
@@ -83,7 +104,7 @@ pub fn main() {
                 let pass_lock = pass_lock.clone();
                 let window_login = &mut window as *mut Window;
                 Button::new()
-                    .position(0, 96)
+                    .position(0, y)
                     .size(576, 16)
                     .text("Login")
                     .on_click(move |_button: &Button, _point: Point| {
