@@ -141,6 +141,7 @@ fn bar_main() {
     let mut window = Window::new(0, height as i32 - 32, width, 32, "").expect("launcher: failed to open window");
 
     let mut selected = -1;
+    let mut last_left_button = false;
 
     draw(&mut window, &packages, &start, &shutdown, selected);
     'running: loop {
@@ -188,7 +189,7 @@ fn bar_main() {
                         draw(&mut window, &packages, &start, &shutdown, selected);
                     }
 
-                    if mouse_event.left_button {
+                    if ! mouse_event.left_button && last_left_button {
                         let mut i = 0;
 
                         if i == selected {
@@ -197,6 +198,7 @@ fn bar_main() {
                             let font = Font::find(None, None, None).unwrap();
 
                             let mut selected = -1;
+                            let mut last_left_button = false;
 
                             draw_chooser(&mut start_window, &font, &packages, selected);
                             'start_choosing: loop {
@@ -218,7 +220,7 @@ fn bar_main() {
                                                 draw_chooser(&mut start_window, &font, &packages, selected);
                                             }
 
-                                            if mouse_event.left_button {
+                                            if ! mouse_event.left_button && last_left_button {
                                                 let mut y = 0;
                                                 for package in packages.iter() {
                                                     if mouse_event.y >= y && mouse_event.y < y + 32 {
@@ -231,6 +233,8 @@ fn bar_main() {
                                                     y += 32;
                                                 }
                                             }
+
+                                            last_left_button = mouse_event.left_button;
                                         },
                                         EventOption::Key(key_event) => {
                                             match key_event.scancode {
@@ -263,6 +267,8 @@ fn bar_main() {
                                break 'running;
                         }
                     }
+
+                    last_left_button = mouse_event.left_button;
                 },
                 EventOption::Quit(_) => break 'running,
                 _ => ()
@@ -312,6 +318,7 @@ fn chooser_main(paths: env::Args) {
             let font = Font::find(None, None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
+            let mut last_left_button = false;
 
             draw_chooser(&mut window, &font, &packages, selected);
             'choosing: loop {
@@ -333,7 +340,7 @@ fn chooser_main(paths: env::Args) {
                                 draw_chooser(&mut window, &font, &packages, selected);
                             }
 
-                            if mouse_event.left_button {
+                            if ! mouse_event.left_button && last_left_button {
                                 let mut y = 0;
                                 for package in packages.iter() {
                                     if mouse_event.y >= y && mouse_event.y < y + 32 {
@@ -345,6 +352,8 @@ fn chooser_main(paths: env::Args) {
                                     y += 32;
                                 }
                             }
+
+                            last_left_button = mouse_event.left_button;
                         },
                         EventOption::Quit(_) => break 'choosing,
                         _ => ()
