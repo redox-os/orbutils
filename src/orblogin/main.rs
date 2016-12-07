@@ -73,6 +73,7 @@ pub fn main() {
             let pass_text_box = TextBox::new()
                 .position(0, y)
                 .size(576, 16)
+                .mask_char(Some('*'))
                 .place(&window);
             y += 16;
 
