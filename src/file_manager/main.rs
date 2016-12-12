@@ -8,6 +8,7 @@ extern crate orbfont;
 use std::{cmp, env};
 use std::collections::BTreeMap;
 use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::string::{String, ToString};
 use std::vec::Vec;
@@ -17,10 +18,10 @@ use orbimage::Image;
 use orbfont::Font;
 
 #[cfg(target_os = "redox")]
-static UI_PATH: &'static str = "/ui";
+static UI_PATH: &'static str = "/ui/icons";
 
 #[cfg(not(target_os = "redox"))]
-static UI_PATH: &'static str = "ui";
+static UI_PATH: &'static str = "ui/icons";
 
 #[cfg(target_os = "redox")]
 static LAUNCH_COMMAND: &'static str = "/ui/bin/launcher";
@@ -69,29 +70,46 @@ impl FileInfo {
 
 struct FileType {
     description: &'static str,
-    icon: &'static str,
+    icon: PathBuf
 }
 
 
 impl FileType {
     fn new(desc: &'static str, icon: &'static str) -> FileType {
+        for folder in ["mimetypes", "places"].iter() {
+            let mut path = fs::canonicalize(UI_PATH).unwrap();
+            path.push(folder);
+            path.push(format!("{}.png", icon));
+            if path.is_file() {
+                return FileType {
+                    description: desc,
+                    icon: path,
+                };
+            } else {
+                println!("{} not found in {}", icon, folder);
+            }
+        }
+
+        println!("{} not found", icon);
+        let mut path = fs::canonicalize(UI_PATH).unwrap();
+        path.push("mimetypes/unknown.png");
         FileType {
             description: desc,
-            icon: icon,
+            icon: path,
         }
     }
 }
 
 struct FileTypesInfo {
     file_types: BTreeMap<&'static str, FileType>,
-    images: BTreeMap<&'static str, Image>,
+    images: BTreeMap<PathBuf, Image>,
 }
 
 impl FileTypesInfo {
     pub fn new() -> FileTypesInfo {
         let mut file_types = BTreeMap::<&'static str, FileType>::new();
         file_types.insert("/", FileType::new("Folder", "inode-directory"));
-        file_types.insert("wav", FileType::new("WAV audio", "audio-x-wav"));
+        file_types.insert("wav", FileType::new("WAV audio", "audio-x-generic"));
         file_types.insert("bin",
                           FileType::new("Executable", "application-x-executable"));
         file_types.insert("bmp", FileType::new("Bitmap Image", "image-x-generic"));
@@ -151,7 +169,7 @@ impl FileTypesInfo {
         };
 
         if ! self.images.contains_key(icon) {
-            self.images.insert(icon, load_icon(icon));
+            self.images.insert(icon.clone(), load_icon(icon));
         }
         &self.images[icon]
     }
@@ -198,13 +216,12 @@ pub struct FileManager {
     font: Font,
 }
 
-fn load_icon(path: &str) -> Image {
-    println!("Load {}", path);
-    match Image::from_path(&format!("{}/icons/mimetypes/{}.png", UI_PATH, path)) {
+fn load_icon(path: &Path) -> Image {
+    match Image::from_path(path) {
         Ok(icon) => icon,
         Err(err) => {
-            println!("Failed to load icon {}: {}", path, err);
-            Image::new(32, 32)
+            println!("Failed to load icon {}: {}", path.display(), err);
+            Image::from_color(32, 32, Color::rgba(0, 0, 0, 0))
         }
     }
 }
