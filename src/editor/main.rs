@@ -2,8 +2,8 @@
 
 extern crate orbtk;
 
-use orbtk::{Action, Button, Menu, Placeable, Point, Rect, TextBox, Window};
-use orbtk::callback::Click;
+use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
+use orbtk::traits::{Click, Place, Text};
 
 use std::env;
 use std::fs::File;
@@ -23,10 +23,10 @@ fn main(){
 
     let mut window = Window::new(Rect::new(100, 100, width, height), &title);
 
-    let text_box = TextBox::new()
-        .position(0, 16)
-        .size(width, height - 16)
-        .place(&window);
+    let text_box = TextBox::new();
+    text_box.position(0, 16)
+        .size(width, height - 16);
+    window.add(&text_box);
 
     if let Some(ref path) = path_option {
         match File::open(path) {
@@ -41,17 +41,21 @@ fn main(){
         }
     }
 
-    let mut menu = Menu::new("File").position(0, 0).size(32, 16);
+    let menu = Menu::new("File");
+    menu.position(0, 0).size(32, 16);
 
-    menu.add_action(Action::new("Open").on_click(|_action: &Action, _point: Point| {
+    let open_action = Action::new("Open");
+    open_action.on_click(|_action: &Action, _point: Point| {
         println!("Open");
-    }));
+    });
+    menu.add(&open_action);
 
-    menu.add_separator();
+    menu.add(&Separator::new());
 
+    let save_action = Action::new("Save");
     let save_path_option = path_option.clone();
     let save_text_box = text_box.clone();
-    menu.add_action(Action::new("Save").on_click(move |_action: &Action, _point: Point| {
+    save_action.on_click(move |_action: &Action, _point: Point| {
         println!("Save");
         if let Some(ref path) = save_path_option {
             println!("Create {}", path);
@@ -71,55 +75,64 @@ fn main(){
         } else {
             println!("Need to create file!");
         }
-    }));
+    });
+    menu.add(&save_action);
 
+    let save_as_action = Action::new("Save As");
     let save_as_path_option = path_option.clone();
-    menu.add_action(Action::new("Save As").on_click(move |_action: &Action, _point: Point| {
+    save_as_action.on_click(move |_action: &Action, _point: Point| {
         println!("Save As");
         let mut window = Window::new(Rect::new(100, 100, 576, 32), "Save As");
 
-        let text_box = TextBox::new()
-            .position(0, 0)
-            .size(576, 16)
-            .place(&window);
+        let text_box = TextBox::new();
+        text_box.position(0, 0)
+            .size(576, 16);
+        window.add(&text_box);
 
         if let Some(ref path) = save_as_path_option {
             text_box.text.set(path.clone());
         }
 
-        let window_cancel = &mut window as *mut Window;
-        Button::new()
-            .position(0, 16)
-            .size(576/2, 16)
-            .text("Cancel")
-            .on_click(move |_button: &Button, _point: Point| {
-                unsafe { (&mut *window_cancel).close(); }
-            })
-            .place(&window);
+        {
+            let window_cancel = &mut window as *mut Window;
+            let button = Button::new();
+            button.position(0, 16)
+                .size(576/2, 16)
+                .text("Cancel")
+                .on_click(move |_button: &Button, _point: Point| {
+                    unsafe { (&mut *window_cancel).close(); }
+                });
+            window.add(&button);
+        }
 
-        let window_save_as = &mut window as *mut Window;
-        Button::new()
-            .position(576/2, 16)
-            .size(576/2, 16)
-            .text("Save As")
-            .on_click(move |_button: &Button, _point: Point| {
-                println!("Save {}", text_box.text.get());
-                unsafe { (&mut *window_save_as).close(); }
-            })
-            .place(&window);
+        {
+            let window_save_as = &mut window as *mut Window;
+            let button = Button::new();
+            button.position(576/2, 16)
+                .size(576/2, 16)
+                .text("Save As")
+                .on_click(move |_button: &Button, _point: Point| {
+                    println!("Save {}", text_box.text.get());
+                    unsafe { (&mut *window_save_as).close(); }
+                });
+            window.add(&button);
+        }
 
         window.exec();
-    }));
+    });
+    menu.add(&save_as_action);
 
-    menu.add_separator();
+    menu.add(&Separator::new());
 
+    let close_action = Action::new("Close");
     let window_close = &mut window as *mut Window;
-    menu.add_action(Action::new("Close").on_click(move |_action: &Action, _point: Point| {
+    close_action.on_click(move |_action: &Action, _point: Point| {
         println!("Close");
         unsafe { (&mut *window_close).close(); }
-    }));
+    });
+    menu.add(&close_action);
 
-    menu.place(&window);
+    window.add(&menu);
 
     window.exec();
 }

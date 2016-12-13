@@ -12,8 +12,8 @@ use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
-use orbtk::{Button, Label, Placeable, Point, Rect, TextBox, Window};
-use orbtk::callback::{Click, Enter};
+use orbtk::{Button, Label, Point, Rect, TextBox, Window};
+use orbtk::traits::{Click, Enter, Place, Text};
 use userutils::Passwd;
 
 pub fn main() {
@@ -38,51 +38,49 @@ pub fn main() {
 
             let mut y = 0;
             for line in issue.lines() {
-                Label::new()
-                    .text(line)
+                let label = Label::new();
+                label.text(line)
                     .position(0, y)
-                    .size(576, 16)
-                    .place(&window);
+                    .size(576, 16);
+                window.add(&label);
                 y += 16;
             }
 
 
-            Label::new()
-                .text("Username")
+            let label = Label::new();
+            label.text("Username")
                 .position(0, y)
-                .size(576, 16)
-                .place(&window);
+                .size(576, 16);
+            window.add(&label);
             y += 16;
 
-            let user_text_box = TextBox::new()
-                .position(0, y)
+            let user_text_box = TextBox::new();
+            user_text_box.position(0, y)
                 .size(576, 16)
-                .grab_focus(true)
-                .on_enter(|_| {
-                })
-                .place(&window);
+                .grab_focus(true);
+            window.add(&user_text_box);
             y += 16;
 
-            Label::new()
-                .text("Password")
+            let label = Label::new();
+            label.text("Password")
                 .position(0, y)
-                .size(576, 16)
-                .place(&window);
+                .size(576, 16);
+            window.add(&label);
             y += 16;
 
-            let pass_text_box = TextBox::new()
-                .position(0, y)
+            let pass_text_box = TextBox::new();
+            pass_text_box.position(0, y)
                 .size(576, 16)
-                .mask_char(Some('*'))
-                .place(&window);
+                .mask_char(Some('*'));
+            window.add(&pass_text_box);
             y += 16;
 
             // Pressing enter in user text box will transfer focus to password text box
             {
                 let pass_text_box = pass_text_box.clone();
-                *user_text_box.on_enter.borrow_mut() = Some(Arc::new(move |_| {
+                user_text_box.on_enter(move |_| {
                     pass_text_box.grab_focus.set(true);
-                }));
+                });
             }
 
             // Pressing enter in password text box will try to login
@@ -91,12 +89,12 @@ pub fn main() {
                 let pass_lock = pass_lock.clone();
                 let user_text_box = user_text_box.clone();
                 let window_login = &mut window as *mut Window;
-                *pass_text_box.on_enter.borrow_mut() = Some(Arc::new(move |me: &TextBox| {
+                pass_text_box.on_enter(move |me: &TextBox| {
                     println!("Login {}", user_text_box.text.get());
                     *user_lock.lock().unwrap() = user_text_box.text.get();
                     *pass_lock.lock().unwrap() = me.text.get();
                     unsafe { (&mut *window_login).close(); }
-                }));
+                });
             }
 
             // Add a login button
@@ -104,17 +102,16 @@ pub fn main() {
                 let user_lock = user_lock.clone();
                 let pass_lock = pass_lock.clone();
                 let window_login = &mut window as *mut Window;
-                Button::new()
-                    .position(0, y)
+                let button = Button::new();
+                button.position(0, y)
                     .size(576, 16)
                     .text("Login")
                     .on_click(move |_button: &Button, _point: Point| {
-                        println!("Login {}", user_text_box.text.get());
                         *user_lock.lock().unwrap() = user_text_box.text.get();
                         *pass_lock.lock().unwrap() = pass_text_box.text.get();
                         unsafe { (&mut *window_login).close(); }
-                    })
-                    .place(&window);
+                    });
+                window.add(&button);
             }
 
             window.exec();

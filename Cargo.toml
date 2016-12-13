@@ -2,7 +2,7 @@
 name = "orbutils"
 description = "The Orbital Utilities"
 repository = "https://github.com/redox-os/orbutils"
-version = "0.1.10"
+version = "0.1.11"
 license-file = "LICENSE"
 readme = "README.md"
 authors = ["Jeremy Soller <jackpot51@gmail.com>"]
@@ -50,7 +50,7 @@ html5ever-atoms = "*"
 orbclient = "0.1"
 orbfont = "0.1"
 orbimage = "0.1"
-orbtk = "0.1"
+orbtk = "0.2"
 ransid = "0.2"
 tendril = "*"
 url = { git = "https://github.com/redox-os/rust-url", branch = "redox" }
