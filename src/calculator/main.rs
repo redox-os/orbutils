@@ -2,8 +2,8 @@
 
 extern crate orbtk;
 
-use orbtk::{Button, Placeable, Point, Rect, TextBox, Window};
-use orbtk::callback::{Click, Enter};
+use orbtk::{Button, Point, Rect, TextBox, Window};
+use orbtk::traits::{Click, Enter, Place, Text};
 
 #[derive(Debug, Clone)]
 pub enum Token {
@@ -281,8 +281,8 @@ fn main(){
     let window = Window::new(Rect::new(100, 100, 148, 200), "Calculator");
 
     {
-        let text_box = TextBox::new()
-            .position(0, 0)
+        let text_box = TextBox::new();
+        text_box.position(0, 0)
             .size(300, 16)
             .on_enter(move |text_box: &TextBox| {
                 let input = text_box.text.get();
@@ -291,8 +291,8 @@ fn main(){
                     text_box.text_i.set(result.len());
                     text_box.text.set(result);
                 }
-            })
-            .place(&window);
+            });
+        window.add(&text_box);
 
         let mut col = 0;
         let mut row = 0;
@@ -300,8 +300,8 @@ fn main(){
         {
             let mut btn = |name| {
                 let text_box_clone = text_box.clone();
-                Button::new()
-                    .position(col * 36 + 4, row * 36 + 20)
+                let button = Button::new();
+                button.position(col * 36 + 4, row * 36 + 20)
                     .size(32, 32)
                     .text(name)
                     .text_offset(12, 8)
@@ -318,8 +318,9 @@ fn main(){
                         text_box_clone.text.set(new_text);
 
                         text_box_clone.text_i.set(text_i + name.len());
-                    })
-                    .place(&window);
+                    });
+                window.add(&button);
+
                 col += 1;
                 if col >= 4 {
                     col = 0;
@@ -331,20 +332,35 @@ fn main(){
             btn("7"); btn("8"); btn("9"); btn("*");
             btn("4"); btn("5"); btn("6"); btn("-");
             btn("1"); btn("2"); btn("3"); btn("+");
-            btn("0"); btn("0"); btn(".");
+            btn("0"); btn(".");
         }
 
         {
             let text_box_clone = text_box.clone();
-            Button::new()
-                .position(col * 36 + 4, row * 36 + 20)
+            let button = Button::new();
+            button.position(col * 36 + 4, row * 36 + 20)
+                .size(32, 32)
+                .text("\u{232B}")
+                .text_offset(12, 8)
+                .on_click(move |_button: &Button, _point: Point| {
+                    text_box_clone.text("".to_string());
+                });
+            window.add(&button);
+
+            col += 1;
+        }
+
+        {
+            let text_box_clone = text_box.clone();
+            let button = Button::new();
+            button.position(col * 36 + 4, row * 36 + 20)
                 .size(32, 32)
                 .text("=")
                 .text_offset(12, 8)
                 .on_click(move |_button: &Button, _point: Point| {
                     text_box_clone.emit_enter();
-                })
-                .place(&window);
+                });
+            window.add(&button);
         }
     }
 
