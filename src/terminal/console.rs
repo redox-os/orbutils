@@ -2,9 +2,9 @@ extern crate ransid;
 
 use std::cmp;
 use std::collections::{BTreeSet, VecDeque};
+use std::io::Result;
 
 use orbclient::{Color, Event, EventOption, Window};
-use syscall::Result;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
@@ -58,10 +58,10 @@ impl Console {
     }
 
     pub fn input(&mut self, event: &Event) {
-        let mut buf = vec![];
-
         match event.to_option() {
             EventOption::Key(key_event) => {
+                let mut buf = vec![];
+
                 if key_event.scancode == 0x1D {
                     self.ctrl = key_event.pressed;
                 } else if key_event.pressed {
@@ -109,39 +109,39 @@ impl Console {
                         }
                     }
                 }
-            },
-            _ => () //TODO: Mouse in terminal
-        }
 
-        if self.console.raw_mode {
-            for &b in buf.iter() {
-                self.input.push(b);
-            }
-        } else {
-            for &b in buf.iter() {
-                match b {
-                    b'\x03' => {
-                        self.end_of_input = true;
-                        let _ = self.write(b"^C\n", true);
-                    },
-                    b'\x08' | b'\x7F' => {
-                        if let Some(_c) = self.cooked.pop_back() {
-                            let _ = self.write(b"\x08", true);
+                if self.console.raw_mode {
+                    for &b in buf.iter() {
+                        self.input.push(b);
+                    }
+                } else {
+                    for &b in buf.iter() {
+                        match b {
+                            b'\x03' => {
+                                self.end_of_input = true;
+                                let _ = self.write(b"^C\n", true);
+                            },
+                            b'\x08' | b'\x7F' => {
+                                if let Some(_c) = self.cooked.pop_back() {
+                                    let _ = self.write(b"\x08", true);
+                                }
+                            },
+                            b'\n' | b'\r' => {
+                                self.cooked.push_back(b);
+                                while let Some(c) = self.cooked.pop_front() {
+                                    self.input.push(c);
+                                }
+                                let _ = self.write(b"\n", true);
+                            },
+                            _ => {
+                                self.cooked.push_back(b);
+                                let _ = self.write(&[b], true);
+                            }
                         }
-                    },
-                    b'\n' | b'\r' => {
-                        self.cooked.push_back(b);
-                        while let Some(c) = self.cooked.pop_front() {
-                            self.input.push(c);
-                        }
-                        let _ = self.write(b"\n", true);
-                    },
-                    _ => {
-                        self.cooked.push_back(b);
-                        let _ = self.write(&[b], true);
                     }
                 }
-            }
+            },
+            _ => () //TODO: Mouse in terminal
         }
     }
 

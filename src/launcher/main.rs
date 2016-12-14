@@ -4,7 +4,26 @@
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
-extern crate syscall;
+
+#[cfg(not(target_os = "redox"))]
+fn wait(status: &mut i32) -> usize {
+    extern crate libc;
+
+    use std::io::Error;
+
+    let pid = unsafe { libc::waitpid(0, status as *mut i32, libc::WNOHANG) };
+    if pid < 0 {
+        panic!("waitpid failed: {}", Error::last_os_error());
+    }
+    pid as usize
+}
+
+#[cfg(target_os = "redox")]
+fn wait() -> usize {
+    extern crate syscall;
+
+    syscall::waitpid(0, &mut status, syscall::WNOHANG).unwrap()
+}
 
 use std::env;
 use std::os::unix::process::ExitStatusExt;
@@ -290,7 +309,7 @@ fn bar_main() {
 
     loop {
         let mut status = 0;
-        let pid = syscall::waitpid(0, &mut status, syscall::WNOHANG).unwrap();
+        let pid = wait(&mut status);
         if pid == 0 {
             break;
         } else {
