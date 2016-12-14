@@ -9,9 +9,7 @@ extern crate url;
 
 use std::{cmp, env, str};
 use std::collections::BTreeMap;
-use std::iter::repeat;
 use std::default::Default;
-use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{stderr, Read, Write};
 use std::net::TcpStream;
@@ -65,7 +63,7 @@ fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool,
     let trimmed_right = trimmed_left.trim_right();
     let right_margin = trimmed_left.len() as i32 - trimmed_right.len() as i32;
 
-    let escaped_text = escape_default(&trimmed_right);
+    //let escaped_text = escape_default(&trimmed_right);
     //println!("#text: block {} at {}, {}: '{}'", blocks.len(), *x, *y, escaped_text);
 
     *x += left_margin * 8;
@@ -119,7 +117,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                 //println!("#Document")
             },
 
-        Doctype(ref name, ref public, ref system)
+        Doctype(ref _name, ref _public, ref _system)
             => {
                 //println!("<!DOCTYPE {} \"{}\" \"{}\">", *name, *public, *system);
             },
@@ -157,7 +155,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                 }
             },
 
-        Comment(ref text)
+        Comment(ref _text)
             => {
                 //println!("<!-- {} -->", escape_default(text))
             },
@@ -245,7 +243,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                         if let Some(src) = src_opt {
                             if src.ends_with(".jpg") || src.ends_with(".jpeg") {
                                 let img_url = url.join(&src).unwrap();
-                                let (img_headers, img_data) = http_download(&img_url);
+                                let (_img_headers, img_data) = http_download(&img_url);
                                 if let Ok(img) = orbimage::parse_jpg(&img_data) {
                                     use_alt = false;
 
@@ -268,7 +266,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                                 }
                             } else if src.ends_with(".png") {
                                 let img_url = url.join(&src).unwrap();
-                                let (img_headers, img_data) = http_download(&img_url);
+                                let (_img_headers, img_data) = http_download(&img_url);
                                 if let Ok(img) = orbimage::parse_png(&img_data) {
                                     use_alt = false;
 

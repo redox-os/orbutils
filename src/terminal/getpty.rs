@@ -1,33 +1,33 @@
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 
-#[cfg(target_os="linux")]
-extern crate libc;
-
-#[cfg(target_os="linux")]
+#[cfg(not(target_os="redox"))]
 pub fn getpty() -> (RawFd, PathBuf) {
-    use libc::{c_char, c_int, c_ulong};
+    use libc;
     use std::ffi::CStr;
     use std::fs::OpenOptions;
     use std::io::Error;
+    use std::os::unix::fs::OpenOptionsExt;
+    use std::os::unix::io::IntoRawFd;
 
-    const TIOCPKT: c_ulong = 0x5420;
+    const TIOCPKT: libc::c_ulong = 0x5420;
     extern "C" {
-        fn ptsname(fd: c_int) -> *const c_char;
-        fn grantpt(fd: c_int) -> c_int;
-        fn unlockpt(fd: c_int) -> c_int;
-        fn ioctl(fd: c_int, request: c_ulong, ...) -> c_int;
+        fn ptsname(fd: libc::c_int) -> *const libc::c_char;
+        fn grantpt(fd: libc::c_int) -> libc::c_int;
+        fn unlockpt(fd: libc::c_int) -> libc::c_int;
+        fn ioctl(fd: libc::c_int, request: libc::c_ulong, ...) -> libc::c_int;
     }
 
     let master_fd = OpenOptions::new()
         .read(true)
         .write(true)
+        .custom_flags(libc::O_NONBLOCK)
         .open("/dev/ptmx")
         .unwrap()
         .into_raw_fd();
     unsafe {
-        let mut flag: c_int = 1;
-        if ioctl(master_fd, TIOCPKT, &mut flag as *mut c_int) < 0 {
+        let mut flag: libc::c_int = 1;
+        if ioctl(master_fd, TIOCPKT, &mut flag as *mut libc::c_int) < 0 {
             panic!("ioctl: {:?}", Error::last_os_error());
         }
         grantpt(master_fd);
