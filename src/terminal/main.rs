@@ -7,6 +7,9 @@ extern crate orbclient;
 #[cfg(not(target_os = "redox"))]
 extern crate libc;
 
+#[cfg(target_os = "redox")]
+extern crate syscall;
+
 use orbclient::event;
 use std::{env, str};
 use std::error::Error;
