@@ -19,10 +19,10 @@ fn wait(status: &mut i32) -> usize {
 }
 
 #[cfg(target_os = "redox")]
-fn wait() -> usize {
+fn wait(status: &mut usize) -> usize {
     extern crate syscall;
 
-    syscall::waitpid(0, &mut status, syscall::WNOHANG).unwrap()
+    syscall::waitpid(0, status, syscall::WNOHANG).unwrap()
 }
 
 use std::env;
