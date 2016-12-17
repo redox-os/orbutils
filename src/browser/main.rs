@@ -17,7 +17,7 @@ use std::string::String;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
-use orbclient::{Color, Window, EventOption, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP};
+use orbclient::{Color, Renderer, Window, EventOption, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP};
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;

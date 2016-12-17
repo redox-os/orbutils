@@ -30,7 +30,7 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, ExitStatus};
 
-use orbclient::{Color, EventOption, Window, K_ESC};
+use orbclient::{Color, EventOption, Renderer, Window, K_ESC};
 use orbimage::Image;
 use orbfont::Font;
 

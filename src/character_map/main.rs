@@ -7,7 +7,7 @@ use std::cmp::max;
 
 use std::env;
 
-use orbclient::{Color, Window, EventOption, K_ESC};
+use orbclient::{Color, Renderer, Window, EventOption, K_ESC};
 use orbfont::Font;
 
 fn event_loop(window: &mut Window){

@@ -4,7 +4,7 @@ use std::cmp;
 use std::collections::{BTreeSet, VecDeque};
 use std::io::Result;
 
-use orbclient::{Color, Event, EventOption, Window};
+use orbclient::{Color, Event, EventOption, Renderer, Window};
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]

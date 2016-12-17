@@ -13,7 +13,7 @@ use std::process::Command;
 use std::string::{String, ToString};
 use std::vec::Vec;
 
-use orbclient::{event, Color, EventOption, MouseEvent, Window};
+use orbclient::{event, Color, EventOption, MouseEvent, Renderer, Window};
 use orbimage::Image;
 use orbfont::Font;
 
