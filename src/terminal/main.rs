@@ -32,25 +32,6 @@ pub fn before_exec() -> Result<()> {
     unsafe {
         libc::setsid();
         libc::ioctl(0, libc::TIOCSCTTY, 1);
-
-        let mut settings = libc::termios {
-            c_iflag: 0,
-            c_oflag: 0,
-            c_cflag: 0,
-            c_lflag: 0,
-            c_line: 0,
-            c_cc: [0; 32],
-            c_ispeed: 0,
-            c_ospeed: 0
-        };
-
-        extern {
-            fn cfmakeraw(termios_p: *mut libc::termios);
-        }
-
-        libc::ioctl(0, libc::TCGETS, &mut settings as *mut libc::termios);
-        cfmakeraw(&mut settings as *mut libc::termios);
-        libc::ioctl(0, libc::TCSETS, &mut settings as *mut libc::termios);
     }
     Ok(())
 }
@@ -146,6 +127,8 @@ fn handle(console: &mut Console, master_fd: RawFd) {
     use std::thread;
     use std::time::Duration;
 
+    console.console.raw_mode = true;
+
     let mut master = unsafe { File::from_raw_fd(master_fd) };
 
     loop {
@@ -177,7 +160,8 @@ fn handle(console: &mut Console, master_fd: RawFd) {
             } else {
                 console.write(&packet[1..count], true).expect("terminal: failed to write to console");
 
-                if packet[0] & 1 == 1 {
+                //if packet[0] & 1 == 1
+                {
                     console.redraw();
                 }
             },

@@ -69,6 +69,9 @@ impl Console {
                         0x0E => { // Backspace
                             buf.extend_from_slice(b"\x08");
                         },
+                        0x1C => { // Enter
+                            buf.extend_from_slice(b"\r");
+                        }
                         0x47 => { // Home
                             buf.extend_from_slice(b"\x1B[H");
                         },
