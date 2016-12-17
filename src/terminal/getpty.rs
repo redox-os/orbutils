@@ -1,3 +1,4 @@
+use std::io::Result;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 
@@ -30,12 +31,31 @@ pub fn getpty() -> (RawFd, PathBuf) {
         if ioctl(master_fd, TIOCPKT, &mut flag as *mut libc::c_int) < 0 {
             panic!("ioctl: {:?}", Error::last_os_error());
         }
-        grantpt(master_fd);
-        unlockpt(master_fd);
+        if grantpt(master_fd) < 0 {
+            panic!("grantpt: {:?}", Error::last_os_error());
+        }
+        if unlockpt(master_fd) < 0 {
+            panic!("unlockpt: {:?}", Error::last_os_error());
+        }
     }
 
     let tty_path = unsafe { PathBuf::from(CStr::from_ptr(ptsname(master_fd)).to_string_lossy().into_owned()) };
     (master_fd, tty_path)
+}
+
+#[cfg(not(target_os="redox"))]
+pub fn before_exec() -> Result<()> {
+    use libc;
+    unsafe {
+        libc::setsid();
+        libc::ioctl(0, libc::TIOCSCTTY, 1);
+    }
+    Ok(())
+}
+
+#[cfg(target_os="redox")]
+pub fn before_exec() -> Result<()> {
+    Ok(())
 }
 
 #[cfg(target_os="redox")]

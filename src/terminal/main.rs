@@ -1,6 +1,7 @@
 #![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
+#![feature(process_exec)]
 
 extern crate orbclient;
 
@@ -16,10 +17,11 @@ use std::error::Error;
 use std::fs::File;
 use std::io::{self, Read, Write};
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
 use console::Console;
-use getpty::getpty;
+use getpty::{before_exec, getpty};
 
 mod console;
 mod getpty;
@@ -165,6 +167,9 @@ fn main() {
             .stdin(Stdio::from_raw_fd(slave_stdin.into_raw_fd()))
             .stdout(Stdio::from_raw_fd(slave_stdout.into_raw_fd()))
             .stderr(Stdio::from_raw_fd(slave_stderr.into_raw_fd()))
+            .before_exec(|| {
+                before_exec()
+            })
             .spawn()
     } {
         Ok(mut process) => {
