@@ -14,23 +14,68 @@ extern crate syscall;
 use orbclient::event;
 use std::{env, str};
 use std::error::Error;
-use std::fs::File;
-use std::io::{self, Read, Write};
+use std::fs::{File, OpenOptions};
+use std::io::{self, Result, Read, Write};
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 
 use console::Console;
-use getpty::{before_exec, getpty};
+use getpty::getpty;
 
 mod console;
 mod getpty;
+
+#[cfg(not(target_os="redox"))]
+pub fn before_exec() -> Result<()> {
+    use libc;
+    unsafe {
+        libc::setsid();
+        libc::ioctl(0, libc::TIOCSCTTY, 1);
+
+        let mut settings = libc::termios {
+            c_iflag: 0,
+            c_oflag: 0,
+            c_cflag: 0,
+            c_lflag: 0,
+            c_line: 0,
+            c_cc: [0; 32],
+            c_ispeed: 0,
+            c_ospeed: 0
+        };
+
+        extern {
+            fn cfmakeraw(termios_p: *mut libc::termios);
+        }
+
+        libc::ioctl(0, libc::TCGETS, &mut settings as *mut libc::termios);
+        cfmakeraw(&mut settings as *mut libc::termios);
+        libc::ioctl(0, libc::TCSETS, &mut settings as *mut libc::termios);
+    }
+    Ok(())
+}
+
+#[cfg(target_os="redox")]
+pub fn before_exec() -> Result<()> {
+    Ok(())
+}
 
 #[cfg(target_os = "redox")]
 fn handle(console: &mut Console, master_fd: RawFd) {
     extern crate syscall;
 
+    use libc;
     use std::os::unix::io::AsRawFd;
+
+    unsafe {
+        let size = libc::winsize {
+            ws_row: console.console.width as libc::c_ushort,
+            ws_col: console.console.height as libc::c_ushort,
+            ws_xpixel: 8,
+            ws_ypixel: 16
+        };
+        libc::ioctl(master_fd, libc::TIOCSWINSZ, &size as *const libc::winsize);
+    }
 
     let mut event_file = File::open("event:").expect("terminal: failed to open event file");
 
@@ -151,9 +196,9 @@ fn main() {
 
     let (master_fd, tty_path) = getpty();
 
-    let slave_stdin = File::open(&tty_path).unwrap();
-    let slave_stdout = File::create(&tty_path).unwrap();
-    let slave_stderr = File::create(&tty_path).unwrap();
+    let slave_stdin = OpenOptions::new().read(true).write(true).open(&tty_path).unwrap();
+    let slave_stdout = OpenOptions::new().read(true).write(true).open(&tty_path).unwrap();
+    let slave_stderr = OpenOptions::new().read(true).write(true).open(&tty_path).unwrap();
 
     let width = 800;
     let height = 600;

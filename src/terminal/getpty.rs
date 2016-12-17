@@ -1,4 +1,3 @@
-use std::io::Result;
 use std::os::unix::io::RawFd;
 use std::path::PathBuf;
 
@@ -41,21 +40,6 @@ pub fn getpty() -> (RawFd, PathBuf) {
 
     let tty_path = unsafe { PathBuf::from(CStr::from_ptr(ptsname(master_fd)).to_string_lossy().into_owned()) };
     (master_fd, tty_path)
-}
-
-#[cfg(not(target_os="redox"))]
-pub fn before_exec() -> Result<()> {
-    use libc;
-    unsafe {
-        libc::setsid();
-        libc::ioctl(0, libc::TIOCSCTTY, 1);
-    }
-    Ok(())
-}
-
-#[cfg(target_os="redox")]
-pub fn before_exec() -> Result<()> {
-    Ok(())
 }
 
 #[cfg(target_os="redox")]
