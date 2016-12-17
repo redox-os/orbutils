@@ -66,6 +66,9 @@ impl Console {
                     self.ctrl = key_event.pressed;
                 } else if key_event.pressed {
                     match key_event.scancode {
+                        0x0E => { // Backspace
+                            buf.extend_from_slice(b"\x08");
+                        },
                         0x47 => { // Home
                             buf.extend_from_slice(b"\x1B[H");
                         },
@@ -125,6 +128,9 @@ impl Console {
                                 if let Some(_c) = self.cooked.pop_back() {
                                     let _ = self.write(b"\x08", true);
                                 }
+                            },
+                            b'\x1B' => {
+                                let _ = self.write(b"^[", true);
                             },
                             b'\n' | b'\r' => {
                                 self.cooked.push_back(b);

@@ -205,6 +205,7 @@ fn main() {
 
     env::set_var("COLUMNS", format!("{}", width / 8));
     env::set_var("LINES", format!("{}", height / 16));
+    env::set_var("TERM", "vt100");
     env::set_var("TTY", format!("{}", tty_path.display()));
 
     match unsafe {
