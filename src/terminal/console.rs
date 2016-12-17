@@ -67,7 +67,7 @@ impl Console {
                 } else if key_event.pressed {
                     match key_event.scancode {
                         0x0E => { // Backspace
-                            buf.extend_from_slice(b"\x08");
+                            buf.extend_from_slice(b"\x7F");
                         },
                         0x1C => { // Enter
                             buf.extend_from_slice(b"\r");

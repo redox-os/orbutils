@@ -45,18 +45,7 @@ pub fn before_exec() -> Result<()> {
 fn handle(console: &mut Console, master_fd: RawFd) {
     extern crate syscall;
 
-    use libc;
     use std::os::unix::io::AsRawFd;
-
-    unsafe {
-        let size = libc::winsize {
-            ws_row: console.console.width as libc::c_ushort,
-            ws_col: console.console.height as libc::c_ushort,
-            ws_xpixel: 8,
-            ws_ypixel: 16
-        };
-        libc::ioctl(master_fd, libc::TIOCSWINSZ, &size as *const libc::winsize);
-    }
 
     let mut event_file = File::open("event:").expect("terminal: failed to open event file");
 
