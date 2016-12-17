@@ -112,9 +112,20 @@ fn handle(console: &mut Console, master_fd: RawFd) {
 
 #[cfg(not(target_os = "redox"))]
 fn handle(console: &mut Console, master_fd: RawFd) {
+    use libc;
     use std::io::ErrorKind;
     use std::thread;
     use std::time::Duration;
+
+    unsafe {
+        let size = libc::winsize {
+            ws_row: console.console.h as libc::c_ushort,
+            ws_col: console.console.w as libc::c_ushort,
+            ws_xpixel: 0,
+            ws_ypixel: 0
+        };
+        libc::ioctl(master_fd, libc::TIOCSWINSZ, &size as *const libc::winsize);
+    }
 
     console.console.raw_mode = true;
 
@@ -178,7 +189,7 @@ fn main() {
 
     env::set_var("COLUMNS", format!("{}", width / 8));
     env::set_var("LINES", format!("{}", height / 16));
-    env::set_var("TERM", "vt100");
+    env::set_var("TERM", "linux");
     env::set_var("TTY", format!("{}", tty_path.display()));
 
     match unsafe {
