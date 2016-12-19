@@ -5,6 +5,12 @@ extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
 
+#[cfg(target_os = "redox")]
+static UI_PATH: &'static str = "/ui";
+
+#[cfg(not(target_os = "redox"))]
+static UI_PATH: &'static str = "ui";
+
 #[cfg(not(target_os = "redox"))]
 fn wait(status: &mut i32) -> usize {
     extern crate libc;
@@ -44,7 +50,7 @@ const TEXT_COLOR: Color = Color::rgb(204, 210, 224);
 const TEXT_HIGHLIGHT_COLOR: Color = Color::rgb(235, 241, 255);
 
 fn get_packages() -> Vec<Package> {
-    let read_dir = Path::new("/ui/apps/").read_dir().expect("failed to read_dir on /ui/apps/");
+    let read_dir = Path::new(&format!("{}/apps/", UI_PATH)).read_dir().expect("failed to read apps directory");
 
     let mut entries = vec![];
     for dir in read_dir {
@@ -62,7 +68,7 @@ fn get_packages() -> Vec<Package> {
 
     let mut packages: Vec<Package> = Vec::new();
     for entry in entries.iter() {
-        packages.push(Package::from_path(&format!("/ui/apps/{}", entry)));
+        packages.push(Package::from_path(&format!("{}/apps/{}", UI_PATH, entry)));
     }
 
     packages
@@ -152,9 +158,9 @@ fn bar_main() {
 
     let packages = get_packages();
 
-    let start = Image::from_path("/ui/icons/start.png").unwrap_or(Image::default());
+    let start = Image::from_path(format!("{}/icons/start.png", UI_PATH)).unwrap_or(Image::default());
 
-    let shutdown = Image::from_path("/ui/icons/actions/system-log-out.png").unwrap_or(Image::default());
+    let shutdown = Image::from_path(format!("{}/icons/actions/system-log-out.png", UI_PATH)).unwrap_or(Image::default());
 
     let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
     let mut window = Window::new(0, height as i32 - 32, width, 32, "").expect("launcher: failed to open window");
