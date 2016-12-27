@@ -1,7 +1,6 @@
 #![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
-#![feature(process_exec)]
 
 extern crate orbclient;
 
