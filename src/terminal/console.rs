@@ -178,7 +178,7 @@ impl Console {
             while cols > 0 {
                 unsafe {
                     let color = *(row_ptr as *mut u32);
-                    *(row_ptr as *mut u32) = !color;
+                    *(row_ptr as *mut u32) = color ^ 0x00FFFFFF;
                 }
                 row_ptr += 4;
                 cols -= 1;
