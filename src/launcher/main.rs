@@ -44,7 +44,7 @@ use package::Package;
 
 pub mod package;
 
-const BAR_COLOR: Color = Color::rgb(40, 45, 57);
+const BAR_COLOR: Color = Color::rgba(40, 45, 57, 224);
 const BAR_HIGHLIGHT_COLOR: Color = Color::rgb(80, 86, 102);
 const TEXT_COLOR: Color = Color::rgb(204, 210, 224);
 const TEXT_HIGHLIGHT_COLOR: Color = Color::rgb(235, 241, 255);
@@ -219,7 +219,7 @@ fn bar_main() {
 
                         if i == selected {
                             let start_h = packages.len() as u32 * 32;
-                            let mut start_window = Window::new(0, height as i32 - 32 - start_h as i32, 400, start_h, "").unwrap();
+                            let mut start_window = Window::new(0, height as i32 - 32 - start_h as i32, 320, start_h, "").unwrap();
                             let font = Font::find(None, None, None).unwrap();
 
                             let mut selected = -1;
@@ -339,7 +339,7 @@ fn chooser_main(paths: env::Args) {
         });
 
         if packages.len() > 1 {
-            let mut window = Window::new(-1, -1, 400, packages.len() as u32 * 32, path).expect("launcher: failed to open window");
+            let mut window = Window::new(-1, -1, 320, packages.len() as u32 * 32, path).expect("launcher: failed to open window");
             let font = Font::find(None, None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
