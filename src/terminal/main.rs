@@ -74,6 +74,7 @@ fn handle(console: &mut Console, master_fd: RawFd) {
                     let _ = term_stderr.write(b"\n");
                     return false;
                 }
+                let _ = master.flush();
                 console.input.clear();
             }
         } else if event_id == master_fd {
@@ -86,7 +87,8 @@ fn handle(console: &mut Console, master_fd: RawFd) {
             } else {
                 console.write(&packet[1..count], true).expect("terminal: failed to write to console");
 
-                if packet[0] & 1 == 1 {
+                //if packet[0] & 1 == 1
+                {
                     console.redraw();
                 }
             }
@@ -149,6 +151,7 @@ fn handle(console: &mut Console, master_fd: RawFd) {
                 let _ = term_stderr.write(b"\n");
                 return;
             }
+            let _ = master.flush();
             console.input.clear();
         }
 
