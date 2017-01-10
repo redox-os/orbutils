@@ -156,7 +156,10 @@ pub fn main() {
                 command.current_dir(passwd.home);
 
                 command.env("USER", &user);
+                command.env("UID", format!("{}", passwd.uid));
+                command.env("GROUPS", format!("{}", passwd.gid));
                 command.env("HOME", passwd.home);
+                command.env("SHELL", passwd.shell);
 
                 match command.spawn() {
                     Ok(mut child) => match child.wait() {
