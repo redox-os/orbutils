@@ -1,6 +1,7 @@
 #![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
+#![feature(process_try_wait)]
 
 extern crate orbclient;
 
@@ -17,7 +18,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{self, Result, Read, Write};
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::process::CommandExt;
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 
 use console::Console;
 use getpty::getpty;
@@ -29,8 +30,12 @@ mod getpty;
 pub fn before_exec() -> Result<()> {
     use libc;
     unsafe {
-        libc::setsid();
-        libc::ioctl(0, libc::TIOCSCTTY, 1);
+        if libc::setsid() < 0 {
+            panic!("setsid: {:?}", io::Error::last_os_error());
+        }
+        if libc::ioctl(0, libc::TIOCSCTTY, 1) < 0 {
+            panic!("ioctl: {:?}", io::Error::last_os_error());
+        }
     }
     Ok(())
 }
@@ -41,7 +46,7 @@ pub fn before_exec() -> Result<()> {
 }
 
 #[cfg(target_os = "redox")]
-fn handle(console: &mut Console, master_fd: RawFd) {
+fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
     extern crate syscall;
 
     use std::os::unix::io::AsRawFd;
@@ -109,10 +114,13 @@ fn handle(console: &mut Console, master_fd: RawFd) {
             break 'events;
         }
     }
+
+    let _ = process.kill();
+    process.wait().expect("terminal: failed to wait on shell");
 }
 
 #[cfg(not(target_os = "redox"))]
-fn handle(console: &mut Console, master_fd: RawFd) {
+fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
     use libc;
     use std::io::ErrorKind;
     use std::thread;
@@ -125,17 +133,19 @@ fn handle(console: &mut Console, master_fd: RawFd) {
             ws_xpixel: 0,
             ws_ypixel: 0
         };
-        libc::ioctl(master_fd, libc::TIOCSWINSZ, &size as *const libc::winsize);
+        if libc::ioctl(master_fd, libc::TIOCSWINSZ, &size as *const libc::winsize) < 0 {
+            panic!("ioctl: {:?}", io::Error::last_os_error());
+        }
     }
 
     console.console.raw_mode = true;
 
     let mut master = unsafe { File::from_raw_fd(master_fd) };
 
-    loop {
+    'events: loop {
         for event in console.window.events() {
             if event.code == event::EVENT_QUIT {
-                return;
+                break 'events;
             }
 
             console.input(&event);
@@ -149,7 +159,7 @@ fn handle(console: &mut Console, master_fd: RawFd) {
                 let _ = term_stderr.write(b"failed to write stdin: ");
                 let _ = term_stderr.write(err.description().as_bytes());
                 let _ = term_stderr.write(b"\n");
-                return;
+                break 'events;
             }
             let _ = master.flush();
             console.input.clear();
@@ -157,15 +167,10 @@ fn handle(console: &mut Console, master_fd: RawFd) {
 
         let mut packet = [0; 4096];
         match master.read(&mut packet) {
-            Ok(count) => if count == 0 {
-                return;
-            } else {
-                console.write(&packet[1..count], true).expect("terminal: failed to write to console");
-
-                //if packet[0] & 1 == 1
-                {
-                    console.redraw();
-                }
+            Ok(0) => break 'events,
+            Ok(count) => {
+                console.write(&packet[..count], true).expect("terminal: failed to write to console");
+                console.redraw();
             },
             Err(err) => match err.kind() {
                 ErrorKind::WouldBlock => (),
@@ -173,8 +178,19 @@ fn handle(console: &mut Console, master_fd: RawFd) {
             }
         }
 
+        match process.try_wait() {
+            Ok(_status) => break 'events,
+            Err(err) => match err.kind() {
+                ErrorKind::WouldBlock => (),
+                _ => panic!("terminal: failed to wait on child: {:?}", err)
+            }
+        }
+
         thread::sleep(Duration::new(0, 100));
     }
+
+    let _ = process.kill();
+    process.wait().expect("terminal: failed to wait on shell");
 }
 
 fn main() {
@@ -182,9 +198,9 @@ fn main() {
 
     let (master_fd, tty_path) = getpty();
 
-    let slave_stdin = OpenOptions::new().read(true).write(true).open(&tty_path).unwrap();
-    let slave_stdout = OpenOptions::new().read(true).write(true).open(&tty_path).unwrap();
-    let slave_stderr = OpenOptions::new().read(true).write(true).open(&tty_path).unwrap();
+    let slave_stdin = OpenOptions::new().read(true).write(false).open(&tty_path).unwrap();
+    let slave_stdout = OpenOptions::new().read(false).write(true).open(&tty_path).unwrap();
+    let slave_stderr = OpenOptions::new().read(false).write(true).open(&tty_path).unwrap();
 
     let width = 800;
     let height = 600;
@@ -206,10 +222,7 @@ fn main() {
     } {
         Ok(mut process) => {
             let mut console = Console::new(width, height);
-            handle(&mut console, master_fd);
-
-            let _ = process.kill();
-            process.wait().expect("terminal: failed to wait on shell");
+            handle(&mut console, master_fd, &mut process);
         },
         Err(err) => {
             let term_stderr = io::stderr();

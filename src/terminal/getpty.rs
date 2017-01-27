@@ -10,12 +10,10 @@ pub fn getpty() -> (RawFd, PathBuf) {
     use std::os::unix::fs::OpenOptionsExt;
     use std::os::unix::io::IntoRawFd;
 
-    const TIOCPKT: libc::c_ulong = 0x5420;
     extern "C" {
         fn ptsname(fd: libc::c_int) -> *const libc::c_char;
         fn grantpt(fd: libc::c_int) -> libc::c_int;
         fn unlockpt(fd: libc::c_int) -> libc::c_int;
-        fn ioctl(fd: libc::c_int, request: libc::c_ulong, ...) -> libc::c_int;
     }
 
     let master_fd = OpenOptions::new()
@@ -26,10 +24,6 @@ pub fn getpty() -> (RawFd, PathBuf) {
         .unwrap()
         .into_raw_fd();
     unsafe {
-        let mut flag: libc::c_int = 1;
-        if ioctl(master_fd, TIOCPKT, &mut flag as *mut libc::c_int) < 0 {
-            panic!("ioctl: {:?}", Error::last_os_error());
-        }
         if grantpt(master_fd) < 0 {
             panic!("grantpt: {:?}", Error::last_os_error());
         }
