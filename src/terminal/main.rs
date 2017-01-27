@@ -1,7 +1,7 @@
 #![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
-#![feature(process_try_wait)]
+#![cfg_attr(not(target_os = "redox"), feature(process_try_wait))]
 
 extern crate orbclient;
 
