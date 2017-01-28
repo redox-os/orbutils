@@ -4,8 +4,12 @@ extern crate html5ever;
 extern crate orbclient;
 extern crate orbfont;
 extern crate orbimage;
+extern crate rustls;
 extern crate tendril;
 extern crate url;
+extern crate webpki_roots;
+
+use rustls::Session;
 
 use std::{cmp, env, str};
 use std::collections::BTreeMap;
@@ -14,6 +18,7 @@ use std::fs::File;
 use std::io::{stderr, Read, Write};
 use std::net::TcpStream;
 use std::string::String;
+use std::sync::Arc;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
@@ -338,8 +343,9 @@ pub fn escape_default(s: &str) -> String {
 }
 
 fn http_download(url: &Url) -> (Vec<String>, Vec<u8>) {
+    let https = url.scheme() == "https";
     let host = url.host_str().unwrap_or("");
-    let port = url.port().unwrap_or(80);
+    let port = url.port().unwrap_or(if https { 443 } else { 80 });
     let mut path = url.path().to_string();
     if let Some(query) = url.query() {
         path.push('?');
@@ -353,20 +359,65 @@ fn http_download(url: &Url) -> (Vec<String>, Vec<u8>) {
     write!(stderr(), "* Requesting {}\n", path).unwrap();
 
     let request = format!("GET /{} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n", path, host);
-    stream.write(request.as_bytes()).unwrap();
-    stream.flush().unwrap();
-
-    write!(stderr(), "* Waiting for response\n").unwrap();
-
     let mut response = Vec::new();
 
-    loop {
-        let mut buf = [0; 65536];
-        let count = stream.read(&mut buf).unwrap();
-        if count == 0 {
-            break;
+    if https {
+        let mut config = rustls::ClientConfig::new();
+        config.root_store.add_trust_anchors(&webpki_roots::ROOTS[..]);
+        let rc_config = Arc::new(config);
+
+        let mut client = rustls::ClientSession::new(&rc_config, host);
+        client.write(request.as_bytes()).unwrap();
+        client.write_tls(&mut stream).unwrap();
+        stream.flush().unwrap();
+
+        write!(stderr(), "* Waiting for response\n").unwrap();
+
+        'reading:loop {
+            while client.wants_read() {
+                client.read_tls(&mut stream).unwrap();
+                client.process_new_packets().unwrap();
+
+                while client.wants_write() {
+                    client.write_tls(&mut stream).unwrap();
+                    stream.flush().unwrap();
+                }
+            }
+
+            let mut buf = [0; 65536];
+            loop {
+                match client.read(&mut buf) {
+                    Ok(0) => {
+                        if client.wants_read() {
+                            break;
+                        } else {
+                            break 'reading;
+                        }
+                    }
+                    Ok(bytes) => {
+                        response.append(&mut buf[..bytes].to_vec());
+                    }
+                    Err(err) => {
+                        write!(stderr(), "* Read error: {}\n", err).unwrap();
+                        break 'reading;
+                    }
+                }
+            }
         }
-        response.extend_from_slice(&buf[.. count]);
+    } else {
+        stream.write(request.as_bytes()).unwrap();
+        stream.flush().unwrap();
+
+        write!(stderr(), "* Waiting for response\n").unwrap();
+
+        loop {
+            let mut buf = [0; 65536];
+            let count = stream.read(&mut buf).unwrap();
+            if count == 0 {
+                break;
+            }
+            response.extend_from_slice(&buf[.. count]);
+        }
     }
 
     write!(stderr(), "* Received {} bytes\n", response.len()).unwrap();
@@ -716,7 +767,7 @@ fn main() {
 
     match Font::find(None, None, None) {
         Ok(font) => match Font::find(None, None, Some("Bold")) {
-            Ok(font_bold) => main_window(&env::args().nth(1).unwrap_or("http://www.redox-os.org".to_string()), &font, &font_bold),
+            Ok(font_bold) => main_window(&env::args().nth(1).unwrap_or("https://www.redox-os.org".to_string()), &font, &font_bold),
             Err(err) => err_window(&format!("{}", err))
         },
         Err(err) => err_window(&format!("{}", err))
