@@ -204,11 +204,18 @@ impl SortDirection {
     }
 }
 
+struct Column {
+    name: &'static str,
+    x: i32,
+    width: i32,
+    sort_predicate: SortPredicate,
+}
+
 pub struct FileManager {
     file_types_info: FileTypesInfo,
     files: Vec<FileInfo>,
     selected: isize,
-    column: [i32; 3], // The x-coordinates of the "size" and "type" columns
+    columns: [Column; 3],
     sort_predicate: SortPredicate,
     sort_direction: SortDirection,
     last_mouse_event: MouseEvent,
@@ -232,7 +239,26 @@ impl FileManager {
             file_types_info: FileTypesInfo::new(),
             files: Vec::new(),
             selected: -1,
-            column: [0, 0, 0],
+            columns: [
+                Column {
+                    name: "Name",
+                    x: 0,
+                    width: 0,
+                    sort_predicate: SortPredicate::Name,
+                },
+                Column {
+                    name: "Size",
+                    x: 0,
+                    width: 0,
+                    sort_predicate: SortPredicate::Size,
+                },
+                Column {
+                    name: "Type",
+                    x: 0,
+                    width: 0,
+                    sort_predicate: SortPredicate::Type,
+                },
+            ],
             sort_predicate: SortPredicate::Name,
             sort_direction: SortDirection::Asc,
             last_mouse_event: MouseEvent {
@@ -254,32 +280,21 @@ impl FileManager {
         self.window.sync();
     }
 
-    fn draw_sort_direction_arrow(&mut self, x: i32, y: i32) {
-        let color = Color::rgb(140, 140, 140);
-        let tip_y = match self.sort_direction {
-            SortDirection::Asc => 2,
-            SortDirection::Desc => -2,
-        };
-        for dy in -1...0 {
-            for dx in -2...2 { self.window.pixel(x + dx, y + dy - tip_y, color); }
-            for dx in -1...1 { self.window.pixel(x + dx, y + dy, color); }
-            self.window.pixel(x, y + dy + tip_y, color);
-        }
-    }
-
     fn draw_header_row(&mut self) {
-        // TODO: Remove duplication between this function and draw_file_list()
         let row = 0;
 
-        self.font.render("Name", 16.0).draw(&mut self.window, self.column[0], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-        self.font.render("Size", 16.0).draw(&mut self.window, self.column[1], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-        self.font.render("Type", 16.0).draw(&mut self.window, self.column[2], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+        for column in self.columns.iter() {
+            let text_y = 32 * row as i32 + 8;
 
-        let column = self.column;
-        match self.sort_predicate {
-            SortPredicate::Name => self.draw_sort_direction_arrow(column[0] + 80, 16),
-            SortPredicate::Size => self.draw_sort_direction_arrow(column[1] + 80, 16),
-            SortPredicate::Type => self.draw_sort_direction_arrow(column[2] + 80, 16),
+            self.font.render(column.name, 16.0).draw(&mut self.window, column.x, text_y, Color::rgb(0, 0, 0));
+            if column.sort_predicate == self.sort_predicate {
+                let arrow = match self.sort_direction {
+                    SortDirection::Asc => self.font.render("↓", 16.0),
+                    SortDirection::Desc => self.font.render("↑", 16.0),
+                };
+                let arrow_x = column.x + column.width - arrow.width() as i32 - 4;
+                arrow.draw(&mut self.window, arrow_x, text_y, Color::rgb(140, 140, 140));
+            }
         }
     }
 
@@ -298,14 +313,14 @@ impl FileManager {
 
             {
                 let icon = self.file_types_info.icon_for(&file.name);
-                icon.draw(&mut self.window, 0, 32 * row as i32);
+                icon.draw(&mut self.window, 4, 32 * row as i32);
             }
 
-            self.font.render(&file.name, 16.0).draw(&mut self.window, self.column[0], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-            self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.column[1], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
             let description = self.file_types_info.description_for(&file.name);
-            self.font.render(&description, 16.0).draw(&mut self.window, self.column[2], 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
 
             row += 1;
             i += 1;
@@ -313,6 +328,13 @@ impl FileManager {
     }
 
     fn get_parent_directory() -> Option<String> {
+        // It is the root of the scheme?
+        if let (Ok(path_1), Ok(path_2)) = (fs::canonicalize("./"), fs::canonicalize("../")) {
+            if path_1 == path_2 {
+                return None;
+            }
+        }
+
         match fs::canonicalize("../") {
             Ok(path) => return Some(path.into_os_string().into_string().unwrap_or("/".to_string())),
             Err(err) => println!("failed to get path: {}", err)
@@ -333,23 +355,33 @@ impl FileManager {
         }
     }
 
+    fn push_file(&mut self, file_info: FileInfo) {
+        let description = self.file_types_info.description_for(&file_info.name);
+        self.columns[0].width = cmp::max(self.columns[0].width, (file_info.name.len() * 8) as i32 + 16);
+        self.columns[1].width = cmp::max(self.columns[1].width, (file_info.size_str.len() * 8) as i32 + 16);
+        self.columns[2].width = cmp::max(self.columns[2].width, (description.len() * 8) as i32 + 16);
+
+        self.files.push(file_info);
+    }
+
     fn set_path(&mut self, path: &str) {
-        let mut width = [48; 3];
-        let mut height = 0;
+        for column in self.columns.iter_mut() {
+            column.width = (column.name.len() * 8) as i32 + 16;
+        }
+
+        self.files.clear();
 
         if let Err(err) = env::set_current_dir(path) {
             println!("failed to set dir {}: {}", path, err);
         }
 
+        // check to see if parent directory exists
+        if let Some(_) = FileManager::get_parent_directory() {
+            self.push_file(FileInfo::new("../".to_string(), true));
+        }
+
         match fs::read_dir(path) {
             Ok(readdir) => {
-                self.files.clear();
-
-                // check to see if parent directory exists
-                if let Some(_) = FileManager::get_parent_directory() {
-                    self.files.push(FileInfo::new("../".to_string(), true));
-                }
-
                 for entry_result in readdir {
                     match entry_result {
                         Ok(entry) => {
@@ -373,37 +405,31 @@ impl FileManager {
                                 }
                             };
 
-                            let file_info = FileInfo::new(entry_path, directory);
-
-                            // Unwrapping the last file size will not panic since it has
-                            // been at least pushed once in the vector
-                            let description = self.file_types_info.description_for(&file_info.name);
-                            width[0] = cmp::max(width[0], 40 + (file_info.name.len() * 8) + 16);
-                            width[1] = cmp::max(width[1], 8 + (file_info.size_str.len() * 8) + 16);
-                            width[2] = cmp::max(width[2], 16 + (description.len() * 8) + 16);
-
-                            self.files.push(file_info);
+                            self.push_file(FileInfo::new(entry_path, directory));
                         },
                         Err(err) => println!("failed to read dir entry: {}", err)
                     }
                 }
 
-                self.sort_files();
-
-                self.column = [40, width[0] as i32 + 8, width[0] as i32 + width[1] as i32 + 8];
-
-                height = cmp::max(height, (self.files.len() + 1) * 32) // +1 for the header row
             },
-            Err(err) => println!("failed to readdir {}: {}", path, err)
+            Err(err) => {
+                println!("failed to readdir {}: {}", path, err);
+            },
         }
+
+        self.sort_files();
+
+        self.columns[0].x = 42;
+        self.columns[1].x = self.columns[0].x + self.columns[0].width;
+        self.columns[2].x = self.columns[1].x + self.columns[1].width;
 
         // TODO: HACK ALERT - should use resize whenver that gets added
         self.window.sync_path();
 
         let x = self.window.x();
         let y = self.window.y();
-        let w = width.iter().sum::<usize>() as u32;
-        let h = height as u32;
+        let w = (self.columns[2].x + self.columns[2].width) as u32;
+        let h = ((self.files.len() + 1) * 32) as u32; // +1 for the header row
 
         self.window = Window::new(x, y, w, h, &path).unwrap();
 
@@ -527,13 +553,13 @@ impl FileManager {
 
                     if ! mouse_event.left_button && self.last_mouse_event.left_button {
                         if mouse_event.y < 32 { // Header row clicked
-                            if mouse_event.x < self.column[1] as i32 {
+                            if mouse_event.x < self.columns[1].x as i32 {
                                 if self.sort_predicate != SortPredicate::Name {
                                     self.sort_predicate = SortPredicate::Name;
                                 } else {
                                     self.sort_direction.invert();
                                 }
-                            } else if mouse_event.x < self.column[2] as i32 {
+                            } else if mouse_event.x < self.columns[2].x as i32 {
                                 if self.sort_predicate != SortPredicate::Size {
                                     self.sort_predicate = SortPredicate::Size;
                                 } else {
