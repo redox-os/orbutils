@@ -31,18 +31,19 @@ static LAUNCH_COMMAND: &'static str = "xdg-open";
 
 struct FileInfo {
     name: String,
+    full_path: String,
     size: u64,
     size_str: String,
     is_dir: bool,
 }
 
 impl FileInfo {
-    fn new(name: String, is_dir: bool) -> FileInfo {
+    fn new(name: String, full_path: String, is_dir: bool) -> FileInfo {
         let (size, size_str) = {
             if is_dir {
-                FileManager::get_num_entries(&name)
+                FileManager::get_num_entries(&full_path)
             } else {
-                match fs::metadata(&name) {
+                match fs::metadata(&full_path) {
                     Ok(metadata) => {
                         let size = metadata.len();
                         if size >= 1_000_000_000 {
@@ -61,6 +62,7 @@ impl FileInfo {
         };
         FileInfo {
             name: name,
+            full_path: full_path,
             size: size,
             size_str: size_str,
             is_dir: is_dir,
@@ -72,7 +74,6 @@ struct FileType {
     description: &'static str,
     icon: PathBuf
 }
-
 
 impl FileType {
     fn new(desc: &'static str, icon: &'static str) -> FileType {
@@ -136,6 +137,7 @@ impl FileTypesInfo {
         file_types.insert("md", FileType::new("Markdown file", "text-x-generic"));
         file_types.insert("toml", FileType::new("TOML file", "text-x-generic"));
         file_types.insert("json", FileType::new("JSON file", "text-x-generic"));
+        file_types.insert("ttf", FileType::new("TrueType font", "application-x-font-ttf"));
         file_types.insert("REDOX", FileType::new("Redox package", "text-x-generic"));
         file_types.insert("", FileType::new("Unknown file", "unknown"));
         FileTypesInfo { file_types: file_types, images: BTreeMap::new() }
@@ -299,44 +301,42 @@ impl FileManager {
     }
 
     fn draw_file_list(&mut self) {
-        let mut i = 0;
-        let mut row = 1; // Start at 1 because the header row is 0
-        for file in self.files.iter() {
-            if i == self.selected {
+        for (i, file) in self.files.iter().enumerate() {
+            let y = 32 * (i + 1) as i32; // Plus 1 because the header row is 0
+
+            if i as isize == self.selected {
                 let width = self.window.width();
-                self.window.rect(0,
-                                 32 * row as i32,
-                                 width,
-                                 32,
-                                 Color::rgba(224, 224, 224, 255));
+                self.window.rect(0, y, width, 32, Color::rgba(224, 224, 224, 255));
             }
 
             {
                 let icon = self.file_types_info.icon_for(&file.name);
-                icon.draw(&mut self.window, 4, 32 * row as i32);
+                icon.draw(&mut self.window, 4, y);
             }
 
-            self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-            self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
+            let text_color = Color::rgb(0, 0, 0);
+            self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, y + 8, text_color);
+            self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, y + 8, text_color);
 
             let description = self.file_types_info.description_for(&file.name);
-            self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, 32 * row as i32 + 8, Color::rgb(0, 0, 0));
-
-            row += 1;
-            i += 1;
+            self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, y + 8, text_color);
         }
     }
 
-    fn get_parent_directory() -> Option<String> {
-        // It is the root of the scheme?
-        if let (Ok(path_1), Ok(path_2)) = (fs::canonicalize("./"), fs::canonicalize("../")) {
-            if path_1 == path_2 {
-                return None;
-            }
-        }
+    fn get_parent_directory(path: &str) -> Option<String> {
+        match fs::canonicalize(path.to_owned() + "../") {
+            Ok(parent) => {
+                let mut parent = parent.into_os_string().into_string().unwrap_or("/".to_string());
+                if ! parent.ends_with('/') {
+                    parent.push('/');
+                }
 
-        match fs::canonicalize("../") {
-            Ok(path) => return Some(path.into_os_string().into_string().unwrap_or("/".to_string())),
+                if parent == path {
+                    return None
+                } else {
+                    return Some(parent);
+                }
+            },
             Err(err) => println!("failed to get path: {}", err)
         }
 
@@ -371,13 +371,9 @@ impl FileManager {
 
         self.files.clear();
 
-        if let Err(err) = env::set_current_dir(path) {
-            println!("failed to set dir {}: {}", path, err);
-        }
-
         // check to see if parent directory exists
-        if let Some(_) = FileManager::get_parent_directory() {
-            self.push_file(FileInfo::new("../".to_string(), true));
+        if let Some(parent) = FileManager::get_parent_directory(path) {
+            self.push_file(FileInfo::new("../".to_string(), parent, true));
         }
 
         match fs::read_dir(path) {
@@ -405,7 +401,8 @@ impl FileManager {
                                 }
                             };
 
-                            self.push_file(FileInfo::new(entry_path, directory));
+                            let full_path = path.to_owned() + entry_path.clone().as_str();
+                            self.push_file(FileInfo::new(entry_path, full_path, directory));
                         },
                         Err(err) => println!("failed to read dir entry: {}", err)
                     }
@@ -466,14 +463,20 @@ impl FileManager {
                     if key_event.pressed {
                         match key_event.scancode {
                             event::K_ESC => commands.push(FileManagerCommand::Quit),
-                            event::K_HOME => self.selected = 0,
+                            event::K_HOME => {
+                                self.selected = 0;
+                                redraw = true;
+                            },
                             event::K_UP => {
                                 if self.selected > 0 {
                                     self.selected -= 1;
                                     redraw = true;
                                 }
                             },
-                            event::K_END => self.selected = self.files.len() as isize - 1,
+                            event::K_END => {
+                                self.selected = self.files.len() as isize - 1;
+                                redraw = true;
+                            },
                             event::K_DOWN => {
                                 if self.selected < self.files.len() as isize - 1 {
                                     self.selected += 1;
@@ -488,10 +491,10 @@ impl FileManager {
                                            self.selected < self.files.len() as isize {
                                             match self.files.get(self.selected as usize) {
                                                 Some(file) => {
-                                                    if file.name.ends_with('/') {
-                                                        commands.push(FileManagerCommand::ChangeDir(file.name.clone()));
+                                                    if file.full_path.ends_with('/') {
+                                                        commands.push(FileManagerCommand::ChangeDir(file.full_path.clone()));
                                                     } else {
-                                                        commands.push(FileManagerCommand::Execute(file.name.clone()));
+                                                        commands.push(FileManagerCommand::Execute(file.full_path.clone()));
                                                     }
                                                 }
                                                 None => (),
@@ -499,14 +502,26 @@ impl FileManager {
                                         }
                                     }
                                     _ => {
-                                        let mut i = 0;
-                                        for file in self.files.iter() {
-                                            if file.name.starts_with(key_event.character) {
-                                                self.selected = i;
-                                                break;
+                                        // The index of the first matching file
+                                        let mut result_first: Option<isize> = None;
+                                        // The index of the next matching file relative to the current selection
+                                        let mut result_next: Option<isize> = None;
+
+                                        for (i, file) in self.files.iter().enumerate() {
+                                            if file.name.to_lowercase().starts_with(key_event.character) {
+                                                if result_first.is_none() {
+                                                    result_first = Some(i as isize);
+                                                }
+
+                                                if i as isize > self.selected {
+                                                    result_next = Some(i as isize);
+                                                    break;
+                                                }
                                             }
-                                            i += 1;
                                         }
+
+                                        redraw = true;
+                                        self.selected = result_next.or(result_first).unwrap_or(-1);
                                     }
                                 }
                             }
@@ -518,37 +533,15 @@ impl FileManager {
                 }
                 EventOption::Mouse(mouse_event) => {
                     redraw = false;
-                    let mut i = 0;
-                    let mut row = 0;
-                    for file in self.files.iter() {
-                        let mut col = 0;
-                        for c in file.name.chars() {
-                            if mouse_event.y >= 32 * (row as i32 + 1) && // +1 for the header row
-                               mouse_event.y < 32 * (row as i32 + 2) {
-                                if i != self.selected {
-                                    self.selected = i;
-                                    redraw = true;
-                                }
-                            }
 
-                            if c == '\n' {
-                                col = 0;
-                                row += 1;
-                            } else if c == '\t' {
-                                col += 8 - col % 8;
-                            } else {
-                                if col < self.window.width() / 8 &&
-                                   row < self.window.height() / 32 {
-                                    col += 1;
-                                }
-                            }
-                            if col >= self.window.width() / 8 {
-                                col = 0;
-                                row += 1;
+                    for (row, _) in self.files.iter().enumerate() {
+                        if mouse_event.y >= 32 * (row as i32 + 1) && // +1 for the header row
+                           mouse_event.y < 32 * (row as i32 + 2) {
+                            if row as isize != self.selected {
+                                self.selected = row as isize;
+                                redraw = true;
                             }
                         }
-                        row += 1;
-                        i += 1;
                     }
 
                     if ! mouse_event.left_button && self.last_mouse_event.left_button {
@@ -578,10 +571,10 @@ impl FileManager {
                                   self.last_mouse_event.y == mouse_event.y {
                             if self.selected >= 0 && self.selected < self.files.len() as isize {
                                 if let Some(file) = self.files.get(self.selected as usize) {
-                                    if file.name.ends_with('/') {
-                                        commands.push(FileManagerCommand::ChangeDir(file.name.clone()));
+                                    if file.full_path.ends_with('/') {
+                                        commands.push(FileManagerCommand::ChangeDir(file.full_path.clone()));
                                     } else {
-                                        commands.push(FileManagerCommand::Execute(file.name.clone()));
+                                        commands.push(FileManagerCommand::Execute(file.full_path.clone()));
                                     }
                                 }
                             }
@@ -601,34 +594,28 @@ impl FileManager {
     }
 
     fn main(&mut self, path: &str) {
-        let mut current_path = path.to_string();
-        if ! current_path.ends_with('/') {
-            current_path.push('/');
+        // Filter out invalid paths
+        let mut path = match fs::canonicalize(path.to_owned()) {
+            Ok(p) => p.into_os_string().into_string().unwrap_or("file:/".to_owned()),
+            _ => "file:/".to_owned(),
+        };
+        if ! path.ends_with('/') {
+            path.push('/');
         }
-        self.set_path(path);
+
+        println!("main path: {}", path);
+        self.set_path(&path);
         self.draw_content();
         'events: loop {
             let mut redraw = false;
             for event in self.event_loop() {
                 match event {
                     FileManagerCommand::ChangeDir(dir) => {
-                        if dir == "../" {
-                            if let Some(parent_dir) = FileManager::get_parent_directory() {
-                                current_path = parent_dir;
-                                if ! current_path.ends_with('/') {
-                                    current_path.push('/');
-                                }
-                            }
-                        } else {
-                            if ! current_path.ends_with('/') {
-                                current_path.push('/');
-                            }
-                            current_path.push_str(&dir);
-                        }
-                        self.set_path(&current_path);
+                        self.selected = 0;
+                        self.set_path(&dir);
                     }
                     FileManagerCommand::Execute(cmd) => {
-                        Command::new(LAUNCH_COMMAND).arg(&(current_path.clone() + &cmd)).spawn().unwrap();
+                        Command::new(LAUNCH_COMMAND).arg(&cmd).spawn().unwrap();
                     },
                     FileManagerCommand::Redraw => redraw = true,
                     FileManagerCommand::Quit => break 'events,
