@@ -137,6 +137,7 @@ impl FileTypesInfo {
         file_types.insert("md", FileType::new("Markdown file", "text-x-generic"));
         file_types.insert("toml", FileType::new("TOML file", "text-x-generic"));
         file_types.insert("json", FileType::new("JSON file", "text-x-generic"));
+        file_types.insert("ttf", FileType::new("TrueType font", "application-x-font-ttf"));
         file_types.insert("REDOX", FileType::new("Redox package", "text-x-generic"));
         file_types.insert("", FileType::new("Unknown file", "unknown"));
         FileTypesInfo { file_types: file_types, images: BTreeMap::new() }
@@ -462,14 +463,20 @@ impl FileManager {
                     if key_event.pressed {
                         match key_event.scancode {
                             event::K_ESC => commands.push(FileManagerCommand::Quit),
-                            event::K_HOME => self.selected = 0,
+                            event::K_HOME => {
+                                self.selected = 0;
+                                redraw = true;
+                            },
                             event::K_UP => {
                                 if self.selected > 0 {
                                     self.selected -= 1;
                                     redraw = true;
                                 }
                             },
-                            event::K_END => self.selected = self.files.len() as isize - 1,
+                            event::K_END => {
+                                self.selected = self.files.len() as isize - 1;
+                                redraw = true;
+                            },
                             event::K_DOWN => {
                                 if self.selected < self.files.len() as isize - 1 {
                                     self.selected += 1;
