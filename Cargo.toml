@@ -56,7 +56,7 @@ rustls = "0.5"
 tendril = "0.2"
 url = "1.2"
 userutils = { git = "https://github.com/redox-os/userutils.git" }
-webpki-roots = "0.6"
+webpki-roots = "0.7"
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
 libc = "0.2"
