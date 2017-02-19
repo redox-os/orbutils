@@ -36,18 +36,15 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, ExitStatus};
 
-use orbclient::{Color, EventOption, Renderer, Window, K_ESC};
+use orbclient::{EventOption, Renderer, Window, K_ESC};
 use orbimage::Image;
 use orbfont::Font;
 
 use package::Package;
+use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
 
-pub mod package;
-
-const BAR_COLOR: Color = Color::rgba(40, 45, 57, 224);
-const BAR_HIGHLIGHT_COLOR: Color = Color::rgb(80, 86, 102);
-const TEXT_COLOR: Color = Color::rgb(204, 210, 224);
-const TEXT_HIGHLIGHT_COLOR: Color = Color::rgb(235, 241, 255);
+mod package;
+mod theme;
 
 fn get_packages() -> Vec<Package> {
     let read_dir = Path::new(&format!("{}/apps/", UI_PATH)).read_dir().expect("failed to read apps directory");

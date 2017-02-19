@@ -306,7 +306,7 @@ impl FileManager {
 
             if i as isize == self.selected {
                 let width = self.window.width();
-                self.window.rect(0, y, width, 32, Color::rgba(224, 224, 224, 255));
+                self.window.rect(0, y, width, 32, Color::rgb(224, 224, 224));
             }
 
             {
