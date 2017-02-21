@@ -340,7 +340,7 @@ fn main(){
             let button = Button::new();
             button.position(col * 36 + 4, row * 36 + 20)
                 .size(32, 32)
-                .text("\u{232B}")
+                .text("C")
                 .text_offset(12, 8)
                 .on_click(move |_button: &Button, _point: Point| {
                     text_box_clone.text("".to_string());
