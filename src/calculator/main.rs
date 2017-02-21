@@ -278,12 +278,13 @@ fn eval(input: &str) -> String {
 }
 
 fn main(){
-    let window = Window::new(Rect::new(100, 100, 148, 200), "Calculator");
+    let window = Window::new(Rect::new(100, 100, 148, 210), "Calculator");
 
     {
         let text_box = TextBox::new();
         text_box.position(0, 0)
-            .size(300, 16)
+            .size(300, 26)
+            .text_offset(4, 4)
             .on_enter(move |text_box: &TextBox| {
                 let input = text_box.text.get();
                 if ! input.is_empty() {
@@ -301,7 +302,7 @@ fn main(){
             let mut btn = |name| {
                 let text_box_clone = text_box.clone();
                 let button = Button::new();
-                button.position(col * 36 + 4, row * 36 + 20)
+                button.position(col * 36 + 4, row * 36 + 30)
                     .size(32, 32)
                     .text(name)
                     .text_offset(12, 8)
@@ -338,7 +339,7 @@ fn main(){
         {
             let text_box_clone = text_box.clone();
             let button = Button::new();
-            button.position(col * 36 + 4, row * 36 + 20)
+            button.position(col * 36 + 4, row * 36 + 30)
                 .size(32, 32)
                 .text("C")
                 .text_offset(12, 8)
@@ -353,7 +354,7 @@ fn main(){
         {
             let text_box_clone = text_box.clone();
             let button = Button::new();
-            button.position(col * 36 + 4, row * 36 + 20)
+            button.position(col * 36 + 4, row * 36 + 30)
                 .size(32, 32)
                 .text("=")
                 .text_offset(12, 8)
