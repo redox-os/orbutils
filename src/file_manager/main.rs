@@ -304,17 +304,19 @@ impl FileManager {
         for (i, file) in self.files.iter().enumerate() {
             let y = 32 * (i + 1) as i32; // Plus 1 because the header row is 0
 
-            if i as isize == self.selected {
+            let text_color = if i as isize == self.selected {
                 let width = self.window.width();
-                self.window.rect(0, y, width, 32, Color::rgb(224, 224, 224));
-            }
+                self.window.rect(0, y, width, 32, Color::rgb(0x52, 0x94, 0xE2));
+                Color::rgb(255, 255, 255)
+            } else {
+                Color::rgb(0, 0, 0)
+            };
 
             {
                 let icon = self.file_types_info.icon_for(&file.name);
                 icon.draw(&mut self.window, 4, y);
             }
 
-            let text_color = Color::rgb(0, 0, 0);
             self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, y + 8, text_color);
             self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, y + 8, text_color);
 
