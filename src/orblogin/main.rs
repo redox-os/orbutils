@@ -22,8 +22,7 @@ pub fn main() {
     let launcher_cmd = args.next().expect("orblogin: no window manager command");
     let launcher_args: Vec<String> = args.collect();
 
-    //loop
-    {
+    loop {
         let user_lock = Arc::new(Mutex::new(String::new()));
         let pass_lock = Arc::new(Mutex::new(String::new()));
 
@@ -36,7 +35,7 @@ pub fn main() {
             let issue = issue_string.trim();
 
             let issue_height = issue.lines().count() as u32 * 16;
-            let window_height = 140 + issue_height + if issue_height > 0 { 16 } else { 0 };
+            let window_height = 148 + issue_height + if issue_height > 0 { 20 } else { 0 };
 
             let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
             let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height), "Orbital Login");
@@ -46,16 +45,16 @@ pub fn main() {
             if ! issue.is_empty() {
                 let label = Label::new();
                 label.text(issue)
-                    .text_offset(4, 4)
+                    .text_offset(6, 6)
                     .position(8, y)
-                    .size(560, issue_height + 8);
+                    .size(560, issue_height + 12);
                 //TODO: Put inset color into theme
                 label.bg.set(orbclient::Color { data: 0xFFEFF1F2 });
                 label.border.set(true);
                 label.border_radius.set(2);
                 window.add(&label);
 
-                y += issue_height as i32 + 16;
+                y += issue_height as i32 + 20;
             }
 
             let label = Label::new();
@@ -67,11 +66,12 @@ pub fn main() {
 
             let user_text_box = TextBox::new();
             user_text_box.position(8, y)
-                .size(560, 24)
-                .text_offset(4, 4)
+                .size(560, 28)
+                .text_offset(6, 6)
                 .grab_focus(true);
+            user_text_box.border_radius.set(2);
             window.add(&user_text_box);
-            y += 24;
+            y += 28;
 
             y += 8;
 
@@ -84,11 +84,12 @@ pub fn main() {
 
             let pass_text_box = TextBox::new();
             pass_text_box.position(8, y)
-                .size(560, 24)
-                .text_offset(4, 4)
+                .size(560, 28)
+                .text_offset(6, 6)
                 .mask_char(Some('*'));
+            pass_text_box.border_radius.set(2);
             window.add(&pass_text_box);
-            y += 24;
+            y += 28;
 
             // Pressing enter in user text box will transfer focus to password text box
             {
