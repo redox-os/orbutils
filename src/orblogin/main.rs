@@ -22,58 +22,73 @@ pub fn main() {
     let launcher_cmd = args.next().expect("orblogin: no window manager command");
     let launcher_args: Vec<String> = args.collect();
 
-    loop {
+    //loop
+    {
         let user_lock = Arc::new(Mutex::new(String::new()));
         let pass_lock = Arc::new(Mutex::new(String::new()));
 
         {
-            let mut issue = String::new();
+            let mut issue_string = String::new();
             if let Ok(mut issue_file) = File::open("/etc/issue") {
-                let _ = issue_file.read_to_string(&mut issue);
+                let _ = issue_file.read_to_string(&mut issue_string);
             }
 
-            let window_height = 80 + issue.lines().count() as u32 * 16;
+            let issue = issue_string.trim();
+
+            let issue_height = issue.lines().count() as u32 * 16;
+            let window_height = 140 + issue_height + if issue_height > 0 { 16 } else { 0 };
+
             let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
             let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height), "Orbital Login");
 
-            let mut y = 0;
-            for line in issue.lines() {
-                let label = Label::new();
-                label.text(line)
-                    .position(0, y)
-                    .size(576, 16);
-                window.add(&label);
-                y += 16;
-            }
+            let mut y = 8;
 
+            if ! issue.is_empty() {
+                let label = Label::new();
+                label.text(issue)
+                    .text_offset(4, 4)
+                    .position(8, y)
+                    .size(560, issue_height + 8);
+                //TODO: Put inset color into theme
+                label.bg.set(orbclient::Color { data: 0xFFEFF1F2 });
+                label.border.set(true);
+                label.border_radius.set(2);
+                window.add(&label);
+
+                y += issue_height as i32 + 16;
+            }
 
             let label = Label::new();
             label.text("Username")
-                .position(0, y)
-                .size(576, 16);
+                .position(8, y)
+                .size(560, 16);
             window.add(&label);
             y += 16;
 
             let user_text_box = TextBox::new();
-            user_text_box.position(0, y)
-                .size(576, 16)
+            user_text_box.position(8, y)
+                .size(560, 24)
+                .text_offset(4, 4)
                 .grab_focus(true);
             window.add(&user_text_box);
-            y += 16;
+            y += 24;
+
+            y += 8;
 
             let label = Label::new();
             label.text("Password")
-                .position(0, y)
-                .size(576, 16);
+                .position(8, y)
+                .size(560, 16);
             window.add(&label);
             y += 16;
 
             let pass_text_box = TextBox::new();
-            pass_text_box.position(0, y)
-                .size(576, 16)
+            pass_text_box.position(8, y)
+                .size(560, 24)
+                .text_offset(4, 4)
                 .mask_char(Some('*'));
             window.add(&pass_text_box);
-            y += 16;
+            y += 24;
 
             // Pressing enter in user text box will transfer focus to password text box
             {
@@ -97,15 +112,18 @@ pub fn main() {
                 });
             }
 
+            y += 8;
+
             // Add a login button
             {
                 let user_lock = user_lock.clone();
                 let pass_lock = pass_lock.clone();
                 let window_login = &mut window as *mut Window;
                 let button = Button::new();
-                button.position(0, y)
-                    .size(576, 16)
+                button.position(8, y)
+                    .size(560, 28)
                     .text("Login")
+                    .text_offset(6, 6)
                     .on_click(move |_button: &Button, _point: Point| {
                         *user_lock.lock().unwrap() = user_text_box.text.get();
                         *pass_lock.lock().unwrap() = pass_text_box.text.get();
