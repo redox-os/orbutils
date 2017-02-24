@@ -5,9 +5,8 @@ extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
 
-use std::{cmp, env};
+use std::{cmp, env, fs};
 use std::collections::BTreeMap;
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::string::{String, ToString};
@@ -16,6 +15,8 @@ use std::vec::Vec;
 use orbclient::{event, Color, EventOption, MouseEvent, Renderer, Window};
 use orbimage::Image;
 use orbfont::Font;
+
+const ICON_SIZE: i32 = 32;
 
 #[cfg(target_os = "redox")]
 static UI_PATH: &'static str = "/ui/icons";
@@ -239,10 +240,14 @@ pub struct FileManager {
 
 fn load_icon(path: &Path) -> Image {
     match Image::from_path(path) {
-        Ok(icon) => icon,
+        Ok(icon) => if icon.width() == ICON_SIZE as u32 && icon.height() == ICON_SIZE as u32 {
+            icon
+        } else {
+            icon.resize(ICON_SIZE as u32, ICON_SIZE as u32, orbimage::ResizeType::Lanczos3).unwrap()
+        },
         Err(err) => {
             println!("Failed to load icon {}: {}", path.display(), err);
-            Image::from_color(48, 48, Color::rgba(0, 0, 0, 0))
+            Image::from_color(ICON_SIZE as u32, ICON_SIZE as u32, Color::rgba(0, 0, 0, 0))
         }
     }
 }
@@ -295,10 +300,8 @@ impl FileManager {
     }
 
     fn draw_header_row(&mut self) {
-        let row = 0;
-
         for column in self.columns.iter() {
-            let text_y = 48 * row as i32 + 8;
+            let text_y = 8;
 
             self.font.render(column.name, 16.0).draw(&mut self.window, column.x, text_y, Color::rgb(0, 0, 0));
             if column.sort_predicate == self.sort_predicate {
@@ -314,11 +317,11 @@ impl FileManager {
 
     fn draw_file_list(&mut self) {
         for (i, file) in self.files.iter().enumerate() {
-            let y = 48 * (i + 1) as i32; // Plus 1 because the header row is 0
+            let y = ICON_SIZE * i as i32 + 32; // Plus 32 because the header row is 32 pixels
 
             let text_color = if i as isize == self.selected {
                 let width = self.window.width();
-                self.window.rect(0, y, width, 48, Color::rgb(0x52, 0x94, 0xE2));
+                self.window.rect(0, y, width, ICON_SIZE as u32, Color::rgb(0x52, 0x94, 0xE2));
                 Color::rgb(255, 255, 255)
             } else {
                 Color::rgb(0, 0, 0)
@@ -430,7 +433,7 @@ impl FileManager {
 
         self.sort_files();
 
-        self.columns[0].x = 56;
+        self.columns[0].x = ICON_SIZE + 8;
         self.columns[1].x = self.columns[0].x + self.columns[0].width;
         self.columns[2].x = self.columns[1].x + self.columns[1].width;
 
@@ -440,7 +443,7 @@ impl FileManager {
         let x = self.window.x();
         let y = self.window.y();
         let w = (self.columns[2].x + self.columns[2].width) as u32;
-        let h = ((self.files.len() + 1) * 48) as u32; // +1 for the header row
+        let h = (self.files.len() * ICON_SIZE as usize) as u32 + 32; // +32 for the header row
 
         self.window = Window::new(x, y, w, h, &path).unwrap();
 
@@ -549,8 +552,8 @@ impl FileManager {
                     redraw = false;
 
                     for (row, _) in self.files.iter().enumerate() {
-                        if mouse_event.y >= 48 * (row as i32 + 1) && // +1 for the header row
-                           mouse_event.y < 48 * (row as i32 + 2) {
+                        if mouse_event.y >= ICON_SIZE * (row as i32 + 1) && // +1 for the header row
+                           mouse_event.y < ICON_SIZE * (row as i32 + 2) {
                             if row as isize != self.selected {
                                 self.selected = row as isize;
                                 redraw = true;
@@ -559,7 +562,7 @@ impl FileManager {
                     }
 
                     if ! mouse_event.left_button && self.last_mouse_event.left_button {
-                        if mouse_event.y < 48 { // Header row clicked
+                        if mouse_event.y < ICON_SIZE { // Header row clicked
                             if mouse_event.x < self.columns[1].x as i32 {
                                 if self.sort_predicate != SortPredicate::Name {
                                     self.sort_predicate = SortPredicate::Name;
