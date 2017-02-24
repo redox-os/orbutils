@@ -110,36 +110,48 @@ impl FileTypesInfo {
     pub fn new() -> FileTypesInfo {
         let mut file_types = BTreeMap::<&'static str, FileType>::new();
         file_types.insert("/", FileType::new("Folder", "inode-directory"));
+
+        // Archives
+        file_types.insert("tar", FileType::new("TAR Archive", "package-x-generic"));
+
+        // Audio formats
         file_types.insert("wav", FileType::new("WAV audio", "audio-x-generic"));
-        file_types.insert("bin",
-                          FileType::new("Executable", "application-x-executable"));
+
+        // Font formats
+        file_types.insert("ttf", FileType::new("TTF Font", "application-x-font-ttf"));
+
+        // Image formats
         file_types.insert("bmp", FileType::new("Bitmap Image", "image-x-generic"));
         file_types.insert("jpg", FileType::new("JPG Image", "image-x-generic"));
         file_types.insert("jpeg", FileType::new("JPG Image", "image-x-generic"));
         file_types.insert("png", FileType::new("PNG Image", "image-x-generic"));
-        file_types.insert("rs", FileType::new("Rust source code", "text-x-makefile"));
-        file_types.insert("crate",
-                          FileType::new("Rust crate", "application-x-archive"));
-        file_types.insert("rlib",
-                          FileType::new("Static Rust library", "application-x-object"));
-        file_types.insert("asm", FileType::new("Assembly source", "text-x-makefile"));
-        file_types.insert("list",
-                          FileType::new("Disassembly source", "text-x-makefile"));
-        file_types.insert("c", FileType::new("C source code", "text-x-csrc"));
-        file_types.insert("cpp", FileType::new("C++ source code", "text-x-c++src"));
-        file_types.insert("h", FileType::new("C header", "text-x-chdr"));
+
+        // Text formats
+        file_types.insert("txt", FileType::new("Text file", "text-plain"));
+
+        // Markdown formats
+        file_types.insert("md", FileType::new("Markdown file", "text-plain"));
+
+        // Configuration formats
+        file_types.insert("conf", FileType::new("Config file", "text-plain"));
+        file_types.insert("json", FileType::new("JSON file", "text-plain"));
+        file_types.insert("toml", FileType::new("TOML file", "text-plain"));
+
+        // C programming language formats
+        file_types.insert("c", FileType::new("C source", "text-x-c"));
+        file_types.insert("cpp", FileType::new("C++ source", "text-x-c"));
+        file_types.insert("h", FileType::new("C header", "text-x-c"));
+
+        // Programming language formats
+        file_types.insert("asm", FileType::new("Assembly source", "text-x-script"));
         file_types.insert("ion", FileType::new("Ion script", "text-x-script"));
-        file_types.insert("rc", FileType::new("Init script", "text-x-script"));
-        file_types.insert("sh", FileType::new("Shell script", "text-x-script"));
         file_types.insert("lua", FileType::new("Lua script", "text-x-script"));
-        file_types.insert("conf", FileType::new("Config file", "text-x-generic"));
-        file_types.insert("txt", FileType::new("Plain text file", "text-x-generic"));
-        file_types.insert("md", FileType::new("Markdown file", "text-x-generic"));
-        file_types.insert("toml", FileType::new("TOML file", "text-x-generic"));
-        file_types.insert("json", FileType::new("JSON file", "text-x-generic"));
-        file_types.insert("ttf", FileType::new("TrueType font", "application-x-font-ttf"));
-        file_types.insert("REDOX", FileType::new("Redox package", "text-x-generic"));
+        file_types.insert("rc", FileType::new("Init script", "text-x-script"));
+        file_types.insert("rs", FileType::new("Rust source", "text-x-script"));
+        file_types.insert("sh", FileType::new("Shell script", "text-x-script"));
+
         file_types.insert("", FileType::new("Unknown file", "unknown"));
+
         FileTypesInfo { file_types: file_types, images: BTreeMap::new() }
     }
 
@@ -230,7 +242,7 @@ fn load_icon(path: &Path) -> Image {
         Ok(icon) => icon,
         Err(err) => {
             println!("Failed to load icon {}: {}", path.display(), err);
-            Image::from_color(32, 32, Color::rgba(0, 0, 0, 0))
+            Image::from_color(48, 48, Color::rgba(0, 0, 0, 0))
         }
     }
 }
@@ -286,7 +298,7 @@ impl FileManager {
         let row = 0;
 
         for column in self.columns.iter() {
-            let text_y = 32 * row as i32 + 8;
+            let text_y = 48 * row as i32 + 8;
 
             self.font.render(column.name, 16.0).draw(&mut self.window, column.x, text_y, Color::rgb(0, 0, 0));
             if column.sort_predicate == self.sort_predicate {
@@ -302,11 +314,11 @@ impl FileManager {
 
     fn draw_file_list(&mut self) {
         for (i, file) in self.files.iter().enumerate() {
-            let y = 32 * (i + 1) as i32; // Plus 1 because the header row is 0
+            let y = 48 * (i + 1) as i32; // Plus 1 because the header row is 0
 
             let text_color = if i as isize == self.selected {
                 let width = self.window.width();
-                self.window.rect(0, y, width, 32, Color::rgb(0x52, 0x94, 0xE2));
+                self.window.rect(0, y, width, 48, Color::rgb(0x52, 0x94, 0xE2));
                 Color::rgb(255, 255, 255)
             } else {
                 Color::rgb(0, 0, 0)
@@ -418,7 +430,7 @@ impl FileManager {
 
         self.sort_files();
 
-        self.columns[0].x = 42;
+        self.columns[0].x = 56;
         self.columns[1].x = self.columns[0].x + self.columns[0].width;
         self.columns[2].x = self.columns[1].x + self.columns[1].width;
 
@@ -428,7 +440,7 @@ impl FileManager {
         let x = self.window.x();
         let y = self.window.y();
         let w = (self.columns[2].x + self.columns[2].width) as u32;
-        let h = ((self.files.len() + 1) * 32) as u32; // +1 for the header row
+        let h = ((self.files.len() + 1) * 48) as u32; // +1 for the header row
 
         self.window = Window::new(x, y, w, h, &path).unwrap();
 
@@ -537,8 +549,8 @@ impl FileManager {
                     redraw = false;
 
                     for (row, _) in self.files.iter().enumerate() {
-                        if mouse_event.y >= 32 * (row as i32 + 1) && // +1 for the header row
-                           mouse_event.y < 32 * (row as i32 + 2) {
+                        if mouse_event.y >= 48 * (row as i32 + 1) && // +1 for the header row
+                           mouse_event.y < 48 * (row as i32 + 2) {
                             if row as isize != self.selected {
                                 self.selected = row as isize;
                                 redraw = true;
@@ -547,7 +559,7 @@ impl FileManager {
                     }
 
                     if ! mouse_event.left_button && self.last_mouse_event.left_button {
-                        if mouse_event.y < 32 { // Header row clicked
+                        if mouse_event.y < 48 { // Header row clicked
                             if mouse_event.x < self.columns[1].x as i32 {
                                 if self.sort_predicate != SortPredicate::Name {
                                     self.sort_predicate = SortPredicate::Name;

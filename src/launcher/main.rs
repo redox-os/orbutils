@@ -133,18 +133,18 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selec
     let mut y = 0;
     for (i, package) in packages.iter().enumerate() {
         if i as i32 == selected {
-            window.rect(0, y, w, 32, BAR_HIGHLIGHT_COLOR);
+            window.rect(0, y, w, 48, BAR_HIGHLIGHT_COLOR);
         }
 
         package.icon.draw(window, 0, y);
 
-        let mut c_x = 40;
+        let mut c_x = 56;
         for c in package.name.chars() {
             font.render(&c.to_string(), 16.0).draw(window, c_x as i32, y + 8, if i as i32 == selected { TEXT_HIGHLIGHT_COLOR } else { TEXT_COLOR });
             c_x += 8;
         }
 
-        y += 32;
+        y += 48;
     }
 
     window.sync();
@@ -155,12 +155,12 @@ fn bar_main() {
 
     let packages = get_packages();
 
-    let start = Image::from_path(format!("{}/icons/start.png", UI_PATH)).unwrap_or(Image::default());
+    let start = Image::from_path(format!("{}/icons/places/start-here.png", UI_PATH)).unwrap_or(Image::default());
 
     let shutdown = Image::from_path(format!("{}/icons/actions/system-log-out.png", UI_PATH)).unwrap_or(Image::default());
 
     let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-    let mut window = Window::new(0, height as i32 - 32, width, 32, "").expect("launcher: failed to open window");
+    let mut window = Window::new(0, height as i32 - 48, width, 48, "").expect("launcher: failed to open window");
 
     let mut selected = -1;
     let mut last_left_button = false;
@@ -215,8 +215,8 @@ fn bar_main() {
                         let mut i = 0;
 
                         if i == selected {
-                            let start_h = packages.len() as u32 * 32;
-                            let mut start_window = Window::new(0, height as i32 - 32 - start_h as i32, 320, start_h, "").unwrap();
+                            let start_h = packages.len() as u32 * 48;
+                            let mut start_window = Window::new(0, height as i32 - 48 - start_h as i32, 320, start_h, "").unwrap();
                             let font = Font::find(None, None, None).unwrap();
 
                             let mut selected = -1;
@@ -231,10 +231,10 @@ fn bar_main() {
 
                                             let mut y = 0;
                                             for (i, _package) in packages.iter().enumerate() {
-                                                if mouse_event.y >= y && mouse_event.y < y + 32 {
+                                                if mouse_event.y >= y && mouse_event.y < y + 48 {
                                                     now_selected = i as i32;
                                                 }
-                                                y += 32;
+                                                y += 48;
                                             }
 
                                             if now_selected != selected {
@@ -245,14 +245,14 @@ fn bar_main() {
                                             if ! mouse_event.left_button && last_left_button {
                                                 let mut y = 0;
                                                 for package in packages.iter() {
-                                                    if mouse_event.y >= y && mouse_event.y < y + 32 {
+                                                    if mouse_event.y >= y && mouse_event.y < y + 48 {
                                                         match Command::new(&package.binary).spawn() {
                                                             Ok(child) => children.push(child),
                                                             Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
                                                         }
                                                         break 'start_choosing;
                                                     }
-                                                    y += 32;
+                                                    y += 48;
                                                 }
                                             }
 
@@ -336,7 +336,7 @@ fn chooser_main(paths: env::Args) {
         });
 
         if packages.len() > 1 {
-            let mut window = Window::new(-1, -1, 320, packages.len() as u32 * 32, path).expect("launcher: failed to open window");
+            let mut window = Window::new(-1, -1, 320, packages.len() as u32 * 48, path).expect("launcher: failed to open window");
             let font = Font::find(None, None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
@@ -351,10 +351,10 @@ fn chooser_main(paths: env::Args) {
 
                             let mut y = 0;
                             for (i, _package) in packages.iter().enumerate() {
-                                if mouse_event.y >= y && mouse_event.y < y + 32 {
+                                if mouse_event.y >= y && mouse_event.y < y + 48 {
                                     now_selected = i as i32;
                                 }
-                                y += 32;
+                                y += 48;
                             }
 
                             if now_selected != selected {
@@ -365,13 +365,13 @@ fn chooser_main(paths: env::Args) {
                             if ! mouse_event.left_button && last_left_button {
                                 let mut y = 0;
                                 for package in packages.iter() {
-                                    if mouse_event.y >= y && mouse_event.y < y + 32 {
+                                    if mouse_event.y >= y && mouse_event.y < y + 48 {
                                         if let Err(err) = Command::new(&package.binary).arg(path).spawn() {
                                             println!("launcher: failed to launch {}: {}", package.binary, err);
                                         }
                                         break 'choosing;
                                     }
-                                    y += 32;
+                                    y += 48;
                                 }
                             }
 
