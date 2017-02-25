@@ -40,7 +40,34 @@ fn main() {
 
     match Image::from_path(&url) {
         Ok(image) => {
-            let mut window = Window::new(-1, -1, max(320, image.width()), max(32, image.height()),
+            let (width, height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+            println!("Display: {}, {}", width, height);
+
+            println!("Image: {}, {}", image.width(), image.height());
+
+            let best_width = width*3/4;
+            let best_height = height*3/4;
+
+            let d_w = best_width as f64;
+            let d_h = best_height as f64;
+            let i_w = image.width() as f64;
+            let i_h = image.height() as f64;
+
+            let scale = if d_w / d_h > i_w / i_h {
+                d_h / i_h
+            } else {
+                d_w / i_w
+            };
+
+            let scaled_image = if scale < 1.0 {
+                println!("Scale down {}", scale);
+                image.resize((i_w * scale) as u32, (i_h * scale) as u32,
+                             orbimage::ResizeType::Lanczos3).unwrap()
+            } else {
+                image.clone()
+            };
+
+            let mut window = Window::new(-1, -1, max(320, scaled_image.width()), max(240, scaled_image.height()),
                                          &("Viewer (".to_string() + &url + ")")).unwrap();
 
             let box_size = 4;
@@ -56,7 +83,9 @@ fn main() {
                 }
             }
 
-            image.draw(&mut window, 0, 0);
+            let x = (window.width() - scaled_image.width())/2;
+            let y = (window.height() - scaled_image.height())/2;
+            scaled_image.draw(&mut window, x as i32, y as i32);
             window.sync();
             event_loop(&mut window);
         },
