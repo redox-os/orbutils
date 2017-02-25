@@ -625,6 +625,8 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
     loop {
         if reload {
             reload = false;
+            
+            window.set_title(&format!("Browser ({})", url));
 
             anchors.clear();
             blocks.clear();
