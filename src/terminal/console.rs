@@ -5,6 +5,7 @@ use std::collections::{BTreeSet, VecDeque};
 use std::io::Result;
 
 use orbclient::{Color, Event, EventOption, Renderer, Window};
+use orbfont::Font;
 
 #[cfg(target_arch = "x86_64")]
 #[inline(always)]
@@ -33,6 +34,8 @@ pub unsafe fn fast_set64(dst: *mut u64, src: u64, len: usize) {
 pub struct Console {
     pub console: ransid::Console,
     pub window: Window,
+    pub font: Font,
+    pub font_bold: Font,
     pub changed: BTreeSet<usize>,
     pub ctrl: bool,
     pub input: Vec<u8>,
@@ -48,6 +51,8 @@ impl Console {
         Console {
             console: ransid::Console::new(width as usize / 8, height as usize / 16),
             window: window,
+            font: Font::find(None, None, None).unwrap(),
+            font_bold: Font::find(None, None, Some("Bold")).unwrap(),
             changed: BTreeSet::new(),
             ctrl: false,
             input: Vec::new(),
@@ -197,12 +202,18 @@ impl Console {
         }
 
         {
+            let font = &self.font;
+            let font_bold = &self.font_bold;
             let window = &mut self.window;
             let changed = &mut self.changed;
             self.console.write(buf, |event| {
                 match event {
-                    ransid::Event::Char { x, y, c, color, .. } => {
-                        window.char(x as i32 * 8, y as i32 * 16, c, Color { data: color.data });/*, bold, false);*/
+                    ransid::Event::Char { x, y, c, color, bold, .. } => {
+                        if bold {
+                            font_bold.render(&c.to_string(), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
+                        } else {
+                            font.render(&c.to_string(), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
+                        }
                         changed.insert(y);
                     },
                     ransid::Event::Rect { x, y, w, h, color } => {

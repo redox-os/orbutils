@@ -4,6 +4,7 @@
 #![cfg_attr(not(target_os = "redox"), feature(process_try_wait))]
 
 extern crate orbclient;
+extern crate orbfont;
 
 #[cfg(not(target_os = "redox"))]
 extern crate libc;
@@ -203,7 +204,7 @@ fn main() {
     let slave_stderr = OpenOptions::new().read(false).write(true).open(&tty_path).unwrap();
 
     let width = 800;
-    let height = 600;
+    let height = 576;
 
     env::set_var("COLUMNS", format!("{}", width / 8));
     env::set_var("LINES", format!("{}", height / 16));
