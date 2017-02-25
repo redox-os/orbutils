@@ -61,14 +61,11 @@ fn main() {
             event_loop(&mut window);
         },
         Err(err) => {
-            let mut window = Window::new(-1,
-                                         -1,
-                                         320,
-                                         32,
-                                         &("Viewer (".to_string() + &url + ")"))
-                                 .unwrap();
+            let msg = format!("{}", err);
+            let mut window = Window::new(-1, -1, max(320, msg.len() as u32 * 8), 32,
+                                         &("Viewer (".to_string() + &url + ")")).unwrap();
             window.set(Color::rgb(255, 255, 255));
-            error_msg(&mut window, &format!("{}", err));
+            error_msg(&mut window, &msg);
             window.sync();
             event_loop(&mut window);
         }
