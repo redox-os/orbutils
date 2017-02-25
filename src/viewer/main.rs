@@ -33,12 +33,12 @@ fn error_msg(window: &mut Window, msg: &str) {
 }
 
 fn main() {
-    let url = match env::args().nth(1) {
+    let path = match env::args().nth(1) {
         Some(arg) => arg,
         None => "/ui/background.png".to_string(),
     };
 
-    match Image::from_path(&url) {
+    match Image::from_path(&path) {
         Ok(image) => {
             let (width, height) = orbclient::get_display_size().expect("viewer: failed to get display size");
             println!("Display: {}, {}", width, height);
@@ -53,22 +53,21 @@ fn main() {
             let i_w = image.width() as f64;
             let i_h = image.height() as f64;
 
-            let scale = if d_w / d_h > i_w / i_h {
+            let best_scale = if d_w / d_h > i_w / i_h {
                 d_h / i_h
             } else {
                 d_w / i_w
             };
 
-            let scaled_image = if scale < 1.0 {
-                println!("Scale down {}", scale);
-                image.resize((i_w * scale) as u32, (i_h * scale) as u32,
-                             orbimage::ResizeType::Lanczos3).unwrap()
+            let (scaled_image, scale) = if best_scale < 1.0 {
+                (image.resize((i_w * best_scale) as u32, (i_h * best_scale) as u32,
+                             orbimage::ResizeType::Lanczos3).unwrap(), best_scale)
             } else {
-                image.clone()
+                (image.clone(), 1.0)
             };
 
             let mut window = Window::new(-1, -1, max(320, scaled_image.width()), max(240, scaled_image.height()),
-                                         &("Viewer (".to_string() + &url + ")")).unwrap();
+                                         &format!("{} - {:.1}% - Viewer", path, scale * 100.0)).unwrap();
 
             let box_size = 4;
             for box_y in 0..window.height()/box_size {
@@ -92,7 +91,7 @@ fn main() {
         Err(err) => {
             let msg = format!("{}", err);
             let mut window = Window::new(-1, -1, max(320, msg.len() as u32 * 8), 32,
-                                         &("Viewer (".to_string() + &url + ")")).unwrap();
+                                         &format!("{} - Viewer", path)).unwrap();
             window.set(Color::rgb(255, 255, 255));
             error_msg(&mut window, &msg);
             window.sync();
