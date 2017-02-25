@@ -35,7 +35,7 @@ fn error_msg(window: &mut Window, msg: &str) {
 fn main() {
     let url = match env::args().nth(1) {
         Some(arg) => arg,
-        None => "none:".to_string(),
+        None => "/ui/background.png".to_string(),
     };
 
     match Image::from_path(&url) {
