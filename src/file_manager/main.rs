@@ -193,8 +193,14 @@ impl FileTypesInfo {
 enum FileManagerCommand {
     ChangeDir(String),
     Execute(String),
-    Redraw,
+    Redraw(DrawCommand),
     Quit,
+}
+
+enum DrawCommand {
+    Everything,
+    Nothing,
+    Rows(Vec<usize>),
 }
 
 #[derive(PartialEq)]
@@ -292,10 +298,21 @@ impl FileManager {
         }
     }
 
-    fn draw_content(&mut self) {
-        self.window.set(Color::rgb(255, 255, 255));
-        self.draw_header_row();
-        self.draw_file_list();
+    fn draw_content(&mut self, redraw_info: DrawCommand) {
+        let mut rows_to_redraw: Vec<usize> = (0..self.files.len()).collect();
+
+        match redraw_info {
+            DrawCommand::Everything => {
+                self.window.set(Color::rgb(255, 255, 255));
+                self.draw_header_row();
+            },
+            DrawCommand::Rows(rows) => {
+                rows_to_redraw = rows;
+            },
+            DrawCommand::Nothing => return,
+        }
+
+        self.draw_file_list_range(rows_to_redraw);
         self.window.sync();
     }
 
@@ -315,28 +332,31 @@ impl FileManager {
         }
     }
 
-    fn draw_file_list(&mut self) {
-        for (i, file) in self.files.iter().enumerate() {
-            let y = ICON_SIZE * i as i32 + 32; // Plus 32 because the header row is 32 pixels
+    fn draw_file_list_range(&mut self, rows_to_redraw: Vec<usize>) {
+        for i in rows_to_redraw {
+            if let Some(file) = self.files.get(i) {
+                let y = ICON_SIZE * i as i32 + 32; // Plus 32 because the header row is 32 pixels
 
-            let text_color = if i as isize == self.selected {
                 let width = self.window.width();
-                self.window.rect(0, y, width, ICON_SIZE as u32, Color::rgb(0x52, 0x94, 0xE2));
-                Color::rgb(255, 255, 255)
-            } else {
-                Color::rgb(0, 0, 0)
-            };
+                let text_color = if i as isize == self.selected {
+                    self.window.rect(0, y, width, 32, Color::rgb(0x52, 0x94, 0xE2));
+                    Color::rgb(255, 255, 255)
+                } else {
+                    self.window.rect(0, y, width, 32, Color::rgb(255, 255, 255));
+                    Color::rgb(0, 0, 0)
+                };
 
-            {
-                let icon = self.file_types_info.icon_for(&file.name);
-                icon.draw(&mut self.window, 4, y);
+                {
+                    let icon = self.file_types_info.icon_for(&file.name);
+                    icon.draw(&mut self.window, 4, y);
+                }
+
+                self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, y + 8, text_color);
+                self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, y + 8, text_color);
+
+                let description = self.file_types_info.description_for(&file.name);
+                self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, y + 8, text_color);
             }
-
-            self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, y + 8, text_color);
-            self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, y + 8, text_color);
-
-            let description = self.file_types_info.description_for(&file.name);
-            self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, y + 8, text_color);
         }
     }
 
@@ -447,7 +467,7 @@ impl FileManager {
 
         self.window = Window::new(x, y, w, h, &path).unwrap();
 
-        self.draw_content();
+        self.draw_content(DrawCommand::Everything);
     }
 
     fn sort_files(&mut self) {
@@ -472,7 +492,6 @@ impl FileManager {
     }
 
     fn event_loop(&mut self) -> Vec<FileManagerCommand> {
-        let mut redraw = false;
         let mut commands = Vec::new();
         for event in self.window.events() {
             match event.to_option() {
@@ -481,23 +500,48 @@ impl FileManager {
                         match key_event.scancode {
                             event::K_ESC => commands.push(FileManagerCommand::Quit),
                             event::K_HOME => {
+                                commands.push(
+                                    FileManagerCommand::Redraw(
+                                        DrawCommand::Rows(
+                                            [0, self.selected as usize].to_vec()
+                                        )
+                                    )
+                                );
                                 self.selected = 0;
-                                redraw = true;
                             },
                             event::K_UP => {
                                 if self.selected > 0 {
+                                    commands.push(
+                                        FileManagerCommand::Redraw(
+                                            DrawCommand::Rows(
+                                                [(self.selected - 1) as usize, self.selected as usize].to_vec()
+                                            )
+                                        )
+                                    );
                                     self.selected -= 1;
-                                    redraw = true;
                                 }
                             },
                             event::K_END => {
-                                self.selected = self.files.len() as isize - 1;
-                                redraw = true;
+                                let new_selected = self.files.len() as isize - 1;
+                                commands.push(
+                                    FileManagerCommand::Redraw(
+                                        DrawCommand::Rows(
+                                            [new_selected as usize, self.selected as usize].to_vec()
+                                        )
+                                    )
+                                );
+                                self.selected = new_selected;
                             },
                             event::K_DOWN => {
                                 if self.selected < self.files.len() as isize - 1 {
+                                    commands.push(
+                                        FileManagerCommand::Redraw(
+                                            DrawCommand::Rows(
+                                                [(self.selected + 1) as usize, self.selected as usize].to_vec()
+                                            )
+                                        )
+                                    );
                                     self.selected += 1;
-                                    redraw = true;
                                 }
                             },
                             _ => {
@@ -537,27 +581,27 @@ impl FileManager {
                                             }
                                         }
 
-                                        redraw = true;
+                                        commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
                                         self.selected = result_next.or(result_first).unwrap_or(-1);
                                     }
                                 }
                             }
                         }
-                        if redraw {
-                            commands.push(FileManagerCommand::Redraw);
-                        }
                     }
                 }
                 EventOption::Mouse(mouse_event) => {
-                    redraw = false;
+                    let row_number = (mouse_event.y - 32) / ICON_SIZE;
 
-                    for (row, _) in self.files.iter().enumerate() {
-                        if mouse_event.y >= ICON_SIZE * (row as i32 + 1) && // +1 for the header row
-                           mouse_event.y < ICON_SIZE * (row as i32 + 2) {
-                            if row as isize != self.selected {
-                                self.selected = row as isize;
-                                redraw = true;
-                            }
+                    if row_number >= 0 && self.files.get(row_number as usize).is_some() {
+                        if row_number as isize != self.selected {
+                            commands.push(
+                                FileManagerCommand::Redraw(
+                                    DrawCommand::Rows(
+                                        [row_number as usize, self.selected as usize].to_vec()
+                                    )
+                                )
+                            );
+                            self.selected = row_number as isize;
                         }
                     }
 
@@ -583,7 +627,7 @@ impl FileManager {
                                 }
                             }
                             self.sort_files();
-                            redraw = true;
+                            commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
                         } else if self.last_mouse_event.x == mouse_event.x &&
                                   self.last_mouse_event.y == mouse_event.y {
                             if self.selected >= 0 && self.selected < self.files.len() as isize {
@@ -598,10 +642,6 @@ impl FileManager {
                         }
                     }
                     self.last_mouse_event = mouse_event;
-
-                    if redraw {
-                        commands.push(FileManagerCommand::Redraw);
-                    }
                 }
                 EventOption::Quit(_) => commands.push(FileManagerCommand::Quit),
                 _ => (),
@@ -622,9 +662,9 @@ impl FileManager {
 
         println!("main path: {}", path);
         self.set_path(&path);
-        self.draw_content();
+        self.draw_content(DrawCommand::Everything);
         'events: loop {
-            let mut redraw = false;
+            let mut redraw_info = DrawCommand::Nothing;
             for event in self.event_loop() {
                 match event {
                     FileManagerCommand::ChangeDir(dir) => {
@@ -634,13 +674,12 @@ impl FileManager {
                     FileManagerCommand::Execute(cmd) => {
                         Command::new(LAUNCH_COMMAND).arg(&cmd).spawn().unwrap();
                     },
-                    FileManagerCommand::Redraw => redraw = true,
+                    FileManagerCommand::Redraw(ri) => redraw_info = ri,
                     FileManagerCommand::Quit => break 'events,
                 };
             }
-            if redraw {
-                self.draw_content();
-            }
+
+            self.draw_content(redraw_info);
         }
     }
 }
