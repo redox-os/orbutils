@@ -3,12 +3,11 @@ use std::io::Read;
 
 use orbimage::Image;
 
-use super::load_icon;
+use super::{load_icon, load_icon_small};
 
 /// A package (_REDOX content serialized)
+#[derive(Clone)]
 pub struct Package {
-    /// The URL
-    pub url: String,
     /// The ID of the package
     pub id: String,
     /// The name of the package
@@ -17,6 +16,8 @@ pub struct Package {
     pub binary: String,
     /// The icon for the package
     pub icon: Image,
+    /// A smaller icon for the package
+    pub icon_small: Image,
     /// The accepted extensions
     pub accepts: Vec<String>,
     /// The author(s) of the package
@@ -26,20 +27,24 @@ pub struct Package {
 }
 
 impl Package {
-    /// Create package from URL
-    pub fn from_path(url: &str) -> Self {
-        let mut package = Package {
-            url: url.to_string(),
+    pub fn new() -> Self {
+        Package {
             id: String::new(),
             name: String::new(),
             binary: String::new(),
             icon: Image::default(),
+            icon_small: Image::default(),
             accepts: Vec::new(),
             authors: Vec::new(),
             descriptions: Vec::new(),
-        };
+        }
+    }
 
-        for part in url.rsplit('/') {
+    /// Create package from URL
+    pub fn from_path(path: &str) -> Self {
+        let mut package = Package::new();
+
+        for part in path.rsplit('/') {
             if !part.is_empty() {
                 package.id = part.to_string();
                 break;
@@ -48,7 +53,7 @@ impl Package {
 
         let mut info = String::new();
 
-        if let Ok(mut file) = File::open(url) {
+        if let Ok(mut file) = File::open(path) {
             let _ = file.read_to_string(&mut info);
         }
 
@@ -59,6 +64,7 @@ impl Package {
                 package.binary = line[7..].to_string();
             } else if line.starts_with("icon=") {
                 package.icon = load_icon(&line[5..]);
+                package.icon_small = load_icon_small(&line[5..]);
             } else if line.starts_with("accept=") {
                 package.accepts.push(line[7..].to_string());
             } else if line.starts_with("author=") {
