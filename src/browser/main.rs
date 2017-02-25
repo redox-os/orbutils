@@ -610,7 +610,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
     let window_w = 800;
     let window_h = 600;
-    let mut window = Window::new(-1, -1, window_w as u32, window_h as u32,  &format!("Browser ({})", arg)).unwrap();
+    let mut window = Window::new(-1, -1, window_w as u32, window_h as u32,  "Browser").unwrap();
 
     let mut anchors = BTreeMap::new();
     let mut blocks = Vec::new();
@@ -625,7 +625,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
     loop {
         if reload {
             reload = false;
-            
+
             window.set_title(&format!("Browser ({})", url));
 
             anchors.clear();
