@@ -1,3 +1,0 @@
-[submodule "orbdata"]
-	path = ui
-	url = https://github.com/redox-os/orbdata.git
