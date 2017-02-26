@@ -93,15 +93,13 @@ fn get_packages() -> Vec<Package> {
 }
 
 fn draw(window: &mut Window, packages: &Vec<Package>, start: &Image, selected: i32){
-    let h = window.height();
     window.set(BAR_COLOR);
 
     let mut x = 0;
+    let y = 0;
     let mut i = 0;
 
     {
-        let y = h as isize - start.height() as isize;
-
         if i == selected {
             window.rect(x as i32, y as i32,
                               start.width() as u32, start.height() as u32,
@@ -115,8 +113,6 @@ fn draw(window: &mut Window, packages: &Vec<Package>, start: &Image, selected: i
     }
 
     for package in packages.iter() {
-        let y = h as isize - package.icon.height() as isize;
-
         if i == selected {
             window.rect(x as i32, y as i32,
                               package.icon.width() as u32, package.icon.height() as u32,
@@ -184,10 +180,10 @@ fn bar_main() {
 
                     {
                         let mut x = 0;
+                        let y = 0;
                         let mut i = 0;
 
                         {
-                            let y = window.height() as i32 - start.height() as i32;
                             if mouse_event.y >= y && mouse_event.x >= x &&
                                mouse_event.x < x + start.width() as i32 {
                                    now_selected = i;
@@ -197,7 +193,6 @@ fn bar_main() {
                         }
 
                         for package in packages.iter() {
-                            let y = window.height() as i32 - package.icon.height() as i32;
                             if mouse_event.y >= y && mouse_event.x >= x &&
                                mouse_event.x < x + package.icon.width() as i32 {
                                 now_selected = i;
