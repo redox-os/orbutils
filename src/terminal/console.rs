@@ -4,7 +4,7 @@ use std::cmp;
 use std::collections::{BTreeSet, VecDeque};
 use std::io::Result;
 
-use orbclient::{Color, Event, EventOption, Renderer, Window};
+use orbclient::{Color, Event, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
 
 #[cfg(target_arch = "x86_64")]
@@ -46,7 +46,7 @@ pub struct Console {
 
 impl Console {
     pub fn new(width: u32, height: u32) -> Console {
-        let mut window = Window::new_flags(-1, -1, width, height, "Terminal", true).unwrap();
+        let mut window = Window::new_flags(-1, -1, width, height, "Terminal", &[WindowFlag::Async]).unwrap();
         window.sync();
         Console {
             console: ransid::Console::new(width as usize / 8, height as usize / 16),

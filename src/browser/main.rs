@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
-use orbclient::{Color, Renderer, Window, EventOption, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP};
+use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP};
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;
@@ -610,7 +610,9 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
     let window_w = 800;
     let window_h = 600;
-    let mut window = Window::new(-1, -1, window_w as u32, window_h as u32,  "Browser").unwrap();
+    let mut window = Window::new_flags(
+        -1, -1, window_w as u32, window_h as u32,  "Browser", &[WindowFlag::Resizable]
+    ).unwrap();
 
     let mut anchors = BTreeMap::new();
     let mut blocks = Vec::new();
@@ -626,7 +628,21 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
         if reload {
             reload = false;
 
-            window.set_title(&format!("Browser ({})", url));
+            window.set_title(&format!("{} - Browser", url));
+
+            anchors.clear();
+            blocks.clear();
+            text_block("Loading...", &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, &mut blocks);
+
+            {
+                window.set(Color::rgb(255, 255, 255));
+
+                for block in blocks.iter() {
+                    block.draw(&mut window, (0, 0));
+                }
+
+                window.sync();
+            }
 
             anchors.clear();
             blocks.clear();
@@ -634,7 +650,6 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
             offset = (0, 0);
             max_offset = (0, 0);
-
             for block in blocks.iter() {
                 if block.x + block.w > max_offset.0 {
                     max_offset.0 = block.x + block.w;
@@ -731,6 +746,15 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                             reload = true;
                         }
                     }
+                },
+                EventOption::Scroll(scroll_event) => {
+                    offset.0 = cmp::max(0, cmp::min(cmp::max(0, max_offset.0 - window_w), offset.0 - scroll_event.x * 48));
+                    offset.1 = cmp::max(0, cmp::min(cmp::max(0, max_offset.1 - window_h), offset.1 - scroll_event.y * 48));
+
+                    redraw = true;
+                },
+                EventOption::Resize(_) => {
+                    redraw = true;
                 },
                 EventOption::Quit(_) => return,
                 _ => ()
