@@ -714,7 +714,7 @@ impl FileManager {
                         } else if self.last_mouse_event.x == mouse_event.x &&
                                   self.last_mouse_event.y == mouse_event.y {
                             if self.selected >= 0 && self.selected < self.files.len() as isize {
-                                if let Some(file) = self.files.get(self.selected as usize) {
+                                if let Some(file) = self.files.get(self.selected as usize + self.row_offset) {
                                     if file.full_path.ends_with('/') {
                                         commands.push(FileManagerCommand::ChangeDir(file.full_path.clone()));
                                     } else {
@@ -753,6 +753,7 @@ impl FileManager {
                     FileManagerCommand::ChangeDir(dir) => {
                         self.selected = 0;
                         self.set_path(&dir);
+                        self.row_offset = 0;
                     }
                     FileManagerCommand::Execute(cmd) => {
                         Command::new(LAUNCH_COMMAND).arg(&cmd).spawn().unwrap();
