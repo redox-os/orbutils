@@ -201,6 +201,7 @@ enum DrawCommand {
     Everything,
     Nothing,
     Rows(Vec<usize>),
+    ScrollButtons,
 }
 
 #[derive(PartialEq)]
@@ -242,6 +243,9 @@ pub struct FileManager {
     last_mouse_event: MouseEvent,
     window: Window,
     font: Font,
+    row_limit: usize,
+    row_offset: usize,
+    scroll_selected: usize,
 }
 
 fn load_icon(path: &Path) -> Image {
@@ -294,7 +298,10 @@ impl FileManager {
                 right_button: false,
             },
             window: Window::new(-1, -1, 0, 0, "").unwrap(),
-            font: Font::find(None, None, None).unwrap()
+            font: Font::find(None, None, None).unwrap(),
+            row_limit: 7,
+            row_offset: 0,
+            scroll_selected: usize::max_value()
         }
     }
 
@@ -305,11 +312,19 @@ impl FileManager {
             DrawCommand::Everything => {
                 self.window.set(Color::rgb(255, 255, 255));
                 self.draw_header_row();
+                if self.files.len() > self.row_limit {
+                    self.draw_scroll_buttons();
+                }
             },
             DrawCommand::Rows(rows) => {
                 rows_to_redraw = rows;
             },
             DrawCommand::Nothing => return,
+            DrawCommand::ScrollButtons => {
+                if self.files.len() > self.row_limit {
+                    self.draw_scroll_buttons();
+                }
+            },
         }
 
         self.draw_file_list_range(rows_to_redraw);
@@ -334,29 +349,53 @@ impl FileManager {
 
     fn draw_file_list_range(&mut self, rows_to_redraw: Vec<usize>) {
         for i in rows_to_redraw {
-            if let Some(file) = self.files.get(i) {
-                let y = ICON_SIZE * i as i32 + 32; // Plus 32 because the header row is 32 pixels
+            if self.files.len() <= self.row_limit
+                    || i < self.row_limit {
+                if let Some(file) = self.files.get(i + self.row_offset) {
+                    let y = ICON_SIZE * i as i32 + 32; // Plus 32 because the header row is 32 pixels
 
-                let width = self.window.width();
-                let text_color = if i as isize == self.selected {
-                    self.window.rect(0, y, width, 32, Color::rgb(0x52, 0x94, 0xE2));
-                    Color::rgb(255, 255, 255)
-                } else {
-                    self.window.rect(0, y, width, 32, Color::rgb(255, 255, 255));
-                    Color::rgb(0, 0, 0)
-                };
+                    let width = self.window.width();
+                    let text_color = if i as isize == self.selected {
+                        self.window.rect(0, y, width, 32, Color::rgb(0x52, 0x94, 0xE2));
+                        Color::rgb(255, 255, 255)
+                    } else {
+                        self.window.rect(0, y, width, 32, Color::rgb(255, 255, 255));
+                        Color::rgb(0, 0, 0)
+                    };
 
-                {
-                    let icon = self.file_types_info.icon_for(&file.name);
-                    icon.draw(&mut self.window, 4, y);
+                    {
+                        let icon = self.file_types_info.icon_for(&file.name);
+                        icon.draw(&mut self.window, 4, y);
+                    }
+
+                    self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, y + 8, text_color);
+                    self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, y + 8, text_color);
+
+                    let description = self.file_types_info.description_for(&file.name);
+                    self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, y + 8, text_color);
                 }
-
-                self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, y + 8, text_color);
-                self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, y + 8, text_color);
-
-                let description = self.file_types_info.description_for(&file.name);
-                self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, y + 8, text_color);
             }
+        }
+    }
+
+    fn draw_scroll_buttons(&mut self) {
+        // text_y = header (32) + row_limit * row height (ICON_SIZE)
+        let text_y = 32 + (self.row_limit * ICON_SIZE as usize) as i32;
+        let width = (self.columns[2].x + self.columns[2].width) as u32;
+        self.window.rect(0, text_y, width, 16, Color::rgb(70, 70, 70));
+        let center = (width / 2) as i32;
+
+        if self.scroll_selected == 0 {
+            self.window.rect(0, text_y, center as u32, 16, Color::rgb(128, 128, 255));
+            self.font.render("scroll down", 16.0).draw(&mut self.window, 0, text_y, Color::rgb(0, 0, 0));
+            self.font.render("scroll up", 16.0).draw(&mut self.window, center, text_y, Color::rgb(255, 255, 255));
+        } else if self.scroll_selected == 1 {
+            self.font.render("scroll down", 16.0).draw(&mut self.window, 0, text_y, Color::rgb(255, 255, 255));
+            self.window.rect(center, text_y, center as u32, 16, Color::rgb(128, 128, 255));
+            self.font.render("scroll up", 16.0).draw(&mut self.window, center, text_y, Color::rgb(0, 0, 0));
+        } else {
+            self.font.render("scroll down", 16.0).draw(&mut self.window, 0, text_y, Color::rgb(255, 255, 255));
+            self.font.render("scroll up", 16.0).draw(&mut self.window, center, text_y, Color::rgb(255, 255, 255));
         }
     }
 
@@ -463,7 +502,13 @@ impl FileManager {
         let x = self.window.x();
         let y = self.window.y();
         let w = (self.columns[2].x + self.columns[2].width) as u32;
-        let h = (self.files.len() * ICON_SIZE as usize) as u32 + 32; // +32 for the header row
+        let h = if self.files.len() <= self.row_limit {
+            (self.files.len() * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
+        } else {
+            // +32 for the header row
+            // +16 for the next/prev/expand/contract text buttons
+            (self.row_limit * ICON_SIZE as usize) as u32 + 32 + 16
+        };
 
         self.window = Window::new(x, y, w, h, &path).unwrap();
 
@@ -605,6 +650,27 @@ impl FileManager {
                         }
                     }
 
+                    if self.files.len() > self.row_limit {
+                        if mouse_event.y >= (32 + self.row_limit as i32 * ICON_SIZE)
+                                && mouse_event.y < (32 + self.row_limit as i32 * ICON_SIZE + 16) {
+                            if mouse_event.x < (self.columns[2].x + self.columns[2].width)
+                                    / 2 {
+                                self.scroll_selected = 0;
+                            }
+                            else {
+                                self.scroll_selected = 1;
+                            }
+                        } else {
+                            self.scroll_selected = usize::max_value();
+                        }
+                        commands.push(
+                            FileManagerCommand::Redraw(
+                                DrawCommand::ScrollButtons
+                            )
+                        );
+                    }
+
+
                     if ! mouse_event.left_button && self.last_mouse_event.left_button {
                         if mouse_event.y < ICON_SIZE { // Header row clicked
                             if mouse_event.x < self.columns[1].x as i32 {
@@ -628,6 +694,23 @@ impl FileManager {
                             }
                             self.sort_files();
                             commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
+                        } else if self.files.len() > self.row_limit
+                                && mouse_event.y >= 32 + self.row_limit as i32 * ICON_SIZE {
+                            if self.scroll_selected == 0 {
+                                // scroll down pressed
+                                if self.row_offset + self.row_limit < self.files.len() - 1 {
+                                    self.row_offset += 2;
+                                } else if self.row_offset + self.row_limit < self.files.len() {
+                                    self.row_offset += 1;
+                                }
+                            } else if self.scroll_selected == 1 {
+                                // scroll up pressed
+                                if self.row_offset > 1 {
+                                    self.row_offset -= 2;
+                                } else if self.row_offset > 0 {
+                                    self.row_offset -= 1;
+                                }
+                            }
                         } else if self.last_mouse_event.x == mouse_event.x &&
                                   self.last_mouse_event.y == mouse_event.y {
                             if self.selected >= 0 && self.selected < self.files.len() as isize {
