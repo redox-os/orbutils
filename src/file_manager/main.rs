@@ -725,7 +725,26 @@ impl FileManager {
                         }
                     }
                     self.last_mouse_event = mouse_event;
-                }
+                },
+                EventOption::Scroll(scroll_event) => {
+                    if scroll_event.y <= -1 {
+                        // scroll down pressed
+                        if self.row_offset + self.row_limit < self.files.len() - 1 {
+                            self.row_offset += 2;
+                        } else if self.row_offset + self.row_limit < self.files.len() {
+                            self.row_offset += 1;
+                        }
+                        commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
+                    } else if scroll_event.y >= 1  {
+                        // scroll up pressed
+                        if self.row_offset > 1 {
+                            self.row_offset -= 2;
+                        } else if self.row_offset > 0 {
+                            self.row_offset -= 1;
+                        }
+                        commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
+                    }
+                },
                 EventOption::Quit(_) => commands.push(FileManagerCommand::Quit),
                 _ => (),
             }
