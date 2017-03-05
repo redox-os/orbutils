@@ -4,21 +4,18 @@ extern crate html5ever;
 extern crate orbclient;
 extern crate orbfont;
 extern crate orbimage;
-extern crate rustls;
 extern crate tendril;
 extern crate url;
-extern crate webpki_roots;
+extern crate hyper;
+extern crate hyper_rustls;
 
-use rustls::Session;
 
 use std::{cmp, env, str};
 use std::collections::BTreeMap;
 use std::default::Default;
 use std::fs::File;
 use std::io::{stderr, Read, Write};
-use std::net::TcpStream;
 use std::string::String;
-use std::sync::Arc;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
@@ -26,6 +23,9 @@ use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_BKSP, K_ESC,
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;
+use hyper::header::Headers;
+use hyper::Client;
+use hyper::net::HttpsConnector;
 
 struct Block<'a> {
     x: i32,
@@ -342,116 +342,21 @@ pub fn escape_default(s: &str) -> String {
     s.chars().flat_map(|c| c.escape_default()).collect()
 }
 
-fn http_download(url: &Url) -> (Vec<String>, Vec<u8>) {
-    let https = url.scheme() == "https";
-    let host = url.host_str().unwrap_or("");
-    let port = url.port().unwrap_or(if https { 443 } else { 80 });
-    let mut path = url.path().to_string();
-    if let Some(query) = url.query() {
-        path.push('?');
-        path.push_str(query);
-    }
+fn http_download(url: &Url) -> (Headers, Vec<u8>) {
+    write!(stderr(), "* Requesting {}\n", url).unwrap();
 
-    write!(stderr(), "* Connecting to {}:{}\n", host, port).unwrap();
+    let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
+    let mut res = client.get(url.clone()).send().unwrap();
+    let mut data = Vec::new();
+    res.read_to_end(&mut data).unwrap();
 
-    let mut stream = TcpStream::connect((host, port)).unwrap();
+    write!(stderr(), "* Received {} bytes\n", data.len()).unwrap();
 
-    write!(stderr(), "* Requesting {}\n", path).unwrap();
-
-    let request = format!("GET /{} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\n\r\n", path, host);
-    let mut response = Vec::new();
-
-    if https {
-        let mut config = rustls::ClientConfig::new();
-        config.root_store.add_trust_anchors(&webpki_roots::ROOTS[..]);
-        let rc_config = Arc::new(config);
-
-        let mut client = rustls::ClientSession::new(&rc_config, host);
-        client.write(request.as_bytes()).unwrap();
-        client.write_tls(&mut stream).unwrap();
-        stream.flush().unwrap();
-
-        write!(stderr(), "* Waiting for response\n").unwrap();
-
-        'reading:loop {
-            while client.wants_read() {
-                client.read_tls(&mut stream).unwrap();
-                client.process_new_packets().unwrap();
-
-                while client.wants_write() {
-                    client.write_tls(&mut stream).unwrap();
-                    stream.flush().unwrap();
-                }
-            }
-
-            let mut buf = [0; 65536];
-            loop {
-                match client.read(&mut buf) {
-                    Ok(0) => {
-                        if client.wants_read() {
-                            break;
-                        } else {
-                            break 'reading;
-                        }
-                    }
-                    Ok(bytes) => {
-                        response.append(&mut buf[..bytes].to_vec());
-                    }
-                    Err(err) => {
-                        write!(stderr(), "* Read error: {}\n", err).unwrap();
-                        break 'reading;
-                    }
-                }
-            }
-        }
-    } else {
-        stream.write(request.as_bytes()).unwrap();
-        stream.flush().unwrap();
-
-        write!(stderr(), "* Waiting for response\n").unwrap();
-
-        loop {
-            let mut buf = [0; 65536];
-            let count = stream.read(&mut buf).unwrap();
-            if count == 0 {
-                break;
-            }
-            response.extend_from_slice(&buf[.. count]);
-        }
-    }
-
-    write!(stderr(), "* Received {} bytes\n", response.len()).unwrap();
-
-    let mut header_end = 0;
-    while header_end < response.len() {
-        if response[header_end..].starts_with(b"\r\n\r\n") {
-            header_end += 4;
-            break;
-        }
-        header_end += 1;
-    }
-
-    let mut headers = Vec::new();
-    for line in unsafe { str::from_utf8_unchecked(&response[..header_end]) }.lines() {
-        if ! line.is_empty() {
-            write!(stderr(), "> {}\n", line).unwrap();
-            headers.push(line.to_string());
-        }
-    }
-
-    (headers, response.split_off(header_end))
+    (res.headers.clone(), data)
 }
 
-fn read_parse<'a, R: Read>(headers: &Vec<String>, r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
-    let mut content_type = "text/plain";
-    for header in headers.iter() {
-        if header.starts_with("Content-Type: ") {
-            if let Some(new_type) = header[14..].split(';').next() {
-                content_type = new_type;
-                break;
-            }
-        }
-    }
+fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+    let content_type = headers.get_raw("content-type").and_then(|x| str::from_utf8(x[0].as_slice()).ok()).unwrap_or("text/plain");
 
     match content_type {
         "text/plain" => {
@@ -572,7 +477,7 @@ fn read_parse<'a, R: Read>(headers: &Vec<String>, r: &mut R, url: &Url, font: &'
 fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     if let Ok(path) = url.to_file_path() {
         if let Ok(mut file) = File::open(&path) {
-            let headers = Vec::new();
+            let headers = Headers::new();
 
             /* TODO {
                 let extension = path.extension().unwrap_or(OsStr::new("")).to_str().unwrap_or("");
@@ -581,7 +486,7 @@ fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut 
                 headers.push(format!("Content-Type: {}", mime_type));
             } */
 
-            read_parse(&headers, &mut file, url, &font, &font_bold, anchors, blocks);
+            read_parse(headers, &mut file, url, &font, &font_bold, anchors, blocks);
         } else {
             println!("{} not found", path.display());
         }
@@ -590,7 +495,7 @@ fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut 
 
 fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let (headers, response) = http_download(url);
-    read_parse(&headers, &mut response.as_slice(), url, font, font_bold, anchors, blocks);
+    read_parse(headers, &mut response.as_slice(), url, font, font_bold, anchors, blocks);
 }
 
 fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
