@@ -13,6 +13,7 @@ extern crate hyper_rustls;
 use std::{cmp, env, str};
 use std::collections::BTreeMap;
 use std::default::Default;
+use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{stderr, Read, Write};
 use std::string::String;
@@ -23,7 +24,7 @@ use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_BKSP, K_ESC,
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;
-use hyper::header::Headers;
+use hyper::header::{self, Headers};
 use hyper::Client;
 use hyper::net::HttpsConnector;
 
@@ -477,14 +478,23 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
 fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     if let Ok(path) = url.to_file_path() {
         if let Ok(mut file) = File::open(&path) {
-            let headers = Headers::new();
+            let mut headers = Headers::new();
+
+            let mime_type = match path.extension().unwrap_or(OsStr::new("")).to_str().unwrap_or("") {
+                "html" => "text/html",
+                "jpg" | "jpeg" => "image/jpeg",
+                "png" => "image/png",
+                "bmp" => "image/x-ms-bmp",
+                _ => "text/plain",
+            };
 
             /* TODO {
                 let extension = path.extension().unwrap_or(OsStr::new("")).to_str().unwrap_or("");
                 let mime_type = mime_guess::get_mime_type_str(extension).unwrap_or("application/octet-stream");
                 println!("{:?}", mime_type);
-                headers.push(format!("Content-Type: {}", mime_type));
             } */
+
+            headers.set(header::ContentType(mime_type.parse().unwrap()));
 
             read_parse(headers, &mut file, url, &font, &font_bold, anchors, blocks);
         } else {
