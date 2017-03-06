@@ -4,6 +4,7 @@
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
+extern crate orbtk;
 
 use std::{cmp, env, fs};
 use std::collections::BTreeMap;
@@ -11,10 +12,13 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::string::{String, ToString};
 use std::vec::Vec;
+use std::sync::mpsc::{channel, Sender, Receiver};
+use std::sync::Arc;
 
-use orbclient::{event, Color, EventOption, MouseEvent, Renderer, Window};
+use orbclient::{Color, Renderer};
 use orbimage::Image;
-use orbfont::Font;
+
+use orbtk::{Window, Point, Rect, List, Entry, Label, Place, Text, Click};
 
 const ICON_SIZE: i32 = 32;
 
@@ -193,15 +197,7 @@ impl FileTypesInfo {
 enum FileManagerCommand {
     ChangeDir(String),
     Execute(String),
-    Redraw(DrawCommand),
-    Quit,
-}
-
-enum DrawCommand {
-    Everything,
-    Nothing,
-    Rows(Vec<usize>),
-    ScrollButtons,
+    ChangeSort(usize),
 }
 
 #[derive(PartialEq)]
@@ -236,16 +232,14 @@ struct Column {
 pub struct FileManager {
     file_types_info: FileTypesInfo,
     files: Vec<FileInfo>,
-    selected: isize,
     columns: [Column; 3],
+    column_labels: Vec<Arc<Label>>,
     sort_predicate: SortPredicate,
     sort_direction: SortDirection,
-    last_mouse_event: MouseEvent,
     window: Window,
-    font: Font,
-    row_limit: usize,
-    row_offset: usize,
-    scroll_selected: usize,
+    list_widget_index: Option<usize>,
+    tx: Sender<FileManagerCommand>,
+    rx: Receiver<FileManagerCommand>,
 }
 
 fn load_icon(path: &Path) -> Image {
@@ -264,10 +258,11 @@ fn load_icon(path: &Path) -> Image {
 
 impl FileManager {
     pub fn new() -> Self {
+        let (tx, rx) = channel();
+
         FileManager {
             file_types_info: FileTypesInfo::new(),
             files: Vec::new(),
-            selected: -1,
             columns: [
                 Column {
                     name: "Name",
@@ -288,114 +283,13 @@ impl FileManager {
                     sort_predicate: SortPredicate::Type,
                 },
             ],
+            column_labels: Vec::new(),
             sort_predicate: SortPredicate::Name,
             sort_direction: SortDirection::Asc,
-            last_mouse_event: MouseEvent {
-                x: 0,
-                y: 0,
-                left_button: false,
-                middle_button: false,
-                right_button: false,
-            },
-            window: Window::new(-1, -1, 0, 0, "").unwrap(),
-            font: Font::find(None, None, None).unwrap(),
-            row_limit: 7,
-            row_offset: 0,
-            scroll_selected: usize::max_value()
-        }
-    }
-
-    fn draw_content(&mut self, redraw_info: DrawCommand) {
-        let mut rows_to_redraw: Vec<usize> = (0..self.files.len()).collect();
-
-        match redraw_info {
-            DrawCommand::Everything => {
-                self.window.set(Color::rgb(255, 255, 255));
-                self.draw_header_row();
-                if self.files.len() > self.row_limit {
-                    self.draw_scroll_buttons();
-                }
-            },
-            DrawCommand::Rows(rows) => {
-                rows_to_redraw = rows;
-            },
-            DrawCommand::Nothing => return,
-            DrawCommand::ScrollButtons => {
-                if self.files.len() > self.row_limit {
-                    self.draw_scroll_buttons();
-                }
-            },
-        }
-
-        self.draw_file_list_range(rows_to_redraw);
-        self.window.sync();
-    }
-
-    fn draw_header_row(&mut self) {
-        for column in self.columns.iter() {
-            let text_y = 8;
-
-            self.font.render(column.name, 16.0).draw(&mut self.window, column.x, text_y, Color::rgb(0, 0, 0));
-            if column.sort_predicate == self.sort_predicate {
-                let arrow = match self.sort_direction {
-                    SortDirection::Asc => self.font.render("↓", 16.0),
-                    SortDirection::Desc => self.font.render("↑", 16.0),
-                };
-                let arrow_x = column.x + column.width - arrow.width() as i32 - 4;
-                arrow.draw(&mut self.window, arrow_x, text_y, Color::rgb(140, 140, 140));
-            }
-        }
-    }
-
-    fn draw_file_list_range(&mut self, rows_to_redraw: Vec<usize>) {
-        for i in rows_to_redraw {
-            if self.files.len() <= self.row_limit
-                    || i < self.row_limit {
-                if let Some(file) = self.files.get(i + self.row_offset) {
-                    let y = ICON_SIZE * i as i32 + 32; // Plus 32 because the header row is 32 pixels
-
-                    let width = self.window.width();
-                    let text_color = if i as isize == self.selected {
-                        self.window.rect(0, y, width, 32, Color::rgb(0x52, 0x94, 0xE2));
-                        Color::rgb(255, 255, 255)
-                    } else {
-                        self.window.rect(0, y, width, 32, Color::rgb(255, 255, 255));
-                        Color::rgb(0, 0, 0)
-                    };
-
-                    {
-                        let icon = self.file_types_info.icon_for(&file.name);
-                        icon.draw(&mut self.window, 4, y);
-                    }
-
-                    self.font.render(&file.name, 16.0).draw(&mut self.window, self.columns[0].x, y + 8, text_color);
-                    self.font.render(&file.size_str, 16.0).draw(&mut self.window, self.columns[1].x, y + 8, text_color);
-
-                    let description = self.file_types_info.description_for(&file.name);
-                    self.font.render(&description, 16.0).draw(&mut self.window, self.columns[2].x, y + 8, text_color);
-                }
-            }
-        }
-    }
-
-    fn draw_scroll_buttons(&mut self) {
-        // text_y = header (32) + row_limit * row height (ICON_SIZE)
-        let text_y = 32 + (self.row_limit * ICON_SIZE as usize) as i32;
-        let width = (self.columns[2].x + self.columns[2].width) as u32;
-        self.window.rect(0, text_y, width, 16, Color::rgb(70, 70, 70));
-        let center = (width / 2) as i32;
-
-        if self.scroll_selected == 0 {
-            self.window.rect(0, text_y, center as u32, 16, Color::rgb(128, 128, 255));
-            self.font.render("scroll down", 16.0).draw(&mut self.window, 0, text_y, Color::rgb(0, 0, 0));
-            self.font.render("scroll up", 16.0).draw(&mut self.window, center, text_y, Color::rgb(255, 255, 255));
-        } else if self.scroll_selected == 1 {
-            self.font.render("scroll down", 16.0).draw(&mut self.window, 0, text_y, Color::rgb(255, 255, 255));
-            self.window.rect(center, text_y, center as u32, 16, Color::rgb(128, 128, 255));
-            self.font.render("scroll up", 16.0).draw(&mut self.window, center, text_y, Color::rgb(0, 0, 0));
-        } else {
-            self.font.render("scroll down", 16.0).draw(&mut self.window, 0, text_y, Color::rgb(255, 255, 255));
-            self.font.render("scroll up", 16.0).draw(&mut self.window, center, text_y, Color::rgb(255, 255, 255));
+            window: Window::new(Rect::new(-1, -1, 0, 0),  ""),
+            list_widget_index: None,
+            tx: tx,
+            rx: rx,
         }
     }
 
@@ -438,6 +332,115 @@ impl FileManager {
         self.columns[2].width = cmp::max(self.columns[2].width, (description.len() * 8) as i32 + 16);
 
         self.files.push(file_info);
+    }
+
+    fn update_headers(&mut self) {
+        for (i, column) in self.columns.iter().enumerate() {
+            if let None = self.column_labels.get(i * 2) {
+                // header text
+                let mut label = Label::new();
+                self.window.add(&label);
+                label.bg.set(Color::rgba(255, 255, 255, 0));
+                label.text_offset.set(Point::new(0, 8));
+
+                let tx = self.tx.clone();
+                label.on_click(move |_, _| {
+                    tx.send(FileManagerCommand::ChangeSort(i)).unwrap();
+                });
+                self.column_labels.push(label);
+
+                // sort arrow
+                label = Label::new();
+                self.window.add(&label);
+                label.bg.set(Color::rgba(255, 255, 255, 0));
+                label.fg.set(Color::rgb(140, 140, 140));
+                label.text_offset.set(Point::new(0, 8));
+                self.column_labels.push(label);
+            }
+
+            if let Some(label) = self.column_labels.get(i * 2) {
+                label.position(column.x, 0).size(column.width as u32, 32).text(column.name.clone());
+            }
+
+            if let Some(label) = self.column_labels.get(i * 2 + 1) {
+                if column.sort_predicate == self.sort_predicate {
+                    let arrow = match self.sort_direction {
+                        SortDirection::Asc => "↓",
+                        SortDirection::Desc => "↑",
+                    };
+
+                    label.position(column.x + column.width - 12, 0).size(16, 32).text(arrow);
+                } else {
+                    label.text("");
+                }
+            }
+        }
+    }
+
+    fn update_list(&mut self) {
+        let w = (self.columns[2].x + self.columns[2].width) as u32;
+        let count = cmp::min(self.files.len(), 7);
+        let h = if self.files.len() < 8 {
+            (count * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
+        } else {
+            (7 * ICON_SIZE as usize) as u32 + 32 - 16 // +32 for the header row, -16 to indicate scrolling
+        };
+
+        let list = List::new();
+        list.position(0, 32).size(w, h - 32);
+
+        {
+            for file in self.files.iter() {
+                let entry = Entry::new(ICON_SIZE as u32);
+
+                let path = file.full_path.clone();
+                let tx = self.tx.clone();
+
+                entry.on_click(move |_, _| {
+                    if path.ends_with('/') {
+                        tx.send(FileManagerCommand::ChangeDir(path.clone())).unwrap();
+                    } else {
+                        tx.send(FileManagerCommand::Execute(path.clone())).unwrap();
+                    }
+                });
+
+                {
+                    let icon = self.file_types_info.icon_for(&file.name);
+                    let image = orbtk::Image::from_image((*icon).clone());
+                    image.position(4, 0);
+                    entry.add(&image);
+                }
+
+                let mut label = Label::new();
+                label.position(self.columns[0].x, 0).size(w, ICON_SIZE as u32).text(file.name.clone());
+                label.text_offset.set(Point::new(0, 8));
+                label.bg.set(Color::rgba(255, 255, 255, 0));
+                entry.add(&label);
+
+                label = Label::new();
+                label.position(self.columns[1].x, 0).size(w, ICON_SIZE as u32).text(file.size_str.clone());
+                label.text_offset.set(Point::new(0, 8));
+                label.bg.set(Color::rgba(255, 255, 255, 0));
+                entry.add(&label);
+
+                let description = self.file_types_info.description_for(&file.name);
+                label = Label::new();
+                label.position(self.columns[2].x, 0).size(w, ICON_SIZE as u32).text(description);
+                label.text_offset.set(Point::new(0, 8));
+                label.bg.set(Color::rgba(255, 255, 255, 0));
+                entry.add(&label);
+
+                list.push(&entry);
+            }
+        }
+
+        if let Some(i) = self.list_widget_index {
+            let mut widgets = self.window.widgets.borrow_mut();
+            widgets.remove(i);
+            widgets.insert(i, list);
+        } else {
+            self.list_widget_index = Some(self.window.add(&list));
+        }
     }
 
     fn set_path(&mut self, path: &str) {
@@ -490,29 +493,29 @@ impl FileManager {
             },
         }
 
-        self.sort_files();
-
         self.columns[0].x = ICON_SIZE + 8;
         self.columns[1].x = self.columns[0].x + self.columns[0].width;
         self.columns[2].x = self.columns[1].x + self.columns[1].width;
 
-        // TODO: HACK ALERT - should use resize whenver that gets added
-        self.window.sync_path();
-
-        let x = self.window.x();
-        let y = self.window.y();
         let w = (self.columns[2].x + self.columns[2].width) as u32;
-        let h = if self.files.len() <= self.row_limit {
-            (self.files.len() * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
+        let count = cmp::min(self.files.len(), 7);
+        let h = if self.files.len() < 8 {
+            (count * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
         } else {
-            // +32 for the header row
-            // +16 for the next/prev/expand/contract text buttons
-            (self.row_limit * ICON_SIZE as usize) as u32 + 32 + 16
+            (7 * ICON_SIZE as usize) as u32 + 32 - 16 // +32 for the header row, -16 to indicate scrolling
         };
 
-        self.window = Window::new(x, y, w, h, &path).unwrap();
+        self.window.set_size(w, h);
+        self.window.set_title(&path);
+        self.window.bg.set(Color::rgb(255, 255, 255));
 
-        self.draw_content(DrawCommand::Everything);
+        self.sort_files();
+
+        self.update_headers();
+
+        self.update_list();
+
+        self.window.needs_redraw();
     }
 
     fn sort_files(&mut self) {
@@ -536,222 +539,6 @@ impl FileManager {
         }
     }
 
-    fn event_loop(&mut self) -> Vec<FileManagerCommand> {
-        let mut commands = Vec::new();
-        for event in self.window.events() {
-            match event.to_option() {
-                EventOption::Key(key_event) => {
-                    if key_event.pressed {
-                        match key_event.scancode {
-                            event::K_ESC => commands.push(FileManagerCommand::Quit),
-                            event::K_HOME => {
-                                commands.push(
-                                    FileManagerCommand::Redraw(
-                                        DrawCommand::Rows(
-                                            [0, self.selected as usize].to_vec()
-                                        )
-                                    )
-                                );
-                                self.selected = 0;
-                            },
-                            event::K_UP => {
-                                if self.selected > 0 {
-                                    commands.push(
-                                        FileManagerCommand::Redraw(
-                                            DrawCommand::Rows(
-                                                [(self.selected - 1) as usize, self.selected as usize].to_vec()
-                                            )
-                                        )
-                                    );
-                                    self.selected -= 1;
-                                }
-                            },
-                            event::K_END => {
-                                let new_selected = self.files.len() as isize - 1;
-                                commands.push(
-                                    FileManagerCommand::Redraw(
-                                        DrawCommand::Rows(
-                                            [new_selected as usize, self.selected as usize].to_vec()
-                                        )
-                                    )
-                                );
-                                self.selected = new_selected;
-                            },
-                            event::K_DOWN => {
-                                if self.selected < self.files.len() as isize - 1 {
-                                    commands.push(
-                                        FileManagerCommand::Redraw(
-                                            DrawCommand::Rows(
-                                                [(self.selected + 1) as usize, self.selected as usize].to_vec()
-                                            )
-                                        )
-                                    );
-                                    self.selected += 1;
-                                }
-                            },
-                            _ => {
-                                match key_event.character {
-                                    '\0' => (),
-                                    '\n' => {
-                                        if self.selected >= 0 &&
-                                           self.selected < self.files.len() as isize {
-                                            match self.files.get(self.selected as usize) {
-                                                Some(file) => {
-                                                    if file.full_path.ends_with('/') {
-                                                        commands.push(FileManagerCommand::ChangeDir(file.full_path.clone()));
-                                                    } else {
-                                                        commands.push(FileManagerCommand::Execute(file.full_path.clone()));
-                                                    }
-                                                }
-                                                None => (),
-                                            }
-                                        }
-                                    }
-                                    _ => {
-                                        // The index of the first matching file
-                                        let mut result_first: Option<isize> = None;
-                                        // The index of the next matching file relative to the current selection
-                                        let mut result_next: Option<isize> = None;
-
-                                        for (i, file) in self.files.iter().enumerate() {
-                                            if file.name.to_lowercase().starts_with(key_event.character) {
-                                                if result_first.is_none() {
-                                                    result_first = Some(i as isize);
-                                                }
-
-                                                if i as isize > self.selected {
-                                                    result_next = Some(i as isize);
-                                                    break;
-                                                }
-                                            }
-                                        }
-
-                                        commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
-                                        self.selected = result_next.or(result_first).unwrap_or(-1);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                EventOption::Mouse(mouse_event) => {
-                    let row_number = (mouse_event.y - 32) / ICON_SIZE;
-
-                    if row_number >= 0 && self.files.get(row_number as usize).is_some() {
-                        if row_number as isize != self.selected {
-                            commands.push(
-                                FileManagerCommand::Redraw(
-                                    DrawCommand::Rows(
-                                        [row_number as usize, self.selected as usize].to_vec()
-                                    )
-                                )
-                            );
-                            self.selected = row_number as isize;
-                        }
-                    }
-
-                    if self.files.len() > self.row_limit {
-                        if mouse_event.y >= (32 + self.row_limit as i32 * ICON_SIZE)
-                                && mouse_event.y < (32 + self.row_limit as i32 * ICON_SIZE + 16) {
-                            if mouse_event.x < (self.columns[2].x + self.columns[2].width)
-                                    / 2 {
-                                self.scroll_selected = 0;
-                            }
-                            else {
-                                self.scroll_selected = 1;
-                            }
-                        } else {
-                            self.scroll_selected = usize::max_value();
-                        }
-                        commands.push(
-                            FileManagerCommand::Redraw(
-                                DrawCommand::ScrollButtons
-                            )
-                        );
-                    }
-
-
-                    if ! mouse_event.left_button && self.last_mouse_event.left_button {
-                        if mouse_event.y < ICON_SIZE { // Header row clicked
-                            if mouse_event.x < self.columns[1].x as i32 {
-                                if self.sort_predicate != SortPredicate::Name {
-                                    self.sort_predicate = SortPredicate::Name;
-                                } else {
-                                    self.sort_direction.invert();
-                                }
-                            } else if mouse_event.x < self.columns[2].x as i32 {
-                                if self.sort_predicate != SortPredicate::Size {
-                                    self.sort_predicate = SortPredicate::Size;
-                                } else {
-                                    self.sort_direction.invert();
-                                }
-                            } else {
-                                if self.sort_predicate != SortPredicate::Type {
-                                    self.sort_predicate = SortPredicate::Type;
-                                } else {
-                                    self.sort_direction.invert();
-                                }
-                            }
-                            self.sort_files();
-                            commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
-                        } else if self.files.len() > self.row_limit
-                                && mouse_event.y >= 32 + self.row_limit as i32 * ICON_SIZE {
-                            if self.scroll_selected == 0 {
-                                // scroll down pressed
-                                if self.row_offset + self.row_limit < self.files.len() - 1 {
-                                    self.row_offset += 2;
-                                } else if self.row_offset + self.row_limit < self.files.len() {
-                                    self.row_offset += 1;
-                                }
-                            } else if self.scroll_selected == 1 {
-                                // scroll up pressed
-                                if self.row_offset > 1 {
-                                    self.row_offset -= 2;
-                                } else if self.row_offset > 0 {
-                                    self.row_offset -= 1;
-                                }
-                            }
-                        } else if self.last_mouse_event.x == mouse_event.x &&
-                                  self.last_mouse_event.y == mouse_event.y {
-                            if self.selected >= 0 && self.selected < self.files.len() as isize {
-                                if let Some(file) = self.files.get(self.selected as usize + self.row_offset) {
-                                    if file.full_path.ends_with('/') {
-                                        commands.push(FileManagerCommand::ChangeDir(file.full_path.clone()));
-                                    } else {
-                                        commands.push(FileManagerCommand::Execute(file.full_path.clone()));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    self.last_mouse_event = mouse_event;
-                },
-                EventOption::Scroll(scroll_event) => {
-                    if scroll_event.y <= -1 {
-                        // scroll down pressed
-                        if self.row_offset + self.row_limit < self.files.len() - 1 {
-                            self.row_offset += 2;
-                        } else if self.row_offset + self.row_limit < self.files.len() {
-                            self.row_offset += 1;
-                        }
-                        commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
-                    } else if scroll_event.y >= 1  {
-                        // scroll up pressed
-                        if self.row_offset > 1 {
-                            self.row_offset -= 2;
-                        } else if self.row_offset > 0 {
-                            self.row_offset -= 1;
-                        }
-                        commands.push(FileManagerCommand::Redraw(DrawCommand::Everything));
-                    }
-                },
-                EventOption::Quit(_) => commands.push(FileManagerCommand::Quit),
-                _ => (),
-            }
-        }
-        commands
-    }
-
     fn main(&mut self, path: &str) {
         // Filter out invalid paths
         let mut path = match fs::canonicalize(path.to_owned()) {
@@ -764,25 +551,43 @@ impl FileManager {
 
         println!("main path: {}", path);
         self.set_path(&path);
-        self.draw_content(DrawCommand::Everything);
-        'events: loop {
-            let mut redraw_info = DrawCommand::Nothing;
-            for event in self.event_loop() {
+        self.window.draw_if_needed();
+
+        while self.window.running.get() {
+
+            self.window.step();
+
+            while let Ok(event) = self.rx.try_recv() {
+
                 match event {
                     FileManagerCommand::ChangeDir(dir) => {
-                        self.selected = 0;
                         self.set_path(&dir);
-                        self.row_offset = 0;
                     }
                     FileManagerCommand::Execute(cmd) => {
                         Command::new(LAUNCH_COMMAND).arg(&cmd).spawn().unwrap();
                     },
-                    FileManagerCommand::Redraw(ri) => redraw_info = ri,
-                    FileManagerCommand::Quit => break 'events,
-                };
+                    FileManagerCommand::ChangeSort(i) => {
+                        let predicate = match i {
+                            0 => SortPredicate::Name,
+                            1 => SortPredicate::Size,
+                            2 => SortPredicate::Type,
+                            _ => return
+                        };
+
+                        if self.sort_predicate != predicate {
+                            self.sort_predicate = predicate;
+                        } else {
+                            self.sort_direction.invert();
+                        }
+
+                        self.update_headers();
+                        self.sort_files();
+                        self.update_list();
+                    },
+                }
             }
 
-            self.draw_content(redraw_info);
+            self.window.draw_if_needed();
         }
     }
 }
