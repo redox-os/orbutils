@@ -206,13 +206,14 @@ impl Console {
             let font_bold = &self.font_bold;
             let window = &mut self.window;
             let changed = &mut self.changed;
+            let mut str_buf = [0; 4];
             self.console.write(buf, |event| {
                 match event {
                     ransid::Event::Char { x, y, c, color, bold, .. } => {
                         if bold {
-                            font_bold.render(&c.to_string(), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
+                            font_bold.render(&c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
                         } else {
-                            font.render(&c.to_string(), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
+                            font.render(&c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
                         }
                         changed.insert(y);
                     },
