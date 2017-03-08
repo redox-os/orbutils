@@ -180,7 +180,10 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
         }
 
         match process.try_wait() {
-            Ok(_status) => break 'events,
+            Ok(status) => match status {
+                Some(_code) => break 'events,
+                None => ()
+            },
             Err(err) => match err.kind() {
                 ErrorKind::WouldBlock => (),
                 _ => panic!("terminal: failed to wait on child: {:?}", err)
