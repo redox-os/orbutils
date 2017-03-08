@@ -242,6 +242,9 @@ impl Console {
                         for y in 0..window.height()/16 {
                             changed.insert(y as usize);
                         }
+                    },
+                    ransid::Event::Title { title } => {
+                        window.set_title(&title);
                     }
                 }
             });
