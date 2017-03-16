@@ -358,8 +358,9 @@ fn http_download(url: &Url) -> (Headers, Vec<u8>) {
 
 fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let content_type = headers.get_raw("content-type").and_then(|x| str::from_utf8(x[0].as_slice()).ok()).unwrap_or("text/plain");
+    let media_type = content_type.split(";").next().unwrap();
 
-    match content_type {
+    match media_type {
         "text/plain" => {
             let mut string = String::new();
             match r.read_to_string(&mut string) {
