@@ -1,4 +1,6 @@
-#[macro_use] extern crate html5ever_atoms;
+#![deny(warnings)]
+
+extern crate html5ever_atoms;
 extern crate html5ever;
 //extern crate mime_guess;
 extern crate orbclient;
@@ -167,6 +169,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
             },
 
         Element(ref name, _, ref attrs) => {
+            /*
             assert!(name.ns == ns!(html));
             //print!("<{}", name.local);
             for attr in attrs.iter() {
@@ -174,6 +177,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                 //print!(" {}=\"{}\"", attr.name.local, attr.value);
             }
             //println!(">");
+            */
 
             match &*name.local {
                 "a" => {
@@ -249,49 +253,51 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                         if let Some(src) = src_opt {
                             if src.ends_with(".jpg") || src.ends_with(".jpeg") {
                                 let img_url = url.join(&src).unwrap();
-                                let (_img_headers, img_data) = http_download(&img_url);
-                                if let Ok(img) = orbimage::parse_jpg(&img_data) {
-                                    use_alt = false;
+                                if let Ok((_img_headers, img_data)) = http_download(&img_url) {
+                                    if let Ok(img) = orbimage::parse_jpg(&img_data) {
+                                        use_alt = false;
 
-                                    let w = img.width() as i32;
-                                    let h = img.height() as i32;
+                                        let w = img.width() as i32;
+                                        let h = img.height() as i32;
 
-                                    blocks.push(Block {
-                                        x: *x,
-                                        y: *y,
-                                        w: w,
-                                        h: h,
-                                        color: color,
-                                        string: String::new(),
-                                        link: link.clone(),
-                                        image: Some(img),
-                                        text: None
-                                    });
+                                        blocks.push(Block {
+                                            x: *x,
+                                            y: *y,
+                                            w: w,
+                                            h: h,
+                                            color: color,
+                                            string: String::new(),
+                                            link: link.clone(),
+                                            image: Some(img),
+                                            text: None
+                                        });
 
-                                    *y += h;
+                                        *y += h;
+                                    }
                                 }
                             } else if src.ends_with(".png") {
                                 let img_url = url.join(&src).unwrap();
-                                let (_img_headers, img_data) = http_download(&img_url);
-                                if let Ok(img) = orbimage::parse_png(&img_data) {
-                                    use_alt = false;
+                                if let Ok((_img_headers, img_data)) = http_download(&img_url) {
+                                    if let Ok(img) = orbimage::parse_png(&img_data) {
+                                        use_alt = false;
 
-                                    let w = img.width() as i32;
-                                    let h = img.height() as i32;
+                                        let w = img.width() as i32;
+                                        let h = img.height() as i32;
 
-                                    blocks.push(Block {
-                                        x: *x,
-                                        y: *y,
-                                        w: w,
-                                        h: h,
-                                        color: color,
-                                        string: String::new(),
-                                        link: link.clone(),
-                                        image: Some(img),
-                                        text: None
-                                    });
+                                        blocks.push(Block {
+                                            x: *x,
+                                            y: *y,
+                                            w: w,
+                                            h: h,
+                                            color: color,
+                                            string: String::new(),
+                                            link: link.clone(),
+                                            image: Some(img),
+                                            text: None
+                                        });
 
-                                    *y += h;
+                                        *y += h;
+                                    }
                                 }
                             }
                         }
@@ -343,22 +349,22 @@ pub fn escape_default(s: &str) -> String {
     s.chars().flat_map(|c| c.escape_default()).collect()
 }
 
-fn http_download(url: &Url) -> (Headers, Vec<u8>) {
-    write!(stderr(), "* Requesting {}\n", url).unwrap();
+fn http_download(url: &Url) -> Result<(Headers, Vec<u8>), String> {
+    write!(stderr(), "* Requesting {}\n", url).map_err(|err| format!("{}", err))?;
 
     let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
-    let mut res = client.get(url.clone()).send().unwrap();
+    let mut res = client.get(url.clone()).send().map_err(|err| format!("Failed to send request: {}", err))?;
     let mut data = Vec::new();
-    res.read_to_end(&mut data).unwrap();
+    res.read_to_end(&mut data).map_err(|err| format!("Failed to read response: {}", err))?;
 
-    write!(stderr(), "* Received {} bytes\n", data.len()).unwrap();
+    write!(stderr(), "* Received {} bytes\n", data.len()).map_err(|err| format!("{}", err))?;
 
-    (res.headers.clone(), data)
+    Ok((res.headers.clone(), data))
 }
 
 fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let content_type = headers.get_raw("content-type").and_then(|x| str::from_utf8(x[0].as_slice()).ok()).unwrap_or("text/plain");
-    let media_type = content_type.split(";").next().unwrap();
+    let media_type = content_type.split(";").next().unwrap_or("");
 
     match media_type {
         "text/plain" => {
@@ -402,69 +408,84 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
         },
         "image/jpeg" => {
             let mut data = Vec::new();
-            r.read_to_end(&mut data).unwrap();
-            match orbimage::parse_jpg(&data) {
-                Ok(img) => {
-                    blocks.push(Block {
-                        x: 0,
-                        y: 0,
-                        w: img.width() as i32,
-                        h: img.height() as i32,
-                        color: Color::rgb(0, 0, 0),
-                        string: String::new(),
-                        link: None,
-                        image: Some(img),
-                        text: None
-                    });
+            match r.read_to_end(&mut data) {
+                Ok(_) => match orbimage::parse_jpg(&data) {
+                    Ok(img) => {
+                        blocks.push(Block {
+                            x: 0,
+                            y: 0,
+                            w: img.width() as i32,
+                            h: img.height() as i32,
+                            color: Color::rgb(0, 0, 0),
+                            string: String::new(),
+                            link: None,
+                            image: Some(img),
+                            text: None
+                        });
+                    },
+                    Err(err) => {
+                        let error = format!("JPG data not readable: {}", err);
+                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    }
                 },
                 Err(err) => {
-                    let error = format!("JPG data not readable: {}", err);
+                    let error = format!("JPG stream not readable: {}", err);
                     text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
                 }
             }
         },
         "image/png" => {
             let mut data = Vec::new();
-            r.read_to_end(&mut data).unwrap();
-            match orbimage::parse_png(&data) {
-                Ok(img) => {
-                    blocks.push(Block {
-                        x: 0,
-                        y: 0,
-                        w: img.width() as i32,
-                        h: img.height() as i32,
-                        color: Color::rgb(0, 0, 0),
-                        string: String::new(),
-                        link: None,
-                        image: Some(img),
-                        text: None
-                    });
+            match r.read_to_end(&mut data){
+                Ok(_) => match orbimage::parse_png(&data) {
+                    Ok(img) => {
+                        blocks.push(Block {
+                            x: 0,
+                            y: 0,
+                            w: img.width() as i32,
+                            h: img.height() as i32,
+                            color: Color::rgb(0, 0, 0),
+                            string: String::new(),
+                            link: None,
+                            image: Some(img),
+                            text: None
+                        });
+                    },
+                    Err(err) => {
+                        let error = format!("PNG data not readable: {}", err);
+                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    }
                 },
                 Err(err) => {
-                    let error = format!("PNG data not readable: {}", err);
+                    let error = format!("PNG stream not readable: {}", err);
                     text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
                 }
             }
         },
         "image/x-ms-bmp" => {
             let mut data = Vec::new();
-            r.read_to_end(&mut data).unwrap();
-            match orbimage::parse_bmp(&data) {
-                Ok(img) => {
-                    blocks.push(Block {
-                        x: 0,
-                        y: 0,
-                        w: img.width() as i32,
-                        h: img.height() as i32,
-                        color: Color::rgb(0, 0, 0),
-                        string: String::new(),
-                        link: None,
-                        image: Some(img),
-                        text: None
-                    });
+            match r.read_to_end(&mut data) {
+                Ok(_) => match orbimage::parse_bmp(&data) {
+                    Ok(img) => {
+                        blocks.push(Block {
+                            x: 0,
+                            y: 0,
+                            w: img.width() as i32,
+                            h: img.height() as i32,
+                            color: Color::rgb(0, 0, 0),
+                            string: String::new(),
+                            link: None,
+                            image: Some(img),
+                            text: None
+                        });
+                    },
+                    Err(err) => {
+                        let error = format!("BMP data not readable: {}", err);
+                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    }
                 },
                 Err(err) => {
-                    let error = format!("BMP data not readable: {}", err);
+                    let error = format!("BMP stream not readable: {}", err);
                     text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
                 }
             }
@@ -505,8 +526,17 @@ fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut 
 }
 
 fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
-    let (headers, response) = http_download(url);
-    read_parse(headers, &mut response.as_slice(), url, font, font_bold, anchors, blocks);
+    match http_download(url) {
+        Ok((headers, response)) => {
+            read_parse(headers, &mut response.as_slice(), url, font, font_bold, anchors, blocks);
+        },
+        Err(err) => {
+            let mut headers = Headers::new();
+            headers.set(header::ContentType("text/plain".parse().unwrap()));
+            let response = format!("{}", err).into_bytes();
+            read_parse(headers, &mut response.as_slice(), url, &font, &font_bold, anchors, blocks);
+        }
+    }
 }
 
 fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
