@@ -169,127 +169,153 @@ fn bar_main() {
     let mut window = Window::new(0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "").expect("launcher: failed to open window");
 
     let mut selected = -1;
-    let mut last_left_button = false;
+    let mut mouse_x = 0;
+    let mut mouse_y = 0;
+    let mut mouse_left = false;
+    let mut last_mouse_left = false;
 
     draw(&mut window, &packages, &start, selected);
     'running: loop {
         for event in window.events() {
-            match event.to_option() {
+            let redraw = match event.to_option() {
                 EventOption::Mouse(mouse_event) => {
-                    let mut now_selected = -1;
+                    mouse_x = mouse_event.x;
+                    mouse_y = mouse_event.y;
+                    true
+                },
+                EventOption::Button(button_event) => {
+                    mouse_left = button_event.left;
+                    true
+                },
+                EventOption::Quit(_) => break 'running,
+                _ => false
+            };
+
+            if redraw {
+                let mut now_selected = -1;
+
+                {
+                    let mut x = 0;
+                    let y = 0;
+                    let mut i = 0;
 
                     {
-                        let mut x = 0;
-                        let y = 0;
-                        let mut i = 0;
-
-                        {
-                            if mouse_event.y >= y && mouse_event.x >= x &&
-                               mouse_event.x < x + start.width() as i32 {
-                                   now_selected = i;
-                            }
-                            x += start.width() as i32;
-                            i += 1;
+                        if mouse_y >= y && mouse_x >= x &&
+                           mouse_x < x + start.width() as i32 {
+                               now_selected = i;
                         }
-
-                        for package in packages.iter() {
-                            if mouse_event.y >= y && mouse_event.x >= x &&
-                               mouse_event.x < x + package.icon.width() as i32 {
-                                now_selected = i;
-                            }
-                            x += package.icon.width() as i32;
-                            i += 1;
-                        }
+                        x += start.width() as i32;
+                        i += 1;
                     }
 
-                    if now_selected != selected {
-                        selected = now_selected;
-                        draw(&mut window, &packages, &start, selected);
+                    for package in packages.iter() {
+                        if mouse_y >= y && mouse_x >= x &&
+                           mouse_x < x + package.icon.width() as i32 {
+                            now_selected = i;
+                        }
+                        x += package.icon.width() as i32;
+                        i += 1;
                     }
+                }
 
-                    if ! mouse_event.left_button && last_left_button {
-                        let mut i = 0;
+                if now_selected != selected {
+                    selected = now_selected;
+                    draw(&mut window, &packages, &start, selected);
+                }
 
-                        if i == selected {
-                            let start_h = start_packages.len() as u32 * ICON_SMALL_SIZE as u32;
-                            let mut start_window = Window::new(0, height as i32 - ICON_SIZE - start_h as i32, 320, start_h, "").unwrap();
-                            let font = Font::find(Some("Sans"), None, None).unwrap();
+                if ! mouse_left && last_mouse_left {
+                    let mut i = 0;
 
-                            let mut selected = -1;
-                            let mut last_left_button = false;
+                    if i == selected {
+                        let start_h = start_packages.len() as u32 * ICON_SMALL_SIZE as u32;
+                        let mut start_window = Window::new(0, height as i32 - ICON_SIZE - start_h as i32, 320, start_h, "").unwrap();
+                        let font = Font::find(Some("Sans"), None, None).unwrap();
 
-                            draw_chooser(&mut start_window, &font, &start_packages, selected);
-                            'start_choosing: loop {
-                                for event in start_window.events() {
-                                    match event.to_option() {
-                                        EventOption::Mouse(mouse_event) => {
-                                            let mut now_selected = -1;
+                        let mut selected = -1;
+                        let mut mouse_y = 0;
+                        let mut mouse_left = false;
+                        let mut last_mouse_left = false;
 
-                                            let mut y = 0;
-                                            for (j, _package) in start_packages.iter().enumerate() {
-                                                if mouse_event.y >= y && mouse_event.y < y + ICON_SMALL_SIZE {
-                                                    now_selected = j as i32;
-                                                }
-                                                y += ICON_SMALL_SIZE;
-                                            }
+                        draw_chooser(&mut start_window, &font, &start_packages, selected);
+                        'start_choosing: loop {
+                            for event in start_window.events() {
+                                let redraw = match event.to_option() {
+                                    EventOption::Mouse(mouse_event) => {
+                                        mouse_y = mouse_event.y;
+                                        true
+                                    },
+                                    EventOption::Button(button_event) => {
+                                        mouse_left = button_event.left;
+                                        true
+                                    },
+                                    EventOption::Key(key_event) => {
+                                        match key_event.scancode {
+                                            K_ESC => break 'start_choosing,
+                                            _ => false
+                                        }
+                                    },
+                                    EventOption::Focus(focus_event) => if ! focus_event.focused {
+                                        break 'start_choosing;
+                                    } else {
+                                        false
+                                    },
+                                    EventOption::Quit(_) => break 'start_choosing,
+                                    _ => false
+                                };
 
-                                            if now_selected != selected {
-                                                selected = now_selected;
-                                                draw_chooser(&mut start_window, &font, &start_packages, selected);
-                                            }
+                                if redraw {
+                                    let mut now_selected = -1;
 
-                                            if ! mouse_event.left_button && last_left_button {
-                                                let mut y = 0;
-                                                for package in start_packages.iter() {
-                                                    if mouse_event.y >= y && mouse_event.y < y + ICON_SMALL_SIZE {
-                                                        if package.binary == "exit" {
-                                                            break 'running;
-                                                        } else {
-                                                            match Command::new(&package.binary).spawn() {
-                                                                Ok(child) => children.push(child),
-                                                                Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
-                                                            }
-                                                        }
-                                                        break 'start_choosing;
-                                                    }
-                                                    y += ICON_SMALL_SIZE;
-                                                }
-                                            }
-
-                                            last_left_button = mouse_event.left_button;
-                                        },
-                                        EventOption::Key(key_event) => {
-                                            match key_event.scancode {
-                                                K_ESC => break 'start_choosing,
-                                                _ => ()
-                                            }
-                                        },
-                                        EventOption::Focus(focus_event) => if ! focus_event.focused {
-                                            break 'start_choosing;
-                                        },
-                                        EventOption::Quit(_) => break 'start_choosing,
-                                        _ => ()
+                                    let mut y = 0;
+                                    for (j, _package) in start_packages.iter().enumerate() {
+                                        if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
+                                            now_selected = j as i32;
+                                        }
+                                        y += ICON_SMALL_SIZE;
                                     }
+
+                                    if now_selected != selected {
+                                        selected = now_selected;
+                                        draw_chooser(&mut start_window, &font, &start_packages, selected);
+                                    }
+
+                                    if ! mouse_left && last_mouse_left {
+                                        let mut y = 0;
+                                        for package in start_packages.iter() {
+                                            if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
+                                                if package.binary == "exit" {
+                                                    break 'running;
+                                                } else {
+                                                    match Command::new(&package.binary).spawn() {
+                                                        Ok(child) => children.push(child),
+                                                        Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
+                                                    }
+                                                }
+                                                break 'start_choosing;
+                                            }
+                                            y += ICON_SMALL_SIZE;
+                                        }
+                                    }
+
+                                    last_mouse_left = mouse_left;
                                 }
+                            }
+                        }
+                    }
+                    i += 1;
+
+                    for package in packages.iter() {
+                        if i == selected {
+                            match Command::new(&package.binary).spawn() {
+                                Ok(child) => children.push(child),
+                                Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
                             }
                         }
                         i += 1;
-
-                        for package in packages.iter() {
-                            if i == selected {
-                                match Command::new(&package.binary).spawn() {
-                                    Ok(child) => children.push(child),
-                                    Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
-                                }
-                            }
-                            i += 1;
-                        }
                     }
+                }
 
-                    last_left_button = mouse_event.left_button;
-                },
-                EventOption::Quit(_) => break 'running,
-                _ => ()
+                last_mouse_left = mouse_left;
             }
         }
     }
@@ -336,45 +362,56 @@ fn chooser_main(paths: env::Args) {
             let font = Font::find(Some("Sans"), None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
-            let mut last_left_button = false;
+            let mut mouse_y = 0;
+            let mut mouse_left = false;
+            let mut last_mouse_left = false;
 
             draw_chooser(&mut window, &font, &packages, selected);
             'choosing: loop {
                 for event in window.events() {
-                    match event.to_option() {
+                    let redraw = match event.to_option() {
                         EventOption::Mouse(mouse_event) => {
-                            let mut now_selected = -1;
+                            mouse_y = mouse_event.y;
+                            true
+                        },
+                        EventOption::Button(button_event) => {
+                            mouse_left = button_event.left;
+                            true
+                        },
+                        EventOption::Quit(_) => break 'choosing,
+                        _ => false
+                    };
 
+                    if redraw {
+                        let mut now_selected = -1;
+
+                        let mut y = 0;
+                        for (i, _package) in packages.iter().enumerate() {
+                            if mouse_y >= y && mouse_y < y + ICON_SIZE {
+                                now_selected = i as i32;
+                            }
+                            y += ICON_SMALL_SIZE;
+                        }
+
+                        if now_selected != selected {
+                            selected = now_selected;
+                            draw_chooser(&mut window, &font, &packages, selected);
+                        }
+
+                        if ! mouse_left && last_mouse_left {
                             let mut y = 0;
-                            for (i, _package) in packages.iter().enumerate() {
-                                if mouse_event.y >= y && mouse_event.y < y + ICON_SIZE {
-                                    now_selected = i as i32;
+                            for package in packages.iter() {
+                                if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
+                                    if let Err(err) = Command::new(&package.binary).arg(path).spawn() {
+                                        println!("launcher: failed to launch {}: {}", package.binary, err);
+                                    }
+                                    break 'choosing;
                                 }
                                 y += ICON_SMALL_SIZE;
                             }
+                        }
 
-                            if now_selected != selected {
-                                selected = now_selected;
-                                draw_chooser(&mut window, &font, &packages, selected);
-                            }
-
-                            if ! mouse_event.left_button && last_left_button {
-                                let mut y = 0;
-                                for package in packages.iter() {
-                                    if mouse_event.y >= y && mouse_event.y < y + ICON_SMALL_SIZE {
-                                        if let Err(err) = Command::new(&package.binary).arg(path).spawn() {
-                                            println!("launcher: failed to launch {}: {}", package.binary, err);
-                                        }
-                                        break 'choosing;
-                                    }
-                                    y += ICON_SMALL_SIZE;
-                                }
-                            }
-
-                            last_left_button = mouse_event.left_button;
-                        },
-                        EventOption::Quit(_) => break 'choosing,
-                        _ => ()
+                        last_mouse_left = mouse_left;
                     }
                 }
             }

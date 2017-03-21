@@ -566,6 +566,8 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
     let mut offset = (0, 0);
     let mut max_offset = (0, 0);
 
+    let mut mouse_x = 0;
+    let mut mouse_y = 0;
     let mut mouse_down = false;
 
     let mut reload = true;
@@ -656,40 +658,46 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                         _ => ()
                     }
                 },
-                EventOption::Mouse(mouse_event) => if mouse_event.left_button {
-                    mouse_down = true;
-                } else if mouse_down {
-                    mouse_down = false;
+                EventOption::Mouse(mouse_event) => {
+                    mouse_x = mouse_event.x;
+                    mouse_y = mouse_event.y;
+                },
+                EventOption::Button(button_event) => {
+                    if button_event.left {
+                        mouse_down = true;
+                    } else if mouse_down {
+                        mouse_down = false;
 
-                    let mut link_opt = None;
-                    for block in blocks.iter() {
-                        if block.contains(mouse_event.x, mouse_event.y, offset) {
-                            println!("Click {}", block.string);
-                            if let Some(ref link) = block.link {
-                                link_opt = Some(link.clone());
-                                break;
+                        let mut link_opt = None;
+                        for block in blocks.iter() {
+                            if block.contains(mouse_x, mouse_y, offset) {
+                                println!("Click {}", block.string);
+                                if let Some(ref link) = block.link {
+                                    link_opt = Some(link.clone());
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    if let Some(link) = link_opt {
-                        if link.starts_with('#') {
-                            if let Some(anchor) = anchors.get(&link[1..]) {
-                                println!("Anchor {}: {}", link, *anchor);
-                                offset.0 = 0;
-                                offset.1 = *anchor;
-                                redraw = true;
+                        if let Some(link) = link_opt {
+                            if link.starts_with('#') {
+                                if let Some(anchor) = anchors.get(&link[1..]) {
+                                    println!("Anchor {}: {}", link, *anchor);
+                                    offset.0 = 0;
+                                    offset.1 = *anchor;
+                                    redraw = true;
+                                } else {
+                                    println!("Anchor {} not found", link);
+                                }
                             } else {
-                                println!("Anchor {} not found", link);
+                                history.push(url.clone());
+
+                                url = url.join(&link).unwrap();
+
+                                println!("Navigate {}: {:#?}", link, url);
+
+                                reload = true;
                             }
-                        } else {
-                            history.push(url.clone());
-
-                            url = url.join(&link).unwrap();
-
-                            println!("Navigate {}: {:#?}", link, url);
-
-                            reload = true;
                         }
                     }
                 },
