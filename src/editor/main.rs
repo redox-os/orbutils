@@ -1,11 +1,12 @@
 #![deny(warnings)]
 
+extern crate orbclient;
 extern crate orbtk;
 
 use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
 use orbtk::traits::{Click, Place, Text};
 
-use std::env;
+use std::{cmp, env};
 use std::fs::File;
 use std::io::{Read, Write};
 
@@ -18,10 +19,10 @@ fn main(){
         format!("Editor")
     };
 
-    let width = 800;
-    let height = 600;
+    let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+    let (width, height) = (cmp::min(800, display_width * 4/5), cmp::min(576, display_height * 4/5));
 
-    let mut window = Window::new(Rect::new(100, 100, width, height), &title);
+    let mut window = Window::new(Rect::new(-1, -1, width, height), &title);
 
     let text_box = TextBox::new();
     text_box.position(0, 16)
@@ -82,11 +83,11 @@ fn main(){
     let save_as_path_option = path_option.clone();
     save_as_action.on_click(move |_action: &Action, _point: Point| {
         println!("Save As");
-        let mut window = Window::new(Rect::new(100, 100, 576, 32), "Save As");
+        let mut window = Window::new(Rect::new(100, 100, 320, 32), "Save As");
 
         let text_box = TextBox::new();
         text_box.position(0, 0)
-            .size(576, 16);
+            .size(320, 16);
         window.add(&text_box);
 
         if let Some(ref path) = save_as_path_option {
@@ -97,7 +98,7 @@ fn main(){
             let window_cancel = &mut window as *mut Window;
             let button = Button::new();
             button.position(0, 16)
-                .size(576/2, 16)
+                .size(320/2, 16)
                 .text("Cancel")
                 .on_click(move |_button: &Button, _point: Point| {
                     unsafe { (&mut *window_cancel).close(); }
@@ -108,8 +109,8 @@ fn main(){
         {
             let window_save_as = &mut window as *mut Window;
             let button = Button::new();
-            button.position(576/2, 16)
-                .size(576/2, 16)
+            button.position(320/2, 16)
+                .size(320/2, 16)
                 .text("Save As")
                 .on_click(move |_button: &Button, _point: Point| {
                     println!("Save {}", text_box.text.get());

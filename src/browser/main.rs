@@ -554,8 +554,9 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
     let mut url = Url::parse(arg).unwrap();
 
-    let window_w = 800;
-    let window_h = 600;
+    let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+    let (window_w, window_h) = (cmp::min(800, display_width * 4/5) as i32, cmp::min(576, display_height * 4/5) as i32);
+
     let mut window = Window::new_flags(
         -1, -1, window_w as u32, window_h as u32,  "Browser", &[WindowFlag::Resizable]
     ).unwrap();
