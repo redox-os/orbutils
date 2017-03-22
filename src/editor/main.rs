@@ -83,7 +83,7 @@ fn main(){
     let save_as_path_option = path_option.clone();
     save_as_action.on_click(move |_action: &Action, _point: Point| {
         println!("Save As");
-        let mut window = Window::new(Rect::new(100, 100, 320, 32), "Save As");
+        let mut window = Window::new(Rect::new(-1, -1, 320, 32), "Save As");
 
         let text_box = TextBox::new();
         text_box.position(0, 0)
