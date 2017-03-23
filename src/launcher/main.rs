@@ -165,7 +165,7 @@ fn bar_main() {
     let mut start_packages = packages.clone();
     start_packages.push(logout_package);
 
-    let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
+    let (mut width, mut height) = orbclient::get_display_size().expect("launcher: failed to get display size");
     let mut window = Window::new(0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "").expect("launcher: failed to open window");
 
     let mut selected = -1;
@@ -185,6 +185,13 @@ fn bar_main() {
                 },
                 EventOption::Button(button_event) => {
                     mouse_left = button_event.left;
+                    true
+                },
+                EventOption::Screen(screen_event) => {
+                    width = screen_event.width;
+                    height = screen_event.height;
+                    window.set_pos(0, height as i32 - ICON_SIZE);
+                    window.set_size(width, ICON_SIZE as u32);
                     true
                 },
                 EventOption::Quit(_) => break 'running,
