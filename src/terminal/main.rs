@@ -12,7 +12,7 @@ extern crate libc;
 #[cfg(target_os = "redox")]
 extern crate syscall;
 
-use orbclient::event;
+use orbclient::event::EventOption;
 use std::{cmp, env, str};
 use std::error::Error;
 use std::fs::{File, OpenOptions};
@@ -63,11 +63,17 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
     let mut handle_event = |event_id: usize, event_count: usize| -> bool {
         if event_id == window_fd {
             for event in console.window.events() {
-                if event.code == event::EVENT_QUIT {
-                    return false;
-                }
+                let event_option = event.to_option();
 
-                console.input(&event);
+                console.input(event_option);
+
+                match event_option {
+                    EventOption::Quit(_) => return false,
+                    EventOption::Resize(_) => {
+                        //TODO: Send resize to PTY
+                    },
+                    _ => ()
+                }
             }
 
             if ! console.input.is_empty()  {
@@ -145,11 +151,25 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
 
     'events: loop {
         for event in console.window.events() {
-            if event.code == event::EVENT_QUIT {
-                break 'events;
-            }
+            let event_option = event.to_option();
 
-            console.input(&event);
+            console.input(event_option);
+
+            match event_option {
+                EventOption::Quit(_) => break 'events,
+                EventOption::Resize(_) => unsafe {
+                    let size = libc::winsize {
+                        ws_row: console.console.h as libc::c_ushort,
+                        ws_col: console.console.w as libc::c_ushort,
+                        ws_xpixel: 0,
+                        ws_ypixel: 0
+                    };
+                    if libc::ioctl(master_fd, libc::TIOCSWINSZ, &size as *const libc::winsize) < 0 {
+                        panic!("ioctl: {:?}", io::Error::last_os_error());
+                    }
+                },
+                _ => ()
+            }
         }
 
         if ! console.input.is_empty()  {
@@ -190,7 +210,7 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
             }
         }
 
-        thread::sleep(Duration::new(0, 100));
+        thread::sleep(Duration::new(0, 10));
     }
 
     let _ = process.kill();
@@ -211,7 +231,7 @@ fn main() {
 
     env::set_var("COLUMNS", format!("{}", width / 8));
     env::set_var("LINES", format!("{}", height / 16));
-    env::set_var("TERM", "xterm-256color");
+    env::set_var("TERM", "linux");
     env::set_var("TTY", format!("{}", tty_path.display()));
 
     match unsafe {
