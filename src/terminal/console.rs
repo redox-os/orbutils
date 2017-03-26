@@ -272,6 +272,7 @@ impl Console {
             let console_w = self.console.w;
             let grid = &mut self.grid;
             let window = &mut self.window;
+            let input = &mut self.input;
             let changed = &mut self.changed;
             let mut str_buf = [0; 4];
             self.console.write(buf, |event| {
@@ -289,6 +290,9 @@ impl Console {
                             font.render(&c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
                         }
                         changed.insert(y);
+                    },
+                    ransid::Event::Input { data } => {
+                        input.extend(data);
                     },
                     ransid::Event::Rect { x, y, w, h, color } => {
                         {

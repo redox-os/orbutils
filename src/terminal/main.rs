@@ -75,20 +75,6 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
                     _ => ()
                 }
             }
-
-            if ! console.input.is_empty()  {
-                if let Err(err) = master.write(&console.input) {
-                    let term_stderr = io::stderr();
-                    let mut term_stderr = term_stderr.lock();
-
-                    let _ = term_stderr.write(b"failed to write stdin: ");
-                    let _ = term_stderr.write(err.description().as_bytes());
-                    let _ = term_stderr.write(b"\n");
-                    return false;
-                }
-                let _ = master.flush();
-                console.input.clear();
-            }
         } else if event_id == master_fd {
             let mut packet = [0; 4096];
             let count = master.read(&mut packet).expect("terminal: failed to read master PTY");
@@ -106,6 +92,20 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
             }
         } else {
             println!("Unknown event {}", event_id);
+        }
+
+        if ! console.input.is_empty()  {
+            if let Err(err) = master.write(&console.input) {
+                let term_stderr = io::stderr();
+                let mut term_stderr = term_stderr.lock();
+
+                let _ = term_stderr.write(b"failed to write stdin: ");
+                let _ = term_stderr.write(err.description().as_bytes());
+                let _ = term_stderr.write(b"\n");
+                return false;
+            }
+            let _ = master.flush();
+            console.input.clear();
         }
 
         true
@@ -172,6 +172,19 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
             }
         }
 
+        let mut packet = [0; 4096];
+        match master.read(&mut packet) {
+            Ok(0) => break 'events,
+            Ok(count) => {
+                console.write(&packet[..count], true).expect("terminal: failed to write to console");
+                console.redraw();
+            },
+            Err(err) => match err.kind() {
+                ErrorKind::WouldBlock => (),
+                _ => panic!("terminal: failed to read master PTY: {:?}", err)
+            }
+        }
+
         if ! console.input.is_empty()  {
             if let Err(err) = master.write(&console.input) {
                 let term_stderr = io::stderr();
@@ -184,19 +197,6 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
             }
             let _ = master.flush();
             console.input.clear();
-        }
-
-        let mut packet = [0; 4096];
-        match master.read(&mut packet) {
-            Ok(0) => break 'events,
-            Ok(count) => {
-                console.write(&packet[..count], true).expect("terminal: failed to write to console");
-                console.redraw();
-            },
-            Err(err) => match err.kind() {
-                ErrorKind::WouldBlock => (),
-                _ => panic!("terminal: failed to read master PTY: {:?}", err)
-            }
         }
 
         match process.try_wait() {
