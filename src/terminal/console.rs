@@ -1,6 +1,6 @@
 extern crate ransid;
 
-use std::cmp;
+use std::{cmp, mem};
 use std::collections::{BTreeSet, VecDeque};
 use std::io::Result;
 
@@ -42,15 +42,20 @@ pub struct Block {
 pub struct Console {
     pub console: ransid::Console,
     pub window: Window,
+    pub alternate: bool,
     pub grid: Box<[Block]>,
+    pub alt_grid: Box<[Block]>,
     pub font: Font,
     pub font_bold: Font,
     pub changed: BTreeSet<usize>,
+    pub mouse_x: u16,
+    pub mouse_y: u16,
+    pub mouse_left: bool,
     pub ctrl: bool,
     pub input: Vec<u8>,
     pub end_of_input: bool,
     pub cooked: VecDeque<u8>,
-    pub requested: usize
+    pub requested: usize,
 }
 
 impl Console {
@@ -65,11 +70,16 @@ impl Console {
 
         Console {
             console: ransid,
-            grid: grid,
+            alternate: false,
+            grid: grid.clone(),
+            alt_grid: grid,
             window: window,
             font: Font::find(None, None, None).unwrap(),
             font_bold: Font::find(None, None, Some("Bold")).unwrap(),
             changed: BTreeSet::new(),
+            mouse_x: 0,
+            mouse_y: 0,
+            mouse_left: false,
             ctrl: false,
             input: Vec::new(),
             end_of_input: false,
@@ -138,9 +148,7 @@ impl Console {
                 }
 
                 if self.console.raw_mode {
-                    for &b in buf.iter() {
-                        self.input.push(b);
-                    }
+                    self.input.extend(buf);
                 } else {
                     for &b in buf.iter() {
                         match b {
@@ -171,14 +179,52 @@ impl Console {
                     }
                 }
             },
-            EventOption::Mouse(_) => {
-                //TODO: Mouse in terminal
+            EventOption::Mouse(mouse_event) => {
+                let x = (mouse_event.x/8) as u16 + 1;
+                let y = (mouse_event.y/16) as u16 + 1;
+                if self.console.mouse_rxvt && self.console.mouse_btn {
+                    if self.mouse_left && (x != self.mouse_x || y != self.mouse_y) {
+                        let string = format!("\x1B[<{};{};{}M", 32, self.mouse_x, self.mouse_y);
+                        self.input.extend(string.as_bytes());
+                    }
+                }
+                self.mouse_x = x;
+                self.mouse_y = y;
+            },
+            EventOption::Button(button_event) => {
+                if self.console.mouse_rxvt {
+                    if button_event.left {
+                        if ! self.mouse_left {
+                            let string = format!("\x1B[<{};{};{}M", 0, self.mouse_x, self.mouse_y);
+                            self.input.extend(string.as_bytes());
+                        }
+                    } else if self.mouse_left {
+                        let string = format!("\x1B[<{};{};{}m", 0, self.mouse_x, self.mouse_y);
+                        self.input.extend(string.as_bytes());
+                    }
+                    self.mouse_left = button_event.left;
+                }
+            },
+            EventOption::Scroll(scroll_event) => {
+                if self.console.mouse_rxvt {
+                    if scroll_event.y > 0 {
+                        let string = format!("\x1B[<{};{};{}M", 64, self.mouse_x, self.mouse_y);
+                        self.input.extend(string.as_bytes());
+                    } else if scroll_event.y < 0 {
+                        let string = format!("\x1B[<{};{};{}M", 65, self.mouse_x, self.mouse_y);
+                        self.input.extend(string.as_bytes());
+                    }
+                }
             },
             EventOption::Resize(resize_event) => {
                 let w = resize_event.width as usize/8;
                 let h = resize_event.height as usize/16;
 
                 let mut grid = vec![Block {
+                    c: '\0', fg: self.console.foreground.data, bg: self.console.background.data, bold: false
+                }; w * h].into_boxed_slice();
+
+                let mut alt_grid = vec![Block {
                     c: '\0', fg: self.console.foreground.data, bg: self.console.background.data, bold: false
                 }; w * h].into_boxed_slice();
 
@@ -194,9 +240,12 @@ impl Console {
                             let block = self.grid[y * self.console.w + x];
                             if y < h && x < w {
                                 grid[y * w + x] = block;
+
+                                let alt_block = self.alt_grid[y * self.console.w + x];
+                                alt_grid[y * w + x] = alt_block;
                             }
 
-                            window.rect(x as i32 * 8, y as i32 * 16, w as u32 * 8, h as u32 * 16, Color { data: block.bg });
+                            window.rect(x as i32 * 8, y as i32 * 16, 8, 16, Color { data: block.bg });
                             if block.c != '\0' {
                                 if block.bold {
                                     font_bold.render(&block.c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: block.fg });
@@ -205,12 +254,14 @@ impl Console {
                                 }
                             }
                         }
+                        self.changed.insert(y as usize);
                     }
                 }
 
                 self.console.w = w;
                 self.console.h = h;
                 self.grid = grid;
+                self.alt_grid = alt_grid;
 
                 if self.console.cursor && self.console.x < self.console.w && self.console.y < self.console.h {
                     let x = self.console.x;
@@ -218,7 +269,7 @@ impl Console {
                     self.invert(x * 8, y * 16, 8, 16);
                 }
 
-                self.redraw();
+                self.sync();
             },
             _ => ()
         }
@@ -269,8 +320,12 @@ impl Console {
         {
             let font = &self.font;
             let font_bold = &self.font_bold;
+            let console_bg = self.console.background;
             let console_w = self.console.w;
+            let console_h = self.console.h;
+            let alt = &mut self.alternate;
             let grid = &mut self.grid;
+            let alt_grid = &mut self.alt_grid;
             let window = &mut self.window;
             let input = &mut self.input;
             let changed = &mut self.changed;
@@ -278,16 +333,16 @@ impl Console {
             self.console.write(buf, |event| {
                 match event {
                     ransid::Event::Char { x, y, c, color, bold, .. } => {
+                        if bold {
+                            font_bold.render(&c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
+                        } else {
+                            font.render(&c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
+                        }
                         {
                             let block = &mut grid[y * console_w + x];
                             block.c = c;
                             block.fg = color.data;
                             block.bold = bold;
-                        }
-                        if bold {
-                            font_bold.render(&c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
-                        } else {
-                            font.render(&c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: color.data });
                         }
                         changed.insert(y);
                     },
@@ -295,24 +350,53 @@ impl Console {
                         input.extend(data);
                     },
                     ransid::Event::Rect { x, y, w, h, color } => {
-                        {
-                            let block = &mut grid[y * console_w + x];
-                            block.c = '\0';
-                            block.bg = color.data;
-                            block.bold = false;
-                        }
                         window.rect(x as i32 * 8, y as i32 * 16, w as u32 * 8, h as u32 * 16, Color { data: color.data });
+
                         for y2 in y..y + h {
+                            for x2 in x..x + w {
+                                let block = &mut grid[y2 * console_w + x2];
+                                block.c = '\0';
+                                block.bg = color.data;
+                            }
                             changed.insert(y2);
                         }
                     },
+                    ransid::Event::ScreenBuffer { alternate, clear } => {
+                        if *alt != alternate {
+                            mem::swap(grid, alt_grid);
+
+                            window.set(Color { data: console_bg.data });
+
+                            for y in 0..console_h {
+                                for x in 0..console_w {
+                                    let block = &mut grid[y * console_w + x];
+
+                                    if clear {
+                                        block.c = '\0';
+                                        block.bg = console_bg.data;
+                                    }
+
+                                    window.rect(x as i32 * 8, y as i32 * 16, 8, 16, Color { data: block.bg });
+                                    if block.c != '\0' {
+                                        if block.bold {
+                                            font_bold.render(&block.c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: block.fg });
+                                        } else {
+                                            font.render(&block.c.encode_utf8(&mut str_buf), 16.0).draw(window, x as i32 * 8, y as i32 * 16, Color { data: block.fg });
+                                        }
+                                    }
+                                }
+                                changed.insert(y as usize);
+                            }
+                        }
+                        *alt = alternate;
+                    },
                     ransid::Event::Scroll { rows, color } => {
-                        let rows = rows as u32 * 16;
+                        let pixel_rows = rows as u32 * 16;
 
                         let width = window.width();
                         let height = window.height();
-                        if rows > 0 && rows < height {
-                            let off1 = rows * width;
+                        if pixel_rows > 0 && pixel_rows < height {
+                            let off1 = pixel_rows * width;
                             let off2 = height * width - off1;
                             unsafe {
                                 let data_ptr = window.data_mut().as_mut_ptr() as *mut u32;
@@ -321,7 +405,18 @@ impl Console {
                             }
                         }
 
-                        for y in 0..window.height()/16 {
+                        for y in 0..console_h {
+                            if y >= rows {
+                                for x in 0..console_w {
+                                    let mut block = grid[y * console_w + x];
+                                    grid[(y - rows) * console_w + x] = block;
+                                    if y >= console_h - rows {
+                                        block.c = '\0';
+                                        block.bg = console_bg.data;
+                                        grid[y * console_w + x] = block;
+                                    }
+                                }
+                            }
                             changed.insert(y as usize);
                         }
                     },
