@@ -46,8 +46,53 @@ fn main(){
     menu.position(0, 0).size(32, 16);
 
     let open_action = Action::new("Open");
-    open_action.on_click(|_action: &Action, _point: Point| {
+    let open_text_box = text_box.clone();
+    open_action.on_click(move |_action: &Action, _point: Point| {
         println!("Open");
+        let mut window = Window::new(Rect::new(-1, -1, 220, 32), "Open");
+
+        let path_box = TextBox::new();
+        path_box.position(0, 0)
+            .size(220, 16);
+        window.add(&path_box);
+
+        {
+            let window_cancel = &mut window as *mut Window;
+            let button = Button::new();
+            button.position(0, 16)
+                .size(220/2, 16)
+                .text("Cancel")
+                .on_click(move |_button: &Button, _point: Point| {
+                    unsafe { (&mut *window_cancel).close(); }
+                });
+            window.add(&button);
+        }
+
+        {
+            let open_text_box = open_text_box.clone();
+            let window_save_as = &mut window as *mut Window;
+            let button = Button::new();
+            button.position(220/2, 16)
+                .size(220/2, 16)
+                .text("Open")
+                .on_click(move |_button: &Button, _point: Point| {
+                    match File::open(path_box.text.get()) {
+                        Ok(mut f) => {
+                            let mut contents = String::new();
+                            f.read_to_string(&mut contents).expect("Cannot read file");
+                            open_text_box.text.set(contents);
+                        },
+                        Err(e) => {
+                            println!("File does not exist: {}", e);
+                        }
+                    }
+                    unsafe { (&mut *window_save_as).close(); }
+                });
+            window.add(&button);
+        }
+
+        window.exec();
+
     });
     menu.add(&open_action);
 
