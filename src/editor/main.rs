@@ -20,7 +20,7 @@ fn main(){
     };
 
     let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
-    let (width, height) = (cmp::min(800, display_width * 4/5), cmp::min(576, display_height * 4/5));
+    let (width, height) = (cmp::min(1024, display_width * 4/5), cmp::min(768, display_height * 4/5));
 
     let mut window = Window::new(Rect::new(-1, -1, width, height), &title);
 

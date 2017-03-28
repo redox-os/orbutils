@@ -65,7 +65,7 @@ impl<'a> Block<'a> {
     }
 }
 
-fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool, color: Color, link: Option<String>, font: &'a Font, font_bold: &'a Font, blocks: &mut Vec<Block<'a>>) {
+fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool, color: Color, link: Option<String>, font: &'a Font, font_bold: &'a Font, window: &Window, blocks: &mut Vec<Block<'a>>) {
     let trimmed_left = string.trim_left();
     let left_margin = string.len() as i32 - trimmed_left.len() as i32;
     let trimmed_right = trimmed_left.trim_right();
@@ -90,7 +90,7 @@ fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool,
         let w = text.width() as i32;
         let h = text.height() as i32;
 
-        if *x + w >= 800 && *x > 0 {
+        if *x + w >= window.width() as i32 && *x > 0 {
             *x = 0;
             *y += size.ceil() as i32;
         }
@@ -113,7 +113,7 @@ fn text_block<'a>(string: &str, x: &mut i32, y: &mut i32, size: f32, bold: bool,
     *x += right_margin * 8;
 }
 
-fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f32, mut bold: bool, mut color: Color, mut ignore: bool, whitespace: &mut bool, mut link: Option<String>, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f32, mut bold: bool, mut color: Color, mut ignore: bool, whitespace: &mut bool, mut link: Option<String>, url: &Url, font: &'a Font, font_bold: &'a Font, window: &Window, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let node = handle.borrow();
 
     let mut new_line = false;
@@ -156,7 +156,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
                     if ignore {
                         //println!("#text: ignored");
                     } else {
-                        text_block(&string, x, y, size, bold, color, link.clone(), font, font_bold, blocks);
+                        text_block(&string, x, y, size, bold, color, link.clone(), font, font_bold, window, blocks);
                     }
                 } else {
                     //println!("#text: empty");
@@ -304,7 +304,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
 
                         if use_alt {
                             if let Some(alt) = alt_opt {
-                                text_block(&alt, x, y, size, bold, color, link.clone(), font, font_bold, blocks);
+                                text_block(&alt, x, y, size, bold, color, link.clone(), font, font_bold, window, blocks);
                             }
                         }
                     }
@@ -334,7 +334,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
     }
 
     for child in node.children.iter() {
-        walk(child.clone(), indent + 4, x, y, size, bold, color, ignore, whitespace, link.clone(), url, font, font_bold, anchors, blocks);
+        walk(child.clone(), indent + 4, x, y, size, bold, color, ignore, whitespace, link.clone(), url, font, font_bold, window, anchors, blocks);
     }
 
     if new_line {
@@ -362,7 +362,7 @@ fn http_download(url: &Url) -> Result<(Headers, Vec<u8>), String> {
     Ok((res.headers.clone(), data))
 }
 
-fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Font, font_bold: &'a Font, window: &Window, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     let content_type = headers.get_raw("content-type").and_then(|x| str::from_utf8(x[0].as_slice()).ok()).unwrap_or("text/plain");
     let media_type = content_type.split(";").next().unwrap_or("");
 
@@ -373,13 +373,13 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
                 Ok(_) => {
                     let mut y = 0;
                     for line in string.lines() {
-                        text_block(line, &mut 0, &mut y, 12.0, false, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                        text_block(line, &mut 0, &mut y, 12.0, false, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                         y += 12;
                     }
                 },
                 Err(err) => {
                     let error = format!("Text data not readable: {}", err);
-                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                 }
             }
         },
@@ -389,7 +389,7 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
                     let mut x = 0;
                     let mut y = 0;
                     let mut whitespace = false;
-                    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, url, font, font_bold, anchors, blocks);
+                    walk(dom.document, 0, &mut x, &mut y, 16.0, false, Color::rgb(0, 0, 0), false, &mut whitespace, None, url, font, font_bold, window, anchors, blocks);
 
                     if !dom.errors.is_empty() {
                         /*
@@ -402,7 +402,7 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
                 },
                 Err(err) => {
                     let error = format!("HTML data not readable: {}", err);
-                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                 }
             }
         },
@@ -425,12 +425,12 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
                     },
                     Err(err) => {
                         let error = format!("JPG data not readable: {}", err);
-                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                     }
                 },
                 Err(err) => {
                     let error = format!("JPG stream not readable: {}", err);
-                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                 }
             }
         },
@@ -453,12 +453,12 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
                     },
                     Err(err) => {
                         let error = format!("PNG data not readable: {}", err);
-                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                     }
                 },
                 Err(err) => {
                     let error = format!("PNG stream not readable: {}", err);
-                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                 }
             }
         },
@@ -481,23 +481,23 @@ fn read_parse<'a, R: Read>(headers: Headers, r: &mut R, url: &Url, font: &'a Fon
                     },
                     Err(err) => {
                         let error = format!("BMP data not readable: {}", err);
-                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                        text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                     }
                 },
                 Err(err) => {
                     let error = format!("BMP stream not readable: {}", err);
-                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+                    text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
                 }
             }
         },
         _ => {
             let error = format!("Unsupported content type: {}", content_type);
-            text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, blocks);
+            text_block(&error, &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, window, blocks);
         }
     }
 }
 
-fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, window: &Window, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     if let Ok(path) = url.to_file_path() {
         if let Ok(mut file) = File::open(&path) {
             let mut headers = Headers::new();
@@ -518,32 +518,32 @@ fn file_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut 
 
             headers.set(header::ContentType(mime_type.parse().unwrap()));
 
-            read_parse(headers, &mut file, url, &font, &font_bold, anchors, blocks);
+            read_parse(headers, &mut file, url, font, font_bold, window, anchors, blocks);
         } else {
             println!("{} not found", path.display());
         }
     }
 }
 
-fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+fn http_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, window: &Window, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     match http_download(url) {
         Ok((headers, response)) => {
-            read_parse(headers, &mut response.as_slice(), url, font, font_bold, anchors, blocks);
+            read_parse(headers, &mut response.as_slice(), url, font, font_bold, window, anchors, blocks);
         },
         Err(err) => {
             let mut headers = Headers::new();
             headers.set(header::ContentType("text/plain".parse().unwrap()));
             let response = format!("{}", err).into_bytes();
-            read_parse(headers, &mut response.as_slice(), url, &font, &font_bold, anchors, blocks);
+            read_parse(headers, &mut response.as_slice(), url, font, font_bold, window, anchors, blocks);
         }
     }
 }
 
-fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
+fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, window: &Window, anchors: &mut BTreeMap<String, i32>, blocks: &mut Vec<Block<'a>>) {
     if url.scheme() == "http" || url.scheme() == "https" {
-        http_parse(url, font, font_bold, anchors, blocks)
+        http_parse(url, font, font_bold, window, anchors, blocks)
     } else if url.scheme() == "file" {
-        file_parse(url, font, font_bold, anchors, blocks)
+        file_parse(url, font, font_bold, window, anchors, blocks)
     } else {
         println!("{} scheme not found", url.scheme());
     }
@@ -555,7 +555,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
     let mut url = Url::parse(arg).unwrap();
 
     let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
-    let (window_w, window_h) = (cmp::min(800, display_width * 4/5) as i32, cmp::min(576, display_height * 4/5) as i32);
+    let (window_w, window_h) = (cmp::min(1024, display_width * 4/5) as i32, cmp::min(768, display_height * 4/5) as i32);
 
     let mut window = Window::new_flags(
         -1, -1, window_w as u32, window_h as u32,  "Browser", &[WindowFlag::Resizable]
@@ -581,7 +581,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
             anchors.clear();
             blocks.clear();
-            text_block("Loading...", &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, &mut blocks);
+            text_block("Loading...", &mut 0, &mut 0, 16.0, true, Color::rgb(0, 0, 0), None, font, font_bold, &window, &mut blocks);
 
             {
                 window.set(Color::rgb(255, 255, 255));
@@ -595,7 +595,7 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
             anchors.clear();
             blocks.clear();
-            url_parse(&url, &font, &font_bold, &mut anchors, &mut blocks);
+            url_parse(&url, &font, &font_bold, &window, &mut anchors, &mut blocks);
 
             offset = (0, 0);
             max_offset = (0, 0);
