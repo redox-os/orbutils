@@ -5,6 +5,8 @@ extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
 extern crate orbtk;
+extern crate mime_guess;
+extern crate mime;
 
 use std::{cmp, env, fs};
 use std::collections::BTreeMap;
@@ -14,6 +16,8 @@ use std::string::{String, ToString};
 use std::vec::Vec;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::Arc;
+
+use mime::TopLevel as MimeTop;
 
 use orbclient::{Color, Renderer};
 use orbimage::Image;
@@ -76,12 +80,12 @@ impl FileInfo {
 }
 
 struct FileType {
-    description: &'static str,
+    description: String,
     icon: PathBuf
 }
 
 impl FileType {
-    fn new(desc: &'static str, icon: &'static str) -> FileType {
+    fn new(desc: String, icon: &'static str) -> FileType {
         for folder in ["mimetypes", "places"].iter() {
             let mut path = fs::canonicalize(UI_PATH).unwrap();
             path.push(folder);
@@ -104,93 +108,51 @@ impl FileType {
             icon: path,
         }
     }
+
+    fn from_filename(file_name: &str) -> Self {
+        if file_name.ends_with('/') {
+            Self::new("folder".to_owned(), "inode-directory")
+        } else {
+            let pos = file_name.rfind('.').unwrap_or(0) + 1;
+            let ext = &file_name[pos..];
+            let mime = mime_guess::get_mime_type(ext);
+            let image = match (&mime.0, &mime.1) {
+                (&MimeTop::Image, _) => "image-x-generic",
+                (&MimeTop::Text, _) => "text-plain",
+                (&MimeTop::Audio, _) => "audio-x-generic",
+                _ => match ext {
+                    "c" | "cpp" | "h" => "text-x-c",
+                    "asm" | "ion" | "lua" | "rc" | "rs" | "sh" => "text-x-script",
+                    "ttf" => "application-x-font-ttf",
+                    "tar" => "package-x-generic",
+                    _ => "unknown"
+                }
+            };
+            Self::new(format!("{}", mime), image)
+        }
+    }
 }
 
 struct FileTypesInfo {
-    file_types: BTreeMap<&'static str, FileType>,
     images: BTreeMap<PathBuf, Image>,
 }
 
 impl FileTypesInfo {
     pub fn new() -> FileTypesInfo {
-        let mut file_types = BTreeMap::<&'static str, FileType>::new();
-        file_types.insert("/", FileType::new("Folder", "inode-directory"));
-
-        // Archives
-        file_types.insert("tar", FileType::new("TAR Archive", "package-x-generic"));
-
-        // Audio formats
-        file_types.insert("wav", FileType::new("WAV audio", "audio-x-generic"));
-
-        // Font formats
-        file_types.insert("ttf", FileType::new("TTF Font", "application-x-font-ttf"));
-
-        // Image formats
-        file_types.insert("bmp", FileType::new("Bitmap Image", "image-x-generic"));
-        file_types.insert("jpg", FileType::new("JPG Image", "image-x-generic"));
-        file_types.insert("jpeg", FileType::new("JPG Image", "image-x-generic"));
-        file_types.insert("png", FileType::new("PNG Image", "image-x-generic"));
-
-        // Text formats
-        file_types.insert("txt", FileType::new("Text file", "text-plain"));
-
-        // Markdown formats
-        file_types.insert("md", FileType::new("Markdown file", "text-plain"));
-
-        // Configuration formats
-        file_types.insert("conf", FileType::new("Config file", "text-plain"));
-        file_types.insert("json", FileType::new("JSON file", "text-plain"));
-        file_types.insert("toml", FileType::new("TOML file", "text-plain"));
-
-        // C programming language formats
-        file_types.insert("c", FileType::new("C source", "text-x-c"));
-        file_types.insert("cpp", FileType::new("C++ source", "text-x-c"));
-        file_types.insert("h", FileType::new("C header", "text-x-c"));
-
-        // Programming language formats
-        file_types.insert("asm", FileType::new("Assembly source", "text-x-script"));
-        file_types.insert("ion", FileType::new("Ion script", "text-x-script"));
-        file_types.insert("lua", FileType::new("Lua script", "text-x-script"));
-        file_types.insert("rc", FileType::new("Init script", "text-x-script"));
-        file_types.insert("rs", FileType::new("Rust source", "text-x-script"));
-        file_types.insert("sh", FileType::new("Shell script", "text-x-script"));
-
-        file_types.insert("", FileType::new("Unknown file", "unknown"));
-
-        FileTypesInfo { file_types: file_types, images: BTreeMap::new() }
+        FileTypesInfo { images: BTreeMap::new() }
     }
 
     pub fn description_for(&self, file_name: &str) -> String {
-        if file_name.ends_with('/') {
-            self.file_types["/"].description.to_owned()
-        } else {
-            let pos = file_name.rfind('.').unwrap_or(0) + 1;
-            let ext = &file_name[pos..];
-            if self.file_types.contains_key(ext) {
-                self.file_types[ext].description.to_string()
-            } else {
-                self.file_types[""].description.to_string()
-            }
-        }
+        FileType::from_filename(file_name).description
     }
 
     pub fn icon_for(&mut self, file_name: &str) -> &Image {
-        let icon = if file_name.ends_with('/') {
-            &self.file_types["/"].icon
-        } else {
-            let pos = file_name.rfind('.').unwrap_or(0) + 1;
-            let ext = &file_name[pos..];
-            if self.file_types.contains_key(ext) {
-                &self.file_types[ext].icon
-            } else {
-                &self.file_types[""].icon
-            }
-        };
+        let icon = FileType::from_filename(file_name).icon;
 
-        if ! self.images.contains_key(icon) {
-            self.images.insert(icon.clone(), load_icon(icon));
+        if ! self.images.contains_key(&icon) {
+            self.images.insert(icon.clone(), load_icon(&icon));
         }
-        &self.images[icon]
+        &self.images[&icon]
     }
 }
 
