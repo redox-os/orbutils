@@ -12,6 +12,7 @@ use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
+use orbclient::WindowFlag;
 use orbtk::{Button, Label, Point, Rect, TextBox, Window};
 use orbtk::traits::{Click, Enter, Place, Text};
 use userutils::Passwd;
@@ -38,7 +39,7 @@ pub fn main() {
             let window_height = 148 + issue_height + if issue_height > 0 { 20 } else { 0 };
 
             let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-            let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height), "Orbital Login");
+            let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height), "Orbital Login", &[WindowFlag::Exit]);
 
             let mut y = 8;
 

@@ -22,7 +22,7 @@ fn main(){
     let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
     let (width, height) = (cmp::min(1024, display_width * 4/5), cmp::min(768, display_height * 4/5));
 
-    let mut window = Window::new(Rect::new(-1, -1, width, height), &title);
+    let mut window = Window::new(Rect::new(-1, -1, width, height), &title, &[]);
 
     let text_box = TextBox::new();
     text_box.position(0, 16)
@@ -49,7 +49,7 @@ fn main(){
     let open_text_box = text_box.clone();
     open_action.on_click(move |_action: &Action, _point: Point| {
         println!("Open");
-        let mut window = Window::new(Rect::new(-1, -1, 220, 32), "Open");
+        let mut window = Window::new(Rect::new(-1, -1, 220, 32), "Open", &[]);
 
         let path_box = TextBox::new();
         path_box.position(0, 0)
@@ -128,7 +128,7 @@ fn main(){
     let save_as_path_option = path_option.clone();
     save_as_action.on_click(move |_action: &Action, _point: Point| {
         println!("Save As");
-        let mut window = Window::new(Rect::new(-1, -1, 320, 32), "Save As");
+        let mut window = Window::new(Rect::new(-1, -1, 320, 32), "Save As", &[]);
 
         let text_box = TextBox::new();
         text_box.position(0, 0)

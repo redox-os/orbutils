@@ -286,7 +286,7 @@ impl FileManager {
             column_labels: Vec::new(),
             sort_predicate: SortPredicate::Name,
             sort_direction: SortDirection::Asc,
-            window: Window::new(Rect::new(-1, -1, 0, 0),  ""),
+            window: Window::new(Rect::new(-1, -1, 0, 0),  "", &[]),
             list_widget_index: None,
             tx: tx,
             rx: rx,
