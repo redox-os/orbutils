@@ -39,7 +39,11 @@ pub fn main() {
             let window_height = 148 + issue_height + if issue_height > 0 { 20 } else { 0 };
 
             let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-            let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height), "Orbital Login", &[WindowFlag::Exit]);
+            let mut window = Window::new_flags(
+                Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height),
+                "Orbital Login",
+                &[WindowFlag::Unclosable]
+                );
 
             let mut y = 8;
 

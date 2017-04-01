@@ -278,7 +278,7 @@ fn eval(input: &str) -> String {
 }
 
 fn main(){
-    let mut window = Window::new(Rect::new(-1, -1, 148, 210), "Calculator", &[]);
+    let mut window = Window::new(Rect::new(-1, -1, 148, 210), "Calculator");
 
     {
         let text_box = TextBox::new();
