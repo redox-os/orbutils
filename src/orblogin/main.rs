@@ -32,13 +32,22 @@ pub fn main() {
                 let _ = issue_file.read_to_string(&mut issue_string);
             }
 
-            let issue = issue_string.trim();
+            const MARGIN: u32 = 8;
+            const TEXT_HEIGHT: u32 = 16;
+            const INPUT_HEIGHT: u32 = 28;
 
-            let issue_height = issue.lines().count() as u32 * 16;
-            let window_height = 148 + issue_height + if issue_height > 0 { 20 } else { 0 };
+            let issue = issue_string.trim();
+            let issue_height = issue.lines().count() as u32 * TEXT_HEIGHT;
+
+            const WINDOW_WIDTH: u32 = 576;
+            let window_height: u32 = 148 + issue_height + if issue_height > 0 { 20 } else { 0 };
+
 
             let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-            let mut window = Window::new(Rect::new((width as i32 - 576)/2, (height as i32 - window_height as i32)/2, 576, window_height), "Orbital Login");
+            let mut window = Window::new(
+                Rect::new((width as i32 - WINDOW_WIDTH as i32)/2, (height as i32 - window_height as i32)/2, WINDOW_WIDTH, window_height),
+                "Orbital Login"
+                );
 
             let mut y = 8;
 
@@ -46,8 +55,8 @@ pub fn main() {
                 let label = Label::new();
                 label.text(issue)
                     .text_offset(6, 6)
-                    .position(8, y)
-                    .size(560, issue_height + 12);
+                    .position(MARGIN as i32, y)
+                    .size(WINDOW_WIDTH - MARGIN*2, issue_height + 12);
                 //TODO: Put inset color into theme
                 label.bg.set(orbclient::Color { data: 0xFFEFF1F2 });
                 label.border.set(true);
@@ -59,37 +68,37 @@ pub fn main() {
 
             let label = Label::new();
             label.text("Username")
-                .position(8, y)
-                .size(560, 16);
+                .position(MARGIN as i32, y)
+                .size(WINDOW_WIDTH - MARGIN*2, TEXT_HEIGHT);
             window.add(&label);
-            y += 16;
+            y += TEXT_HEIGHT as i32;
 
             let user_text_box = TextBox::new();
-            user_text_box.position(8, y)
-                .size(560, 28)
+            user_text_box.position(MARGIN as i32, y)
+                .size(WINDOW_WIDTH - MARGIN*2, INPUT_HEIGHT)
                 .text_offset(6, 6)
                 .grab_focus(true);
             user_text_box.border_radius.set(2);
             window.add(&user_text_box);
-            y += 28;
+            y += INPUT_HEIGHT as i32;
 
             y += 8;
 
             let label = Label::new();
             label.text("Password")
-                .position(8, y)
-                .size(560, 16);
+                .position(MARGIN as i32, y)
+                .size(WINDOW_WIDTH - MARGIN*2, TEXT_HEIGHT);
             window.add(&label);
-            y += 16;
+            y += TEXT_HEIGHT as i32;
 
             let pass_text_box = TextBox::new();
-            pass_text_box.position(8, y)
-                .size(560, 28)
+            pass_text_box.position(MARGIN as i32, y)
+                .size(WINDOW_WIDTH - MARGIN*2, INPUT_HEIGHT)
                 .text_offset(6, 6)
                 .mask_char(Some('*'));
             pass_text_box.border_radius.set(2);
             window.add(&pass_text_box);
-            y += 28;
+            y += INPUT_HEIGHT as i32;
 
             // Pressing enter in user text box will transfer focus to password text box
             {
@@ -121,8 +130,8 @@ pub fn main() {
                 let pass_lock = pass_lock.clone();
                 let window_login = &mut window as *mut Window;
                 let button = Button::new();
-                button.position(8, y)
-                    .size(560, 28)
+                button.position(MARGIN as i32, y)
+                    .size(55, INPUT_HEIGHT)
                     .text("Login")
                     .text_offset(6, 6)
                     .on_click(move |_button: &Button, _point: Point| {
