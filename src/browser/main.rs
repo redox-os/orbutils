@@ -19,6 +19,7 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{stderr, Read, Write};
 use std::string::String;
+use std::time::Duration;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
@@ -352,7 +353,9 @@ pub fn escape_default(s: &str) -> String {
 fn http_download(url: &Url) -> Result<(Headers, Vec<u8>), String> {
     write!(stderr(), "* Requesting {}\n", url).map_err(|err| format!("{}", err))?;
 
-    let client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
+    let mut client = Client::with_connector(HttpsConnector::new(hyper_rustls::TlsClient::new()));
+    client.set_read_timeout(Some(Duration::new(5, 0)));
+    client.set_write_timeout(Some(Duration::new(5, 0)));
     let mut res = client.get(url.clone()).send().map_err(|err| format!("Failed to send request: {}", err))?;
     let mut data = Vec::new();
     res.read_to_end(&mut data).map_err(|err| format!("Failed to read response: {}", err))?;
