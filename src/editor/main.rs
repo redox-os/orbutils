@@ -3,8 +3,9 @@
 extern crate orbclient;
 extern crate orbtk;
 
+use orbclient::WindowFlag;
 use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
-use orbtk::traits::{Click, Place, Text};
+use orbtk::traits::{Click, Place, Resize, Text};
 
 use std::{cmp, env};
 use std::fs::File;
@@ -22,7 +23,7 @@ fn main(){
     let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
     let (width, height) = (cmp::min(1024, display_width * 4/5), cmp::min(768, display_height * 4/5));
 
-    let mut window = Window::new(Rect::new(-1, -1, width, height), &title);
+    let mut window = Window::new_flags(Rect::new(-1, -1, width, height), &title, &[WindowFlag::Resizable]);
 
     let text_box = TextBox::new();
     text_box.position(0, 16)
@@ -179,6 +180,10 @@ fn main(){
     menu.add(&close_action);
 
     window.add(&menu);
+
+    window.on_resize(move |_, width, height| {
+        text_box.size(width, height - 16);
+    });
 
     window.exec();
 }
