@@ -23,7 +23,7 @@ use std::time::Duration;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
-use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP};
+use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP, K_ENTER};
 use orbfont::Font;
 use tendril::TendrilSink;
 use url::Url;
@@ -657,6 +657,9 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                         },
                         K_BKSP => if let Some(last_url) = history.pop() {
                             url = last_url;
+                            reload = true;
+                        },
+                        K_ENTER => {
                             reload = true;
                         },
                         _ => ()
