@@ -85,31 +85,44 @@ struct FileType {
 }
 
 impl FileType {
-    fn new(desc: String, icon: &'static str) -> FileType {
+    fn new(desc: String, icon: &'static str) -> Option<Self> {
         for folder in ["mimetypes", "places"].iter() {
-            let mut path = fs::canonicalize(UI_PATH).unwrap();
-            path.push(folder);
-            path.push(format!("{}.png", icon));
-            if path.is_file() {
-                return FileType {
-                    description: desc,
-                    icon: path,
-                };
-            } else {
-                println!("{} not found in {}", icon, folder);
+            match fs::canonicalize(UI_PATH) {
+                Ok(mut path) => {
+                    path.push(folder);
+                    path.push(format!("{}.png", icon));
+                    if path.is_file() {
+                        return Some(Self {
+                            description: desc,
+                            icon: path,
+                        });
+                    } else {
+                        println!("{} not found in {}", icon, folder);
+                    }
+                },
+                Err(err) => {
+                    println!("failed to canonicalize {}: {}", UI_PATH, err);
+                }
             }
         }
 
         println!("{} not found", icon);
-        let mut path = fs::canonicalize(UI_PATH).unwrap();
-        path.push("mimetypes/unknown.png");
-        FileType {
-            description: desc,
-            icon: path,
+        match fs::canonicalize(UI_PATH) {
+            Ok(mut path) => {
+                path.push("mimetypes/unknown.png");
+                Some(Self {
+                    description: desc,
+                    icon: path,
+                })
+            },
+            Err(err) => {
+                println!("failed to canonicalize {}: {}", UI_PATH, err);
+                None
+            }
         }
     }
 
-    fn from_filename(file_name: &str) -> Self {
+    fn from_filename(file_name: &str) -> Option<Self> {
         if file_name.ends_with('/') {
             Self::new("folder".to_owned(), "inode-directory")
         } else {
@@ -134,25 +147,38 @@ impl FileType {
 }
 
 struct FileTypesInfo {
+    empty_image: Image,
     images: BTreeMap<PathBuf, Image>,
 }
 
 impl FileTypesInfo {
-    pub fn new() -> FileTypesInfo {
-        FileTypesInfo { images: BTreeMap::new() }
+    pub fn new() -> Self {
+        Self {
+            empty_image: Image::new(0, 0),
+            images: BTreeMap::new()
+        }
     }
 
     pub fn description_for(&self, file_name: &str) -> String {
-        FileType::from_filename(file_name).description
+        match FileType::from_filename(file_name) {
+            Some(file_type) => file_type.description,
+            None => String::new()
+        }
     }
 
     pub fn icon_for(&mut self, file_name: &str) -> &Image {
-        let icon = FileType::from_filename(file_name).icon;
-
-        if ! self.images.contains_key(&icon) {
-            self.images.insert(icon.clone(), load_icon(&icon));
+        match FileType::from_filename(file_name) {
+            Some(file_type) => {
+                let icon = file_type.icon;
+                if ! self.images.contains_key(&icon) {
+                    self.images.insert(icon.clone(), load_icon(&icon));
+                }
+                &self.images[&icon]
+            },
+            None => {
+                &self.empty_image
+            }
         }
-        &self.images[&icon]
     }
 }
 
@@ -248,7 +274,7 @@ impl FileManager {
             column_labels: Vec::new(),
             sort_predicate: SortPredicate::Name,
             sort_direction: SortDirection::Asc,
-            window: Window::new(Rect::new(-1, -1, 0, 0),  ""),
+            window: Window::new(Rect::new(-1, -1, 320, 240),  "File Manager"),
             list_widget_index: None,
             tx: tx,
             rx: rx,
@@ -345,7 +371,7 @@ impl FileManager {
         let h = if self.files.len() < 8 {
             (count * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
         } else {
-            (7 * ICON_SIZE as usize) as u32 + 32 - 16 // +32 for the header row, -16 to indicate scrolling
+            (7 * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
         };
 
         let list = List::new();
@@ -464,7 +490,7 @@ impl FileManager {
         let h = if self.files.len() < 8 {
             (count * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
         } else {
-            (7 * ICON_SIZE as usize) as u32 + 32 - 16 // +32 for the header row, -16 to indicate scrolling
+            (7 * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
         };
 
         self.window.set_size(w, h);
