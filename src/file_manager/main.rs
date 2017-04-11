@@ -3,7 +3,6 @@
 
 extern crate orbclient;
 extern crate orbimage;
-extern crate orbfont;
 extern crate orbtk;
 extern crate mime_guess;
 extern crate mime;
@@ -19,10 +18,10 @@ use std::sync::Arc;
 
 use mime::TopLevel as MimeTop;
 
-use orbclient::{Color, Renderer};
+use orbclient::{Color, Renderer, WindowFlag};
 use orbimage::Image;
 
-use orbtk::{Window, Point, Rect, List, Entry, Label, Place, Text, Click};
+use orbtk::{Window, Point, Rect, List, Entry, Label, Place, Resize, Text, Click};
 
 const ICON_SIZE: i32 = 32;
 
@@ -186,9 +185,10 @@ enum FileManagerCommand {
     ChangeDir(String),
     Execute(String),
     ChangeSort(usize),
+    Resize(u32, u32),
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, PartialEq)]
 enum SortPredicate {
     Name,
     Size,
@@ -210,6 +210,7 @@ impl SortDirection {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Column {
     name: &'static str,
     x: i32,
@@ -225,6 +226,8 @@ pub struct FileManager {
     sort_predicate: SortPredicate,
     sort_direction: SortDirection,
     window: Window,
+    window_width: u32,
+    window_height: u32,
     list_widget_index: Option<usize>,
     tx: Sender<FileManagerCommand>,
     rx: Receiver<FileManagerCommand>,
@@ -247,6 +250,20 @@ fn load_icon(path: &Path) -> Image {
 impl FileManager {
     pub fn new() -> Self {
         let (tx, rx) = channel();
+
+        let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+        let (window_w, window_h) = (cmp::min(640, display_width * 4/5) as i32, cmp::min(480, display_height * 4/5) as i32);
+
+        let window = Window::new_flags(
+            Rect::new(-1, -1, window_w as u32, window_h as u32), "File Manager", &[WindowFlag::Resizable]
+        );
+
+        window.bg.set(Color::rgb(255, 255, 255));
+
+        let tx_resize = tx.clone();
+        window.on_resize(move |_window, width, height| {
+            tx_resize.send(FileManagerCommand::Resize(width, height)).unwrap();
+        });
 
         FileManager {
             file_types_info: FileTypesInfo::new(),
@@ -274,7 +291,9 @@ impl FileManager {
             column_labels: Vec::new(),
             sort_predicate: SortPredicate::Name,
             sort_direction: SortDirection::Asc,
-            window: Window::new(Rect::new(-1, -1, 320, 240),  "File Manager"),
+            window: window,
+            window_width: window_w as u32,
+            window_height: window_h as u32,
             list_widget_index: None,
             tx: tx,
             rx: rx,
@@ -322,8 +341,44 @@ impl FileManager {
         self.files.push(file_info);
     }
 
+    fn resized_columns(&self) -> [Column; 3] {
+        let mut columns = self.columns.clone();
+        columns[0].width = cmp::max(
+            columns[0].width,
+            self.window_width as i32
+            - columns[0].x
+            - columns[1].width
+            - columns[2].width
+        );
+        columns[1].x = columns[0].x + columns[0].width;
+        columns[2].x = columns[1].x + columns[1].width;
+        columns
+    }
+
+    fn sort_files(&mut self) {
+        match self.sort_predicate {
+            SortPredicate::Name => self.files.sort_by(|a, b| a.name.cmp(&b.name)),
+            SortPredicate::Size => {
+                self.files.sort_by(|a, b|
+                    if a.is_dir != b.is_dir {
+                        b.is_dir.cmp(&a.is_dir) // Sort directories first
+                    } else {
+                        a.size.cmp(&b.size)
+                    })
+            },
+            SortPredicate::Type => {
+                let file_types_info = &self.file_types_info;
+                self.files.sort_by_key(|file| file_types_info.description_for(&file.name).to_lowercase())
+            },
+        }
+        if self.sort_direction == SortDirection::Desc {
+            self.files.reverse();
+        }
+    }
+
     fn update_headers(&mut self) {
-        for (i, column) in self.columns.iter().enumerate() {
+        let columns = self.resized_columns();
+        for (i, column) in columns.iter().enumerate() {
             if let None = self.column_labels.get(i * 2) {
                 // header text
                 let mut label = Label::new();
@@ -366,16 +421,11 @@ impl FileManager {
     }
 
     fn update_list(&mut self) {
-        let w = (self.columns[2].x + self.columns[2].width) as u32;
-        let count = cmp::min(self.files.len(), 7);
-        let h = if self.files.len() < 8 {
-            (count * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
-        } else {
-            (7 * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
-        };
+        let columns = self.resized_columns();
+        let w = (columns[2].x + columns[2].width) as u32;
 
         let list = List::new();
-        list.position(0, 32).size(w, h - 32);
+        list.position(0, 32).size(w, self.window_height - 32);
 
         {
             for file in self.files.iter() {
@@ -400,20 +450,20 @@ impl FileManager {
                 }
 
                 let mut label = Label::new();
-                label.position(self.columns[0].x, 0).size(w, ICON_SIZE as u32).text(file.name.clone());
+                label.position(columns[0].x, 0).size(w, ICON_SIZE as u32).text(file.name.clone());
                 label.text_offset.set(Point::new(0, 8));
                 label.bg.set(Color::rgba(255, 255, 255, 0));
                 entry.add(&label);
 
                 label = Label::new();
-                label.position(self.columns[1].x, 0).size(w, ICON_SIZE as u32).text(file.size_str.clone());
+                label.position(columns[1].x, 0).size(w, ICON_SIZE as u32).text(file.size_str.clone());
                 label.text_offset.set(Point::new(0, 8));
                 label.bg.set(Color::rgba(255, 255, 255, 0));
                 entry.add(&label);
 
                 let description = self.file_types_info.description_for(&file.name);
                 label = Label::new();
-                label.position(self.columns[2].x, 0).size(w, ICON_SIZE as u32).text(description);
+                label.position(columns[2].x, 0).size(w, ICON_SIZE as u32).text(description);
                 label.text_offset.set(Point::new(0, 8));
                 label.bg.set(Color::rgba(255, 255, 255, 0));
                 entry.add(&label);
@@ -432,6 +482,8 @@ impl FileManager {
     }
 
     fn set_path(&mut self, path: &str) {
+        self.window.set_title(&path);
+
         for column in self.columns.iter_mut() {
             column.width = (column.name.len() * 8) as i32 + 16;
         }
@@ -474,7 +526,6 @@ impl FileManager {
                         Err(err) => println!("failed to read dir entry: {}", err)
                     }
                 }
-
             },
             Err(err) => {
                 println!("failed to readdir {}: {}", path, err);
@@ -485,46 +536,14 @@ impl FileManager {
         self.columns[1].x = self.columns[0].x + self.columns[0].width;
         self.columns[2].x = self.columns[1].x + self.columns[1].width;
 
-        let w = (self.columns[2].x + self.columns[2].width) as u32;
-        let count = cmp::min(self.files.len(), 7);
-        let h = if self.files.len() < 8 {
-            (count * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
-        } else {
-            (7 * ICON_SIZE as usize) as u32 + 32 // +32 for the header row
-        };
-
-        self.window.set_size(w, h);
-        self.window.set_title(&path);
-        self.window.bg.set(Color::rgb(255, 255, 255));
-
         self.sort_files();
+    }
 
+    fn redraw(&mut self) {
         self.update_headers();
-
         self.update_list();
 
         self.window.needs_redraw();
-    }
-
-    fn sort_files(&mut self) {
-        match self.sort_predicate {
-            SortPredicate::Name => self.files.sort_by(|a, b| a.name.cmp(&b.name)),
-            SortPredicate::Size => {
-                self.files.sort_by(|a, b|
-                    if a.is_dir != b.is_dir {
-                        b.is_dir.cmp(&a.is_dir) // Sort directories first
-                    } else {
-                        a.size.cmp(&b.size)
-                    })
-            },
-            SortPredicate::Type => {
-                let file_types_info = &self.file_types_info;
-                self.files.sort_by_key(|file| file_types_info.description_for(&file.name).to_lowercase())
-            },
-        }
-        if self.sort_direction == SortDirection::Desc {
-            self.files.reverse();
-        }
     }
 
     fn main(&mut self, path: &str) {
@@ -539,17 +558,17 @@ impl FileManager {
 
         println!("main path: {}", path);
         self.set_path(&path);
+        self.redraw();
         self.window.draw_if_needed();
 
         while self.window.running.get() {
-
             self.window.step();
 
             while let Ok(event) = self.rx.try_recv() {
-
                 match event {
                     FileManagerCommand::ChangeDir(dir) => {
                         self.set_path(&dir);
+                        self.redraw();
                     }
                     FileManagerCommand::Execute(cmd) => {
                         Command::new(LAUNCH_COMMAND).arg(&cmd).spawn().unwrap();
@@ -568,10 +587,16 @@ impl FileManager {
                             self.sort_direction.invert();
                         }
 
-                        self.update_headers();
                         self.sort_files();
-                        self.update_list();
+
+                        self.redraw();
                     },
+                    FileManagerCommand::Resize(width, height) => {
+                        self.window_width = width;
+                        self.window_height = height;
+
+                        self.redraw();
+                    }
                 }
             }
 
