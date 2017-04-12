@@ -6,6 +6,7 @@ extern crate html5ever;
 extern crate orbclient;
 extern crate orbfont;
 extern crate orbimage;
+extern crate orbtk;
 extern crate tendril;
 extern crate url;
 extern crate hyper;
@@ -552,6 +553,67 @@ fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, window: &Window
     }
 }
 
+fn open_dialog(url: &Url) -> Option<Url> {
+    use orbtk::{Button, Click, Enter, Place, Point, Rect, Text, TextBox, Window};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    let ret = Rc::new(RefCell::new(None));
+
+    {
+        let w = 400;
+        let mut window = Window::new(Rect::new(-1, -1, w, 32), "Open");
+
+        let path_box = TextBox::new();
+        {
+            let ret_path = ret.clone();
+            let window_path = &mut window as *mut Window;
+            path_box.position(0, 0)
+                .size(w, 16)
+                .text(format!("{}", url))
+                .on_enter(move |me: &TextBox| {
+                    if let Ok(new_url) = Url::parse(&me.text.get()) {
+                        *ret_path.borrow_mut() = Some(new_url);
+                    }
+                    unsafe { (&mut *window_path).close(); }
+                });
+                window.add(&path_box);
+        }
+
+        {
+            let window_cancel = &mut window as *mut Window;
+            let button = Button::new();
+            button.position(0, 16)
+                .size(w/2, 16)
+                .text("Cancel")
+                .on_click(move |_button: &Button, _point: Point| {
+                    unsafe { (&mut *window_cancel).close(); }
+                });
+            window.add(&button);
+        }
+
+        {
+            let ret_open = ret.clone();
+            let window_open = &mut window as *mut Window;
+            let button = Button::new();
+            button.position((w as i32)/2, 16)
+                .size(w/2, 16)
+                .text("Open")
+                .on_click(move |_button: &Button, _point: Point| {
+                    if let Ok(new_url) = Url::parse(&path_box.text.get()) {
+                        *ret_open.borrow_mut() = Some(new_url);
+                    }
+                    unsafe { (&mut *window_open).close(); }
+                });
+            window.add(&button);
+        }
+
+        window.exec();
+    }
+
+    Rc::try_unwrap(ret).unwrap().into_inner()
+}
+
 fn main_window(arg: &str, font: &Font, font_bold: &Font) {
     let mut history = vec![];
 
@@ -660,7 +722,10 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
                             reload = true;
                         },
                         K_ENTER => {
-                            reload = true;
+                            if let Some(new_url) = open_dialog(&url) {
+                                url = new_url;
+                                reload = true;
+                            }
                         },
                         _ => ()
                     }
