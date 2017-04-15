@@ -7,31 +7,8 @@ use std::cmp::max;
 
 use std::env;
 
-use orbclient::{Color, Renderer, Window, EventOption, K_ESC};
+use orbclient::{Color, Renderer, Window, WindowFlag, EventOption};
 use orbfont::Font;
-
-fn event_loop(window: &mut Window){
-    loop {
-        for event in window.events() {
-            if let EventOption::Key(key_event) = event.to_option() {
-                if key_event.pressed && key_event.scancode == K_ESC {
-                    return;
-                }
-            }
-            if let EventOption::Quit(_) = event.to_option() {
-                return;
-            }
-        }
-    }
-}
-
-fn error_msg(window: &mut Window, msg: &str) {
-    let mut x = 0;
-    for c in msg.chars() {
-        window.char(x, 0, c, Color::rgb(255, 255, 255));
-        x += 8;
-    }
-}
 
 fn main() {
     let (title, font_res) = match env::args().nth(1) {
@@ -49,38 +26,59 @@ fn main() {
                 font.render("stuvwxyz.?!", 64.0),
                 font.render("0123456789 ", 64.0)
             ];
+
             let mut width = 0;
             let mut height = 0;
             for line in lines.iter() {
                 width = max(width, line.width());
                 height += line.height();
             }
-            let mut window = Window::new(-1,
-                                         -1,
-                                         max(320, width),
-                                         max(32, height),
-                                         &("Character Map (".to_string() + &title + ")"))
-                                 .unwrap();
-            window.set(Color::rgb(255, 255, 255));
-            let mut y = 0;
-            for line in lines.iter() {
-                line.draw(&mut window, 0, y, Color::rgb(0, 0, 0));
-                y += line.height() as i32;
+
+            let redraw = move |window: &mut Window| {
+                window.set(Color::rgb(255, 255, 255));
+                let mut y = 0;
+                for line in lines.iter() {
+                    line.draw(window, 0, y, Color::rgb(0, 0, 0));
+                    y += line.height() as i32;
+                }
+                window.sync();
+            };
+
+            let mut window = Window::new_flags(-1, -1, max(320, width), max(32, height),
+                                        &format!("{} - Character Map", title),
+                                        &[WindowFlag::Resizable])
+                                    .unwrap();
+
+            redraw(&mut window);
+
+            loop {
+                for event in window.events() {
+                    match event.to_option() {
+                        EventOption::Resize(_) => redraw(&mut window),
+                        EventOption::Quit(_) => return,
+                        _ => ()
+                    }
+                }
             }
-            window.sync();
-            event_loop(&mut window);
         },
         Err(err) => {
-            let mut window = Window::new(-1,
-                                         -1,
-                                         320,
-                                         32,
-                                         &("Character Map (".to_string() + &title + ")"))
-                                 .unwrap();
+            let mut window = Window::new(-1, -1, 320, 32, &format!("{} - Character Map", title))
+                                    .unwrap();
             window.set(Color::rgb(0, 0, 0));
-            error_msg(&mut window, &format!("{}", err));
+            let mut x = 0;
+            for c in format!("{}", err).chars() {
+                window.char(x, 0, c, Color::rgb(255, 255, 255));
+                x += 8;
+            }
             window.sync();
-            event_loop(&mut window);
+            loop {
+                for event in window.events() {
+                    match event.to_option() {
+                        EventOption::Quit(_) => return,
+                        _ => ()
+                    }
+                }
+            }
         }
     }
 }
