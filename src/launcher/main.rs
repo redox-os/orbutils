@@ -1,9 +1,34 @@
 #![deny(warnings)]
 #![feature(const_fn)]
 
+extern crate event;
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
+extern crate syscall;
+
+use std::{env, io, mem};
+use std::cell::RefCell;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::os::unix::io::AsRawFd;
+use std::os::unix::process::ExitStatusExt;
+use std::path::Path;
+use std::process::{Child, Command, ExitStatus};
+use std::rc::Rc;
+
+use event::EventQueue;
+use orbclient::{EventOption, Renderer, Window, WindowFlag, K_ESC};
+use orbimage::Image;
+use orbfont::Font;
+use syscall::data::TimeSpec;
+use syscall::flag::{CLOCK_MONOTONIC, CLOCK_REALTIME};
+
+use package::Package;
+use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
+
+mod package;
+mod theme;
 
 pub const ICON_SIZE: i32 = 48;
 pub const ICON_SMALL_SIZE: i32 = 32;
@@ -52,21 +77,6 @@ fn load_icon_small(path: &str) -> Image {
     }
 }
 
-use std::env;
-use std::os::unix::process::ExitStatusExt;
-use std::path::Path;
-use std::process::{Command, ExitStatus};
-
-use orbclient::{EventOption, Renderer, Window, K_ESC};
-use orbimage::Image;
-use orbfont::Font;
-
-use package::Package;
-use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
-
-mod package;
-mod theme;
-
 fn get_packages() -> Vec<Package> {
     let read_dir = Path::new(&format!("{}/apps/", UI_PATH)).read_dir().expect("failed to read apps directory");
 
@@ -92,42 +102,6 @@ fn get_packages() -> Vec<Package> {
     packages
 }
 
-fn draw(window: &mut Window, packages: &Vec<Package>, start: &Image, selected: i32){
-    window.set(BAR_COLOR);
-
-    let mut x = 0;
-    let y = 0;
-    let mut i = 0;
-
-    {
-        if i == selected {
-            window.rect(x as i32, y as i32,
-                              start.width() as u32, start.height() as u32,
-                              BAR_HIGHLIGHT_COLOR);
-        }
-
-        start.draw(window, x as i32, y as i32);
-
-        x += start.width() as i32;
-        i += 1;
-    }
-
-    for package in packages.iter() {
-        if i == selected {
-            window.rect(x as i32, y as i32,
-                              package.icon.width() as u32, package.icon.height() as u32,
-                              BAR_HIGHLIGHT_COLOR);
-        }
-
-        package.icon.draw(window, x as i32, y as i32);
-
-        x += package.icon.width() as i32;
-        i += 1;
-    }
-
-    window.sync();
-}
-
 fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selected: i32){
     let w = window.width();
 
@@ -149,34 +123,135 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selec
     window.sync();
 }
 
+struct Bar {
+    children: Vec<Child>,
+    packages: Vec<Package>,
+    start: Image,
+    start_packages: Vec<Package>,
+    font: Font,
+    width: u32,
+    height: u32,
+    window: Window,
+    selected: i32,
+    time: String,
+}
+
+impl Bar {
+    fn new() -> Bar {
+        let packages = get_packages();
+
+        let mut logout_package = Package::new();
+        logout_package.name = "Logout".to_string();
+        logout_package.icon = load_icon(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
+        logout_package.icon_small = load_icon_small(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
+        logout_package.binary = "exit".to_string();
+
+        let mut start_packages = packages.clone();
+        start_packages.push(logout_package);
+
+        let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
+
+        Bar {
+            children: Vec::new(),
+            packages: packages,
+            start: load_icon(&format!("{}/icons/places/start-here.png", UI_PATH)),
+            start_packages: start_packages,
+            font: Font::find(Some("Sans"), None, None).unwrap(),
+            width: width,
+            height: height,
+            window: Window::new_flags(
+                0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "", &[WindowFlag::Async]
+            ).expect("launcher: failed to open window"),
+            selected: -1,
+            time: String::new()
+        }
+    }
+
+    fn update_time(&mut self) {
+        let mut time = TimeSpec::default();
+        syscall::clock_gettime(CLOCK_REALTIME, &mut time).expect("launcher: failed to read time");
+
+        let ts = time.tv_sec;
+        let s = ts%86400;
+        let h = s/3600;
+        let m = s/60%60;
+        self.time = format!("{:>02}:{:>02}", h, m)
+    }
+
+    fn draw(&mut self) {
+        self.window.set(BAR_COLOR);
+
+        let mut x = 0;
+        let mut y = 0;
+        let mut i = 0;
+
+        {
+            if i == self.selected {
+                self.window.rect(x as i32, y as i32,
+                                  self.start.width() as u32, self.start.height() as u32,
+                                  BAR_HIGHLIGHT_COLOR);
+            }
+
+            self.start.draw(&mut self.window, x as i32, y as i32);
+
+            x += self.start.width() as i32;
+            i += 1;
+        }
+
+        for package in self.packages.iter() {
+            if i == self.selected {
+                self.window.rect(x as i32, y as i32,
+                                  package.icon.width() as u32, package.icon.height() as u32,
+                                  BAR_HIGHLIGHT_COLOR);
+            }
+
+            package.icon.draw(&mut self.window, x as i32, y as i32);
+
+            x += package.icon.width() as i32;
+            i += 1;
+        }
+
+        let text = self.font.render(&self.time, 32.0);
+        x = self.width as i32 - text.width() as i32 - 8;
+        y = (ICON_SIZE - text.height() as i32)/2;
+        text.draw(&mut self.window, x, y, TEXT_HIGHLIGHT_COLOR);
+
+        self.window.sync();
+    }
+}
+
 fn bar_main() {
-    let mut children = Vec::new();
+    let bar = Rc::new(RefCell::new(Bar::new()));
 
-    let packages = get_packages();
+    let mut event_queue = EventQueue::<()>::new().expect("launcher: failed to create event queue");
 
-    let start = load_icon(&format!("{}/icons/places/start-here.png", UI_PATH));
+    let mut time_file = File::open(&format!("time:{}", CLOCK_MONOTONIC)).expect("launcher: failed to open time");
+    let bar_time = bar.clone();
+    event_queue.add(time_file.as_raw_fd(), move |_| -> io::Result<Option<()>> {
+        let mut time = TimeSpec::default();
+        if time_file.read(&mut time)? >= mem::size_of::<TimeSpec>() {
+            let mut bar = bar_time.borrow_mut();
 
-    let mut logout_package = Package::new();
-    logout_package.name = "Logout".to_string();
-    logout_package.icon = load_icon(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
-    logout_package.icon_small = load_icon_small(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
-    logout_package.binary = "exit".to_string();
+            bar.update_time();
+            bar.draw();
 
-    let mut start_packages = packages.clone();
-    start_packages.push(logout_package);
+            time.tv_sec += 1;
+            time.tv_nsec = 0;
+            time_file.write(&time)?;
+        }
 
-    let (mut width, mut height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-    let mut window = Window::new(0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "").expect("launcher: failed to open window");
+        Ok(None)
+    }).expect("launcher: failed to poll time");
 
-    let mut selected = -1;
+    let bar_window = bar.clone();
     let mut mouse_x = 0;
     let mut mouse_y = 0;
     let mut mouse_left = false;
     let mut last_mouse_left = false;
+    event_queue.add(bar.borrow().window.as_raw_fd(), move |_| -> io::Result<Option<()>> {
+        let mut bar = bar_window.borrow_mut();
 
-    draw(&mut window, &packages, &start, selected);
-    'running: loop {
-        for event in window.events() {
+        for event in bar.window.events() {
             let redraw = match event.to_option() {
                 EventOption::Mouse(mouse_event) => {
                     mouse_x = mouse_event.x;
@@ -188,13 +263,13 @@ fn bar_main() {
                     true
                 },
                 EventOption::Screen(screen_event) => {
-                    width = screen_event.width;
-                    height = screen_event.height;
-                    window.set_pos(0, height as i32 - ICON_SIZE);
-                    window.set_size(width, ICON_SIZE as u32);
+                    bar.width = screen_event.width;
+                    bar.height = screen_event.height;
+                    bar.window.set_pos(0, screen_event.height as i32 - ICON_SIZE);
+                    bar.window.set_size(screen_event.width, ICON_SIZE as u32);
                     true
                 },
-                EventOption::Quit(_) => break 'running,
+                EventOption::Quit(_) => return Ok(Some(())),
                 _ => false
             };
 
@@ -208,14 +283,14 @@ fn bar_main() {
 
                     {
                         if mouse_y >= y && mouse_x >= x &&
-                           mouse_x < x + start.width() as i32 {
+                           mouse_x < x + bar.start.width() as i32 {
                                now_selected = i;
                         }
-                        x += start.width() as i32;
+                        x += bar.start.width() as i32;
                         i += 1;
                     }
 
-                    for package in packages.iter() {
+                    for package in bar.packages.iter() {
                         if mouse_y >= y && mouse_x >= x &&
                            mouse_x < x + package.icon.width() as i32 {
                             now_selected = i;
@@ -225,25 +300,24 @@ fn bar_main() {
                     }
                 }
 
-                if now_selected != selected {
-                    selected = now_selected;
-                    draw(&mut window, &packages, &start, selected);
+                if now_selected != bar.selected {
+                    bar.selected = now_selected;
+                    bar.draw()
                 }
 
                 if ! mouse_left && last_mouse_left {
                     let mut i = 0;
 
-                    if i == selected {
-                        let start_h = start_packages.len() as u32 * ICON_SMALL_SIZE as u32;
-                        let mut start_window = Window::new(0, height as i32 - ICON_SIZE - start_h as i32, 320, start_h, "").unwrap();
-                        let font = Font::find(Some("Sans"), None, None).unwrap();
+                    if i == bar.selected {
+                        let start_h = bar.start_packages.len() as u32 * ICON_SMALL_SIZE as u32;
+                        let mut start_window = Window::new(0, bar.height as i32 - ICON_SIZE - start_h as i32, 320, start_h, "").unwrap();
 
                         let mut selected = -1;
                         let mut mouse_y = 0;
                         let mut mouse_left = false;
                         let mut last_mouse_left = false;
 
-                        draw_chooser(&mut start_window, &font, &start_packages, selected);
+                        draw_chooser(&mut start_window, &bar.font, &bar.start_packages, selected);
                         'start_choosing: loop {
                             for event in start_window.events() {
                                 let redraw = match event.to_option() {
@@ -274,7 +348,7 @@ fn bar_main() {
                                     let mut now_selected = -1;
 
                                     let mut y = 0;
-                                    for (j, _package) in start_packages.iter().enumerate() {
+                                    for (j, _package) in bar.start_packages.iter().enumerate() {
                                         if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
                                             now_selected = j as i32;
                                         }
@@ -283,19 +357,19 @@ fn bar_main() {
 
                                     if now_selected != selected {
                                         selected = now_selected;
-                                        draw_chooser(&mut start_window, &font, &start_packages, selected);
+                                        draw_chooser(&mut start_window, &bar.font, &bar.start_packages, selected);
                                     }
 
                                     if ! mouse_left && last_mouse_left {
                                         let mut y = 0;
-                                        for package in start_packages.iter() {
+                                        for package_i in 0..bar.start_packages.len() {
                                             if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
-                                                if package.binary == "exit" {
-                                                    break 'running;
+                                                if bar.start_packages[package_i].binary == "exit" {
+                                                    return Ok(Some(()));
                                                 } else {
-                                                    match Command::new(&package.binary).spawn() {
-                                                        Ok(child) => children.push(child),
-                                                        Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
+                                                    match Command::new(&bar.start_packages[package_i].binary).spawn() {
+                                                        Ok(child) => bar.children.push(child),
+                                                        Err(err) => println!("launcher: failed to launch {}: {}", bar.start_packages[package_i].binary, err)
                                                     }
                                                 }
                                                 break 'start_choosing;
@@ -311,11 +385,11 @@ fn bar_main() {
                     }
                     i += 1;
 
-                    for package in packages.iter() {
-                        if i == selected {
-                            match Command::new(&package.binary).spawn() {
-                                Ok(child) => children.push(child),
-                                Err(err) => println!("launcher: failed to launch {}: {}", package.binary, err)
+                    for package_i in 0..bar.packages.len() {
+                        if i == bar.selected {
+                            match Command::new(&bar.packages[package_i].binary).spawn() {
+                                Ok(child) => bar.children.push(child),
+                                Err(err) => println!("launcher: failed to launch {}: {}", bar.packages[package_i].binary, err)
                             }
                         }
                         i += 1;
@@ -325,9 +399,15 @@ fn bar_main() {
                 last_mouse_left = mouse_left;
             }
         }
-    }
 
-    for mut child in children {
+        Ok(None)
+    }).expect("launcher: failed to poll window events");
+
+    event_queue.trigger_all(0).expect("launcher: failed to trigger events");
+
+    event_queue.run().expect("launcher: failed to run event loop");
+
+    for mut child in bar.borrow_mut().children.iter_mut() {
         let pid = child.id();
         match child.kill() {
             Ok(()) => (),

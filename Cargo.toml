@@ -46,6 +46,7 @@ path = "src/viewer/main.rs"
 [dependencies]
 html5ever = "0.12"
 html5ever-atoms = "0.1"
+hyper-rustls = "0.3"
 mime_guess = "1.8"
 mime = "0.2"
 orbclient = "0.3"
@@ -57,7 +58,6 @@ rustls = "0.5"
 tendril = "0.2"
 url = "1.2"
 userutils = { git = "https://github.com/redox-os/userutils.git" }
-hyper-rustls = "0.3"
 
 [dependencies.hyper]
 version = "0.10"
@@ -67,4 +67,5 @@ default-features = false
 libc = "0.2"
 
 [target.'cfg(target_os = "redox")'.dependencies]
+redox_event = { git = "https://github.com/redox-os/event.git" }
 redox_syscall = "0.1"
