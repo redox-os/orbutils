@@ -1,7 +1,7 @@
 #![deny(warnings)]
 #![feature(asm)]
 #![feature(const_fn)]
-#![cfg_attr(not(target_os = "redox"), feature(process_try_wait))]
+#![feature(process_try_wait)]
 
 extern crate orbclient;
 extern crate orbfont;
@@ -16,7 +16,7 @@ use orbclient::event::EventOption;
 use std::{cmp, env, str};
 use std::error::Error;
 use std::fs::{File, OpenOptions};
-use std::io::{self, Result, Read, Write};
+use std::io::{self, ErrorKind, Result, Read, Write};
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command, Stdio};
@@ -120,6 +120,17 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
         if ! handle_event(sys_event.id, sys_event.data) {
             break 'events;
         }
+
+        match process.try_wait() {
+            Ok(status) => match status {
+                Some(_code) => break 'events,
+                None => ()
+            },
+            Err(err) => match err.kind() {
+                ErrorKind::WouldBlock => (),
+                _ => panic!("terminal: failed to wait on child: {:?}", err)
+            }
+        }
     }
 
     let _ = process.kill();
@@ -129,7 +140,6 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
 #[cfg(not(target_os = "redox"))]
 fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
     use libc;
-    use std::io::ErrorKind;
     use std::thread;
     use std::time::Duration;
 
