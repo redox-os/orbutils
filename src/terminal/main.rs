@@ -14,8 +14,7 @@ extern crate syscall;
 
 use orbclient::event::EventOption;
 use std::{cmp, env, str};
-use std::error::Error;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::{self, ErrorKind, Result, Read, Write};
 use std::os::unix::io::{FromRawFd, IntoRawFd, RawFd};
 use std::os::unix::process::CommandExt;
@@ -26,6 +25,22 @@ use getpty::getpty;
 
 mod console;
 mod getpty;
+
+#[cfg(target_os="redox")]
+fn slave_stdio(tty_path: &str) -> Result<(File, File, File)> {
+    use io::Error;
+    use syscall::flag::{O_RDONLY, O_WRONLY};
+    let stdin = unsafe { File::from_raw_fd(
+        syscall::open(tty_path, O_RDONLY).map_err(|err| Error::from_raw_os_error(err.errno))?
+    ) };
+    let stdout = unsafe { File::from_raw_fd(
+        syscall::open(tty_path, O_WRONLY).map_err(|err| Error::from_raw_os_error(err.errno))?
+    ) };
+    let stderr = unsafe { File::from_raw_fd(
+        syscall::open(tty_path, O_WRONLY).map_err(|err| Error::from_raw_os_error(err.errno))?
+    ) };
+    Ok((stdin, stdout, stderr))
+}
 
 #[cfg(not(target_os="redox"))]
 pub fn before_exec() -> Result<()> {
@@ -97,10 +112,7 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
             if let Err(err) = master.write(&console.input) {
                 let term_stderr = io::stderr();
                 let mut term_stderr = term_stderr.lock();
-
-                let _ = term_stderr.write(b"failed to write stdin: ");
-                let _ = term_stderr.write(err.description().as_bytes());
-                let _ = term_stderr.write(b"\n");
+                let _ = writeln!(term_stderr, "terminal: failed to write stdin: {:?}", err);
                 return false;
             }
             let _ = master.flush();
@@ -198,10 +210,7 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
             if let Err(err) = master.write(&console.input) {
                 let term_stderr = io::stderr();
                 let mut term_stderr = term_stderr.lock();
-
-                let _ = term_stderr.write(b"failed to write stdin: ");
-                let _ = term_stderr.write(err.description().as_bytes());
-                let _ = term_stderr.write(b"\n");
+                let _ = writeln!(term_stderr, "terminal: failed to write stdin: {:?}", err);
                 break 'events;
             }
             let _ = master.flush();
@@ -231,18 +240,15 @@ fn main() {
     let shell = args.next().unwrap_or("sh".to_string());
 
     let (master_fd, tty_path) = getpty();
+    let (slave_stdin, slave_stdout, slave_stderr) = slave_stdio(&tty_path).expect("terminal: failed to get slave stdio");
 
-    let slave_stdin = OpenOptions::new().read(true).write(false).open(&tty_path).unwrap();
-    let slave_stdout = OpenOptions::new().read(false).write(true).open(&tty_path).unwrap();
-    let slave_stderr = OpenOptions::new().read(false).write(true).open(&tty_path).unwrap();
-
-    let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+    let (display_width, display_height) = orbclient::get_display_size().expect("terminal: failed to get display size");
     let (width, height) = (cmp::min(1024, display_width * 4/5), cmp::min(768, display_height * 4/5));
 
     env::set_var("COLUMNS", format!("{}", width / 8));
     env::set_var("LINES", format!("{}", height / 16));
     env::set_var("TERM", "linux");
-    env::set_var("TTY", format!("{}", tty_path.display()));
+    env::set_var("TTY", tty_path);
 
     let mut command = Command::new(&shell);
     for arg in args {
@@ -266,11 +272,7 @@ fn main() {
         Err(err) => {
             let term_stderr = io::stderr();
             let mut term_stderr = term_stderr.lock();
-            let _ = term_stderr.write(b"failed to execute '");
-            let _ = term_stderr.write(shell.as_bytes());
-            let _ = term_stderr.write(b"': ");
-            let _ = term_stderr.write(err.description().as_bytes());
-            let _ = term_stderr.write(b"\n");
+            let _ = writeln!(term_stderr, "terminal: failed to execute '{}': {:?}", shell, err);
         }
     }
 }

@@ -1,8 +1,7 @@
 use std::os::unix::io::RawFd;
-use std::path::PathBuf;
 
 #[cfg(not(target_os="redox"))]
-pub fn getpty() -> (RawFd, PathBuf) {
+pub fn getpty() -> (RawFd, String) {
     use libc;
     use std::ffi::CStr;
     use std::fs::OpenOptions;
@@ -32,16 +31,16 @@ pub fn getpty() -> (RawFd, PathBuf) {
         }
     }
 
-    let tty_path = unsafe { PathBuf::from(CStr::from_ptr(ptsname(master_fd)).to_string_lossy().into_owned()) };
+    let tty_path = unsafe { CStr::from_ptr(ptsname(master_fd)).to_string_lossy().into_owned() };
     (master_fd, tty_path)
 }
 
 #[cfg(target_os="redox")]
-pub fn getpty() -> (RawFd, PathBuf) {
+pub fn getpty() -> (RawFd, String) {
     use syscall;
 
     let master = syscall::open("pty:", syscall::O_RDWR | syscall::O_CREAT | syscall::O_NONBLOCK).unwrap();
     let mut buf: [u8; 4096] = [0; 4096];
     let count = syscall::fpath(master, &mut buf).unwrap();
-    (master, PathBuf::from(unsafe { String::from_utf8_unchecked(Vec::from(&buf[..count])) }))
+    (master, unsafe { String::from_utf8_unchecked(Vec::from(&buf[..count])) })
 }

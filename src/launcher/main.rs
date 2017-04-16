@@ -252,6 +252,16 @@ fn bar_main() {
                     i += 1;
                 }
             }
+            
+            loop {
+                let mut status = 0;
+                let pid = wait(&mut status);
+                if pid == 0 {
+                    break;
+                } else {
+                    println!("launcher: reaping zombie {}: {}", pid, ExitStatus::from_raw(status as i32));
+                }
+            }
 
             bar.update_time();
             bar.draw();
