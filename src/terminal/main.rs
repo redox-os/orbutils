@@ -85,8 +85,7 @@ fn handle(console: &mut Console, master_fd: RawFd, process: &mut Child) {
             } else {
                 console.write(&packet[1..count], true).expect("terminal: failed to write to console");
 
-                //if packet[0] & 1 == 1
-                {
+                if packet[0] & 1 == 1 {
                     console.redraw();
                 }
             }
