@@ -1,5 +1,6 @@
 #![deny(warnings)]
 #![feature(const_fn)]
+#![feature(process_try_wait)]
 
 extern crate event;
 extern crate orbclient;
@@ -231,6 +232,26 @@ fn bar_main() {
         let mut time = TimeSpec::default();
         if time_file.read(&mut time)? >= mem::size_of::<TimeSpec>() {
             let mut bar = bar_time.borrow_mut();
+
+            let mut i = 0;
+            while i < bar.children.len() {
+                let remove = match bar.children[i].try_wait() {
+                    Ok(None) => false,
+                    Ok(Some(status)) => {
+                        println!("launcher: {} exited with {}", bar.children[i].id(), status);
+                        true
+                    },
+                    Err(err) => {
+                        println!("launcher: failed to wait for {}: {}", bar.children[i].id(), err);
+                        true
+                    }
+                };
+                if remove {
+                    bar.children.remove(i);
+                } else {
+                    i += 1;
+                }
+            }
 
             bar.update_time();
             bar.draw();
