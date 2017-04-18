@@ -58,6 +58,7 @@ rustls = "0.5"
 tendril = "0.2"
 url = "1.2"
 userutils = { git = "https://github.com/redox-os/userutils.git" }
+chrono = "0.3"
 
 [dependencies.hyper]
 version = "0.10"

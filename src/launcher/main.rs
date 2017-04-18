@@ -7,6 +7,7 @@ extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
 extern crate syscall;
+extern crate chrono;
 
 use std::{env, io, mem};
 use std::cell::RefCell;
@@ -23,7 +24,7 @@ use orbclient::{EventOption, Renderer, Window, WindowFlag, K_ESC};
 use orbimage::Image;
 use orbfont::Font;
 use syscall::data::TimeSpec;
-use syscall::flag::{CLOCK_MONOTONIC, CLOCK_REALTIME};
+use syscall::flag::{CLOCK_MONOTONIC};
 
 use package::Package;
 use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
@@ -169,14 +170,13 @@ impl Bar {
     }
 
     fn update_time(&mut self) {
-        let mut time = TimeSpec::default();
-        syscall::clock_gettime(CLOCK_REALTIME, &mut time).expect("launcher: failed to read time");
+        use chrono::prelude::*;
 
-        let ts = time.tv_sec;
-        let s = ts%86400;
-        let h = s/3600;
-        let m = s/60%60;
-        self.time = format!("{:>02}:{:>02}", h, m)
+        let local: DateTime<Local> = Local::now();
+
+        let time_string = local.format("%l:%M %p").to_string();
+
+        self.time = time_string
     }
 
     fn draw(&mut self) {
@@ -252,7 +252,7 @@ fn bar_main() {
                     i += 1;
                 }
             }
-            
+
             loop {
                 let mut status = 0;
                 let pid = wait(&mut status);
