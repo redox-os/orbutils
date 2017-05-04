@@ -26,6 +26,33 @@ use getpty::getpty;
 mod console;
 mod getpty;
 
+#[cfg(not(target_os="redox"))]
+fn slave_stdio(tty_path: &str) -> Result<(File, File, File)> {
+    use io::Error;
+    use libc::{O_RDONLY, O_WRONLY};
+    use std::ffi::CString;
+
+    let cvt = |res: i32| -> Result<i32> {
+        if res < 0 {
+            Err(Error::last_os_error())
+        } else {
+            Ok(res)
+        }
+    };
+
+    let tty_c = CString::new(tty_path).unwrap();
+    let stdin = unsafe { File::from_raw_fd(
+        cvt(libc::open(tty_c.as_ptr(), O_RDONLY))?
+    ) };
+    let stdout = unsafe { File::from_raw_fd(
+        cvt(libc::open(tty_c.as_ptr(), O_WRONLY))?
+    ) };
+    let stderr = unsafe { File::from_raw_fd(
+        cvt(libc::open(tty_c.as_ptr(), O_WRONLY))?
+    ) };
+    Ok((stdin, stdout, stderr))
+}
+
 #[cfg(target_os="redox")]
 fn slave_stdio(tty_path: &str) -> Result<(File, File, File)> {
     use io::Error;
