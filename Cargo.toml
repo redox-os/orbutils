@@ -36,10 +36,6 @@ name = "orblogin"
 path = "src/orblogin/main.rs"
 
 [[bin]]
-name = "terminal"
-path = "src/terminal/main.rs"
-
-[[bin]]
 name = "viewer"
 path = "src/viewer/main.rs"
 
@@ -53,7 +49,6 @@ orbclient = "0.3"
 orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.2"
-ransid = "0.2"
 rustls = "0.5"
 tendril = "0.2"
 url = "1.2"
