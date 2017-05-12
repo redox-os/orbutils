@@ -50,18 +50,21 @@ fn main(){
     let open_text_box = text_box.clone();
     open_action.on_click(move |_action: &Action, _point: Point| {
         println!("Open");
-        let mut window = Window::new(Rect::new(-1, -1, 220, 32), "Open");
+        let mut window = Window::new(Rect::new(-1, -1, 320, 8 + 28 + 8 + 28 + 8), "Open");
 
         let path_box = TextBox::new();
-        path_box.position(0, 0)
-            .size(220, 16);
+        path_box.position(8, 8)
+            .size(320 - 16, 28)
+            .text_offset(6, 6)
+            .grab_focus(true);
         window.add(&path_box);
 
         {
             let window_cancel = &mut window as *mut Window;
             let button = Button::new();
-            button.position(0, 16)
-                .size(220/2, 16)
+            button.position(8, 8 + 28 + 8)
+                .size((320 - 16)/2 - 4, 28)
+                .text_offset(6, 6)
                 .text("Cancel")
                 .on_click(move |_button: &Button, _point: Point| {
                     unsafe { (&mut *window_cancel).close(); }
@@ -73,8 +76,9 @@ fn main(){
             let open_text_box = open_text_box.clone();
             let window_save_as = &mut window as *mut Window;
             let button = Button::new();
-            button.position(220/2, 16)
-                .size(220/2, 16)
+            button.position(320/2 + 4, 8 + 28 + 8)
+                .size((320 - 16)/2 - 4, 28)
+                .text_offset(6, 6)
                 .text("Open")
                 .on_click(move |_button: &Button, _point: Point| {
                     match File::open(path_box.text.get()) {
@@ -129,11 +133,13 @@ fn main(){
     let save_as_path_option = path_option.clone();
     save_as_action.on_click(move |_action: &Action, _point: Point| {
         println!("Save As");
-        let mut window = Window::new(Rect::new(-1, -1, 320, 32), "Save As");
+        let mut window = Window::new(Rect::new(-1, -1, 320, 8 + 28 + 8 + 28 + 8), "Save As");
 
         let text_box = TextBox::new();
-        text_box.position(0, 0)
-            .size(320, 16);
+        text_box.position(8, 8)
+            .size(320 - 16, 28)
+            .text_offset(6, 6)
+            .grab_focus(true);
         window.add(&text_box);
 
         if let Some(ref path) = save_as_path_option {
@@ -143,8 +149,9 @@ fn main(){
         {
             let window_cancel = &mut window as *mut Window;
             let button = Button::new();
-            button.position(0, 16)
-                .size(320/2, 16)
+            button.position(8, 8 + 28 + 8)
+                .size((320 - 16)/2 - 4, 28)
+                .text_offset(6, 6)
                 .text("Cancel")
                 .on_click(move |_button: &Button, _point: Point| {
                     unsafe { (&mut *window_cancel).close(); }
@@ -155,8 +162,9 @@ fn main(){
         {
             let window_save_as = &mut window as *mut Window;
             let button = Button::new();
-            button.position(320/2, 16)
-                .size(320/2, 16)
+            button.position(320/2 + 4, 8 + 28 + 8)
+                .size((320 - 16)/2 - 4, 28)
+                .text_offset(6, 6)
                 .text("Save As")
                 .on_click(move |_button: &Button, _point: Point| {
                     println!("Save {}", text_box.text.get());

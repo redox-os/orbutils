@@ -562,14 +562,15 @@ fn open_dialog(url: &Url) -> Option<Url> {
 
     {
         let w = 400;
-        let mut window = Window::new(Rect::new(-1, -1, w, 32), "Open");
+        let mut window = Window::new(Rect::new(-1, -1, w, 8 + 28 + 8 + 28 + 8), "Open");
 
         let path_box = TextBox::new();
         {
             let ret_path = ret.clone();
             let window_path = &mut window as *mut Window;
-            path_box.position(0, 0)
-                .size(w, 16)
+            path_box.position(8, 8)
+                .size(w - 16, 28)
+                .text_offset(6, 6)
                 .text(format!("{}", url))
                 .on_enter(move |me: &TextBox| {
                     if let Ok(new_url) = Url::parse(&me.text.get()) {
@@ -583,8 +584,9 @@ fn open_dialog(url: &Url) -> Option<Url> {
         {
             let window_cancel = &mut window as *mut Window;
             let button = Button::new();
-            button.position(0, 16)
-                .size(w/2, 16)
+            button.position(8, 8 + 28 + 8)
+                .size((w - 16)/2 - 4, 28)
+                .text_offset(6, 6)
                 .text("Cancel")
                 .on_click(move |_button: &Button, _point: Point| {
                     unsafe { (&mut *window_cancel).close(); }
@@ -596,8 +598,9 @@ fn open_dialog(url: &Url) -> Option<Url> {
             let ret_open = ret.clone();
             let window_open = &mut window as *mut Window;
             let button = Button::new();
-            button.position((w as i32)/2, 16)
-                .size(w/2, 16)
+            button.position((w as i32)/2 + 4, 8 + 28 + 8)
+                .size((w - 16)/2 - 4, 28)
+                .text_offset(6, 6)
                 .text("Open")
                 .on_click(move |_button: &Button, _point: Point| {
                     if let Ok(new_url) = Url::parse(&path_box.text.get()) {
@@ -690,45 +693,42 @@ fn main_window(arg: &str, font: &Font, font_bold: &Font) {
 
         for event in window.events() {
             match event.to_option() {
-                EventOption::Key(key_event) => if key_event.pressed {
-                    match key_event.scancode {
-                        K_ESC => return,
-                        K_LEFT => {
-                            redraw = true;
-                            offset.0 = cmp::max(0, offset.0 - 60);
-                        },
-                        K_RIGHT => {
-                            redraw = true;
-                            offset.0 = cmp::min(cmp::max(0, max_offset.0 - window_w), offset.0 + 60);
-                        },
-                        K_UP => {
-                            redraw = true;
-                            offset.1 = cmp::max(0, offset.1 - 60);
-                        },
-                        K_PGUP => {
-                            redraw = true;
-                            offset.1 = cmp::max(0, offset.1 - 600);
-                        },
-                        K_DOWN => {
-                            redraw = true;
-                            offset.1 = cmp::min(cmp::max(0, max_offset.1 - window_h), offset.1 + 60);
-                        },
-                        K_PGDN => {
-                            redraw = true;
-                            offset.1 = cmp::min(cmp::max(0, max_offset.1 - window_h), offset.1 + 600);
-                        },
-                        K_BKSP => if let Some(last_url) = history.pop() {
-                            url = last_url;
+                EventOption::Key(key_event) => match key_event.scancode {
+                    K_LEFT if key_event.pressed => {
+                        redraw = true;
+                        offset.0 = cmp::max(0, offset.0 - 60);
+                    },
+                    K_RIGHT if key_event.pressed => {
+                        redraw = true;
+                        offset.0 = cmp::min(cmp::max(0, max_offset.0 - window_w), offset.0 + 60);
+                    },
+                    K_UP if key_event.pressed => {
+                        redraw = true;
+                        offset.1 = cmp::max(0, offset.1 - 60);
+                    },
+                    K_PGUP if key_event.pressed => {
+                        redraw = true;
+                        offset.1 = cmp::max(0, offset.1 - 600);
+                    },
+                    K_DOWN if key_event.pressed => {
+                        redraw = true;
+                        offset.1 = cmp::min(cmp::max(0, max_offset.1 - window_h), offset.1 + 60);
+                    },
+                    K_PGDN if key_event.pressed => {
+                        redraw = true;
+                        offset.1 = cmp::min(cmp::max(0, max_offset.1 - window_h), offset.1 + 600);
+                    },
+                    K_BKSP if ! key_event.pressed => if let Some(last_url) = history.pop() {
+                        url = last_url;
+                        reload = true;
+                    },
+                    K_ENTER if ! key_event.pressed => {
+                        if let Some(new_url) = open_dialog(&url) {
+                            url = new_url;
                             reload = true;
-                        },
-                        K_ENTER => {
-                            if let Some(new_url) = open_dialog(&url) {
-                                url = new_url;
-                                reload = true;
-                            }
-                        },
-                        _ => ()
-                    }
+                        }
+                    },
+                    _ => ()
                 },
                 EventOption::Mouse(mouse_event) => {
                     mouse_x = mouse_event.x;
