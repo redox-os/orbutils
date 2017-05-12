@@ -138,7 +138,7 @@ fn walk<'a>(handle: Handle, indent: usize, x: &mut i32, y: &mut i32, mut size: f
 
                 for c in text.chars() {
                     match c {
-                        ' ' | '\n' | '\r' => if *whitespace {
+                        ' ' | '\t' | '\n' | '\r' => if *whitespace {
                             // Ignore
                         } else {
                             // Set whitespace
