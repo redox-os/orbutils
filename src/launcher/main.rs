@@ -224,6 +224,11 @@ impl Bar {
 fn bar_main() {
     let bar = Rc::new(RefCell::new(Bar::new()));
 
+    match Command::new("/ui/bin/background").arg("/ui/background.png").arg("zoom").spawn() {
+        Ok(child) => bar.borrow_mut().children.push(child),
+        Err(err) => println!("launcher: failed to launch background: {}", err)
+    }
+
     let mut event_queue = EventQueue::<()>::new().expect("launcher: failed to create event queue");
 
     let mut time_file = File::open(&format!("time:{}", CLOCK_MONOTONIC)).expect("launcher: failed to open time");
@@ -252,7 +257,7 @@ fn bar_main() {
                     i += 1;
                 }
             }
-            
+
             loop {
                 let mut status = 0;
                 let pid = wait(&mut status);
