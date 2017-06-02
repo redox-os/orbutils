@@ -53,7 +53,7 @@ orbclient = "0.3"
 orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.2"
-rustls = "0.5"
+rustls = "0.8"
 tendril = "0.2"
 url = "1.2"
 userutils = { git = "https://github.com/redox-os/userutils.git" }
