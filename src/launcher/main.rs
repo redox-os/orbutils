@@ -1,6 +1,5 @@
 #![deny(warnings)]
 #![feature(const_fn)]
-#![feature(process_try_wait)]
 
 extern crate event;
 extern crate orbclient;
