@@ -46,7 +46,7 @@ path = "src/viewer/main.rs"
 [dependencies]
 html5ever = "0.12"
 html5ever-atoms = "0.1"
-hyper-rustls = "0.3"
+hyper-rustls = "0.6"
 mime_guess = "1.8"
 mime = "0.2"
 orbclient = "0.3"
