@@ -71,29 +71,6 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
     }
 }
 
-fn draw_image(window: &mut Window, image: &Image) {
-    window.set(Color::rgb(0, 0, 0));
-    /*
-    let box_size = 4;
-    for box_y in 0..window.height()/box_size {
-        for box_x in 0..window.width()/box_size {
-            let color = if box_x % 2 == box_y % 2 {
-                Color::rgb(102, 102, 102)
-            }else{
-                Color::rgb(53, 53, 53)
-            };
-
-            window.rect((box_x * box_size) as i32, (box_y * box_size) as i32, box_size, box_size, color);
-        }
-    }
-    */
-
-    let x = (window.width() - image.width())/2;
-    let y = (window.height() - image.height())/2;
-    image.draw(window, x as i32, y as i32);
-    window.sync();
-}
-
 fn main() {
     let mut args = env::args().skip(1);
 
@@ -129,7 +106,13 @@ fn main() {
                         scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3).unwrap();
                     }
 
-                    draw_image(&mut window, &scaled_image);
+                    window.set(Color::rgb(0, 0, 0));
+
+                    let x = (window.width() as i32 - scaled_image.width() as i32)/2;
+                    let y = (window.height() as i32 - scaled_image.height() as i32)/2;
+                    scaled_image.draw(&mut window, x, y);
+
+                    window.sync();
                 }
 
                 for event in window.events() {

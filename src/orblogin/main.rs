@@ -133,7 +133,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
 
     let mut window = Window::new_flags(
         0, 0, display_width, display_height, "",
-        &[WindowFlag::Back, WindowFlag::Unclosable]
+        &[WindowFlag::Unclosable]
     ).unwrap();
 
     let image_mode = BackgroundMode::from_str("zoom");
@@ -169,9 +169,9 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
 
             window.set(Color::rgb(0, 0, 0));
 
-            let x = (window.width() - scaled_image.width())/2;
-            let y = (window.height() - scaled_image.height())/2;
-            scaled_image.draw(&mut window, x as i32, y as i32);
+            let x = (window.width() as i32 - scaled_image.width() as i32)/2;
+            let y = (window.height() as i32 - scaled_image.height() as i32)/2;
+            scaled_image.draw(&mut window, x, y);
 
             redraw = true;
         }
