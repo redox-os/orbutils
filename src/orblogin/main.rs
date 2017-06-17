@@ -177,8 +177,6 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
         }
 
         while let Some(key_event) = key_events.pop_front() {
-            println!("Key event: {:?}", key_event);
-
             match key_event.scancode {
                 orbclient::K_BKSP => {
                     if item == 0 {
