@@ -162,8 +162,8 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
             let y = (window.height() as i32 - scaled_image.height() as i32)/2;
             scaled_image.draw(&mut window, x, y);
 
-            let x = (display_width as i32 - 216)/2;
-            let y = (display_height as i32 - 80)/2;
+            let x = (window.width() as i32 - 216)/2;
+            let y = (window.height() as i32 - 80)/2;
             window.rect(x, y, 216, 80, Color::rgba(0, 0, 0, 128));
 
             redraw = true;
@@ -183,8 +183,8 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 Color::rgb(128, 128, 128)
             };
 
-            let x = (display_width as i32 - 200)/2;
-            let mut y = (display_height as i32 - 64)/2;
+            let x = (window.width() as i32 - 200)/2;
+            let mut y = (window.height() as i32 - 64)/2;
 
             window.rect(x, y, 200, 28, if item == 0 { active } else { inactive });
             window.rect(x + 2, y + 2, 196, 24, Color::rgb(128, 128, 128));
