@@ -265,6 +265,10 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 EventOption::Resize(resize_event) => {
                     resize = Some((resize_event.width, resize_event.height));
                 },
+                EventOption::Screen(screen_event) => {
+                    window.set_size(screen_event.width, screen_event.height);
+                    resize = Some((screen_event.width, screen_event.height));
+                },
                 EventOption::Quit(_) => return None,
                 _ => ()
             }

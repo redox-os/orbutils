@@ -85,15 +85,13 @@ fn main() {
         Ok(image) => {
             let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
 
-            let (width, height) = find_scale(&image, mode, display_width, display_height);
-
             let mut window = Window::new_flags(
                 0, 0, display_width, display_height, "",
                 &[WindowFlag::Back, WindowFlag::Unclosable]
             ).unwrap();
 
             let mut scaled_image = image.clone();
-            let mut resize = Some((width, height));
+            let mut resize = Some((display_width, display_height));
             loop {
                 if let Some((w, h)) = resize.take() {
                     let (width, height) = find_scale(&image, mode, w, h);
@@ -119,6 +117,10 @@ fn main() {
                     match event.to_option() {
                         EventOption::Resize(resize_event) => {
                             resize = Some((resize_event.width, resize_event.height));
+                        },
+                        EventOption::Screen(screen_event) => {
+                            window.set_size(screen_event.width, screen_event.height);
+                            resize = Some((screen_event.width, screen_event.height));
                         },
                         EventOption::Quit(_) => return,
                         _ => ()
