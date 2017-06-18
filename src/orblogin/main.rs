@@ -194,7 +194,11 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
 
             window.rect(x, y, 200, 28, if item == 1 { active } else { inactive });
             window.rect(x + 2, y + 2, 196, 24, Color::rgb(128, 128, 128));
-            font.render(&password, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
+            let mut mask = String::new();
+            for _c in password.chars() {
+                mask.push('•');
+            }
+            font.render(&mask, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
 
             window.sync();
         }
