@@ -8,13 +8,13 @@ extern crate orbtk;
 extern crate userutils;
 
 use std::{env, str};
-use std::collections::VecDeque;
 use std::fs::File;
 use std::io::Read;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
+use orbfont::Font;
 use orbimage::Image;
 use userutils::Passwd;
 
@@ -128,7 +128,7 @@ fn login_command(user: &str, pass: &str, launcher_cmd: &str, launcher_args: &[St
     }
 }
 
-fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
+fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image: &Image, image_mode: BackgroundMode) -> Option<Command> {
     let (display_width, display_height) = orbclient::get_display_size().expect("orblogin: failed to get display size");
 
     let mut window = Window::new_flags(
@@ -136,22 +136,11 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
         &[WindowFlag::Unclosable]
     ).unwrap();
 
-    let image_mode = BackgroundMode::from_str("zoom");
-    let image_path = "/ui/login.png";
-    let image = match Image::from_path(image_path) {
-        Ok(image) => image,
-        Err(err) => {
-            println!("orblogin: error loading {}: {}", image_path, err);
-            Image::from_color(display_width, display_height, Color::rgb(0, 0, 0))
-        }
-    };
-
     let mut item = 0;
     let mut username = String::new();
     let mut password = String::new();
     let mut failure = false;
 
-    let mut key_events = VecDeque::<orbclient::KeyEvent>::new();
     let mut scaled_image = image.clone();
     let mut redraw = true;
     let mut resize = Some((display_width, display_height));
@@ -173,111 +162,39 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
             let y = (window.height() as i32 - scaled_image.height() as i32)/2;
             scaled_image.draw(&mut window, x, y);
 
+            let x = (display_width as i32 - 216)/2;
+            let y = (display_height as i32 - 80)/2;
+            window.rect(x, y, 216, 80, Color::rgba(0, 0, 0, 128));
+
             redraw = true;
-        }
-
-        while let Some(key_event) = key_events.pop_front() {
-            match key_event.scancode {
-                orbclient::K_BKSP => {
-                    if item == 0 {
-                        username.pop();
-                    } else if item == 1 {
-                        password.pop();
-                    }
-
-                    redraw = true;
-                },
-                orbclient::K_ENTER => {
-                    if item == 0 {
-                        item = 1;
-                    } else if item == 1 {
-                        if let Some(command) = login_command(&username, &password, launcher_cmd, launcher_args) {
-                            return Some(command);
-                        } else {
-                            item = 1;
-                            password.clear();
-                            failure = true
-                        }
-                    }
-
-                    redraw = true;
-                },
-                orbclient::K_ESC => {
-                    item = 0;
-                    username.clear();
-                    password.clear();
-                    failure = false;
-
-                    redraw = true;
-                },
-                orbclient::K_TAB => {
-                    if item == 0 {
-                        item = 1;
-                    } else if item == 1 {
-                        item = 0;
-                    }
-
-                    redraw = true;
-                },
-                _ => match key_event.character {
-                    '\0' => (),
-                    _ => {
-                        if item == 0 {
-                            username.push(key_event.character);
-                        } else if item == 1 {
-                            password.push(key_event.character);
-                        }
-
-                        redraw = true;
-                    }
-                }
-            }
         }
 
         if redraw {
             redraw = false;
 
-            let mut x = (display_width as i32 - 200)/2;
+            let active = if failure {
+                Color::rgb(255, 0, 0)
+            } else {
+                Color::rgb(255, 255, 255)
+            };
+            let inactive = if failure {
+                Color::rgb(128, 0, 0)
+            } else {
+                Color::rgb(128, 128, 128)
+            };
+
+            let x = (display_width as i32 - 200)/2;
             let mut y = (display_height as i32 - 64)/2;
 
-            window.rect(x - 2, y - 2, 204, 28, if item == 0 {
-                if failure {
-                    Color::rgb(255, 0, 0)
-                } else {
-                    Color::rgb(255, 255, 255)
-                }
-            } else {
-                Color::rgb(128, 128, 128)
-            });
-            window.rect(x, y, 200, 24, Color::rgb(128, 128, 128));
-            x += 4;
-            y += 4;
+            window.rect(x, y, 200, 28, if item == 0 { active } else { inactive });
+            window.rect(x + 2, y + 2, 196, 24, Color::rgb(128, 128, 128));
+            font.render(&username, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
 
-            for c in username.chars() {
-                window.char(x, y, c, Color::rgb(255, 255, 255));
-                x += 8;
-            }
+            y += 36;
 
-            x = (display_width as i32 - 200)/2;
-            y += 32;
-
-            window.rect(x - 2, y - 2, 204, 28, if item == 1 {
-                if failure {
-                    Color::rgb(255, 0, 0)
-                } else {
-                    Color::rgb(255, 255, 255)
-                }
-            } else {
-                Color::rgb(128, 128, 128)
-            });
-            window.rect(x, y, 200, 24, Color::rgb(128, 128, 128));
-            x += 4;
-            y += 4;
-
-            for _c in password.chars() {
-                window.char(x, y, '*', Color::rgb(255, 255, 255));
-                x += 8;
-            }
+            window.rect(x, y, 200, 28, if item == 1 { active } else { inactive });
+            window.rect(x + 2, y + 2, 196, 24, Color::rgb(128, 128, 128));
+            font.render(&password, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
 
             window.sync();
         }
@@ -285,7 +202,61 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
         for event in window.events() {
             match event.to_option() {
                 EventOption::Key(key_event) => if key_event.pressed {
-                    key_events.push_back(key_event);
+                    match key_event.scancode {
+                        orbclient::K_BKSP => {
+                            if item == 0 {
+                                username.pop();
+                            } else if item == 1 {
+                                password.pop();
+                            }
+
+                            redraw = true;
+                        },
+                        orbclient::K_ENTER => {
+                            if item == 0 {
+                                item = 1;
+                            } else if item == 1 {
+                                if let Some(command) = login_command(&username, &password, launcher_cmd, launcher_args) {
+                                    return Some(command);
+                                } else {
+                                    item = 1;
+                                    password.clear();
+                                    failure = true
+                                }
+                            }
+
+                            redraw = true;
+                        },
+                        orbclient::K_ESC => {
+                            item = 0;
+                            username.clear();
+                            password.clear();
+                            failure = false;
+
+                            redraw = true;
+                        },
+                        orbclient::K_TAB => {
+                            if item == 0 {
+                                item = 1;
+                            } else if item == 1 {
+                                item = 0;
+                            }
+
+                            redraw = true;
+                        },
+                        _ => match key_event.character {
+                            '\0' => (),
+                            _ => {
+                                if item == 0 {
+                                    username.push(key_event.character);
+                                } else if item == 1 {
+                                    password.push(key_event.character);
+                                }
+
+                                redraw = true;
+                            }
+                        }
+                    }
                 },
                 EventOption::Resize(resize_event) => {
                     resize = Some((resize_event.width, resize_event.height));
@@ -303,8 +274,20 @@ fn main() {
     let launcher_cmd = args.next().expect("orblogin: no window manager command");
     let launcher_args: Vec<String> = args.collect();
 
+    let font = Font::find(Some("Sans"), None, None).expect("orblogin: no font found");
+
+    let image_mode = BackgroundMode::from_str("zoom");
+    let image_path = "/ui/login.png";
+    let image = match Image::from_path(image_path) {
+        Ok(image) => image,
+        Err(err) => {
+            println!("orblogin: error loading {}: {}", image_path, err);
+            Image::from_color(1, 1, Color::rgb(0x2d, 0x64, 0x8e))
+        }
+    };
+
     loop {
-        if let Some(mut command) = login_window(&launcher_cmd, &launcher_args) {
+        if let Some(mut command) = login_window(&launcher_cmd, &launcher_args, &font, &image, image_mode) {
             match command.spawn() {
                 Ok(mut child) => match child.wait() {
                     Ok(_) => (),
