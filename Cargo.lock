@@ -7,7 +7,7 @@ dependencies = [
  "html5ever-atoms 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper-rustls 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbclient 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -15,7 +15,7 @@ dependencies = [
  "orbimage 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbtk 0.2.20 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_event 0.1.0 (git+https://github.com/redox-os/event.git)",
- "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "tendril 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)",
@@ -136,7 +136,7 @@ dependencies = [
 
 [[package]]
 name = "deflate"
-version = "0.7.14"
+version = "0.7.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "adler32 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -365,7 +365,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "libc"
-version = "0.2.28"
+version = "0.2.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -492,7 +492,7 @@ name = "num_cpus"
 version = "1.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -505,7 +505,7 @@ name = "orbclient"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2 0.29.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -584,7 +584,7 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "deflate 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "deflate 0.7.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "inflate 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-iter 0.1.34 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -599,7 +599,7 @@ name = "rand"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "magenta 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -627,7 +627,7 @@ dependencies = [
  "coco 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -637,20 +637,20 @@ name = "redox_event"
 version = "0.1.0"
 source = "git+https://github.com/redox-os/event.git#42d552e4765efbfb4ec39ce174900d3f48548a70"
 dependencies = [
- "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "redox_syscall"
-version = "0.1.28"
+version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "redox_termios"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -665,7 +665,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "gcc 0.3.51 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "untrusted 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -720,7 +720,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "num 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "sdl2-sys 0.27.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -731,7 +731,7 @@ name = "sdl2-sys"
 version = "0.27.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -802,11 +802,21 @@ dependencies = [
 [[package]]
 name = "termion"
 version = "1.5.0"
+source = "git+https://github.com/redox-os/termion.git?branch=redox_termios#cd455e835842831125df0ca23507384f5ae06c8b"
+dependencies = [
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "termion"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -815,8 +825,8 @@ version = "0.1.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -887,16 +897,16 @@ dependencies = [
 [[package]]
 name = "userutils"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/userutils.git#c05f37f653ae6740b526c0b162f9af426216db59"
+source = "git+https://github.com/redox-os/userutils.git#f6fd552f45cb684f498720296e39a636b6c66b1e"
 dependencies = [
  "arg_parser 0.1.0 (git+https://github.com/redox-os/arg-parser.git)",
  "argon2rs 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "extra 0.1.0 (git+https://github.com/redox-os/libextra.git)",
  "liner 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "termion 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "termion 1.5.0 (git+https://github.com/redox-os/termion.git?branch=redox_termios)",
 ]
 
 [[package]]
@@ -964,7 +974,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum conv 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "78ff10625fd0ac447827aa30ea8b861fead473bb60aeb73af6c1c58caf0d1299"
 "checksum custom_derive 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "ef8ae57c4978a2acd8b869ce6b9ca1dfe817bff704c220209fdef2c0b75a01b9"
 "checksum debug_unreachable 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "9a032eac705ca39214d169f83e3d3da290af06d8d1d344d1baad2fd002dca4b3"
-"checksum deflate 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "e34344f1728e41039d49e87f428bbcb62b6bb82edfc2588253a8aa32a139a3a9"
+"checksum deflate 0.7.15 (registry+https://github.com/rust-lang/crates.io-index)" = "dd5853b87cd72596b2702f9cb8a4502de33334e85b4d7f4cc594d7b12fa60427"
 "checksum either 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "18785c1ba806c258137c937e44ada9ee7e69a37e3c72077542cd2f069d78562a"
 "checksum encoding 0.2.33 (registry+https://github.com/rust-lang/crates.io-index)" = "6b0d943856b990d12d3b55b359144ff341533e516d94098b1d3fc1ac666d36ec"
 "checksum encoding-index-japanese 1.20141219.5 (registry+https://github.com/rust-lang/crates.io-index)" = "04e8b2ff42e9a05335dbf8b5c6f7567e5591d0d916ccef4e0b1710d32a0d0c91"
@@ -991,7 +1001,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "3b37545ab726dd833ec6420aaba8231c5b320814b9029ad585555d2a03e94fbf"
-"checksum libc 0.2.28 (registry+https://github.com/rust-lang/crates.io-index)" = "bb7b49972ee23d8aa1026c365a5b440ba08e35075f18c459980c7395c221ec48"
+"checksum libc 0.2.29 (registry+https://github.com/rust-lang/crates.io-index)" = "8a014d9226c2cc402676fbe9ea2e15dd5222cd1dd57f576b5b283178c944a264"
 "checksum liner 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f9e406164c25b420480023985bdf65cef366855666ad4cb12cd3eaee82dcb399"
 "checksum linked-hash-map 0.0.10 (registry+https://github.com/rust-lang/crates.io-index)" = "f26e961e0c884309cd527b1402a5409d35db612b36915d755e1a4f5c1547a31c"
 "checksum log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "880f77541efa6e5cc74e76910c9884d9859683118839d6a1dc3b11e63512565b"
@@ -1026,8 +1036,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b614fe08b6665cb9a231d07ac1364b0ef3cb3698f1239ee0c4c3a88a524f54c8"
 "checksum rayon-core 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7febc28567082c345f10cddc3612c6ea020fc3297a1977d472cf9fdb73e6e493"
 "checksum redox_event 0.1.0 (git+https://github.com/redox-os/event.git)" = "<none>"
-"checksum redox_syscall 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)" = "ddab7acd8e7bf3e49dfdf78ac1209b992329eb2f66e0bf672ab49c70a76d1d68"
-"checksum redox_termios 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bc495930de8d330f14856cface52561b7d79a072c76e438cf8f34d7233a35fa7"
+"checksum redox_syscall 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)" = "3c9309631a35303bffb47e397198e3668cb544fe8834cd3da2a744441e70e524"
+"checksum redox_termios 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "7e891cfe48e9100a70a3b6eb652fef28920c117d366339687bd5576160db0f76"
 "checksum resize 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3e8f5c5cf4d79776ed121e1c5052718b4bb06d2b48049144a2f0e5ad613b608e"
 "checksum ring 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1f2a6dc7fc06a05e6de183c5b97058582e9da2de0c136eafe49609769c507724"
 "checksum rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)" = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
@@ -1046,6 +1056,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum string_cache_shared 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b1884d1bc09741d466d9b14e6d37ac89d6909cbcac41dd9ae982d4d063bbedfc"
 "checksum syn 0.10.8 (registry+https://github.com/rust-lang/crates.io-index)" = "58fd09df59565db3399efbba34ba8a2fec1307511ebd245d0061ff9d42691673"
 "checksum tendril 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "4ce04c250d202db8004921e3d3bc95eaa4f2126c6937a428ae39d12d0e38df62"
+"checksum termion 1.5.0 (git+https://github.com/redox-os/termion.git?branch=redox_termios)" = "<none>"
 "checksum termion 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8affd752d0f2c7127d6d5f1b98182a5471606b48b1a955165d39eb5e4887ceba"
 "checksum time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)" = "d5d788d3aa77bc0ef3e9621256885555368b47bd495c13dd2e7413c89f845520"
 "checksum traitobject 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "efd1f82c56340fdf16f2a953d7bda4f8fdffba13d93b00844c25572110b26079"
