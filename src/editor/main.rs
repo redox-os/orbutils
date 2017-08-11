@@ -5,13 +5,14 @@ extern crate orbtk;
 
 use orbclient::WindowFlag;
 use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
-use orbtk::traits::{Click, Place, Resize, Text};
+use orbtk::traits::{Click, Enter, Place, Resize, Text};
 
 use std::{cmp, env};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::ops::DerefMut;
+use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Editor {
@@ -56,7 +57,7 @@ impl Editor {
         // } DESIGN
 
         // CODE {
-        let editor_cell = Arc::new(RefCell::new(Editor {
+        let editor_cell = Rc::new(RefCell::new(Editor {
             path_option: path_option,
             text_box: text_box.clone(),
             window: window.deref_mut() as *mut Window,
@@ -139,6 +140,9 @@ impl Editor {
     }
 
     fn path_dialog<F: Fn(&str) + 'static>(&mut self, title: &str, func: F) -> Box<Window> {
+        let func_rc = Rc::new(func);
+
+        // DESIGN {
         let (p_x, p_y, p_w, p_h) = {
             let window = unsafe { &mut *self.window };
             (window.x(), window.y(), window.width(), window.height())
@@ -148,6 +152,7 @@ impl Editor {
         let h = 8 + 28 + 8 + 28 + 8;
         let x = p_x + (p_w as i32 - w as i32)/2;
         let y = p_y + (p_h as i32 - h as i32)/2;
+
         let mut window = Box::new(Window::new(Rect::new(x, y, w, h), title));
 
         let text_box = TextBox::new();
@@ -157,37 +162,53 @@ impl Editor {
             .grab_focus(true);
         window.add(&text_box);
 
+        let cancel_button = Button::new();
+        cancel_button.position(8, 8 + 28 + 8)
+            .size((w - 16)/2 - 4, 28)
+            .text_offset(6, 6)
+            .text("Cancel");
+        window.add(&cancel_button);
+
+        let confirm_button = Button::new();
+        confirm_button.position((w as i32)/2 + 4, 8 + 28 + 8)
+            .size((w - 16)/2 - 4, 28)
+            .text_offset(6, 6)
+            .text(title);
+        window.add(&confirm_button);
+        // } DESIGN
+
+        // CODE {
         if let Some(ref path) = self.path_option {
             text_box.text.set(path.clone());
         }
 
         {
-            let window_cancel = window.deref_mut() as *mut Window;
-            let button = Button::new();
-            button.position(8, 8 + 28 + 8)
-                .size((w - 16)/2 - 4, 28)
-                .text_offset(6, 6)
-                .text("Cancel")
-                .on_click(move |_button: &Button, _point: Point| {
-                    unsafe { (&mut *window_cancel).close(); }
-                });
-            window.add(&button);
+            let func_rc = func_rc.clone();
+            let window_ptr = window.deref_mut() as *mut Window;
+            text_box.on_enter(move |text_box: &TextBox| {
+                let path = text_box.text.get();
+                func_rc(&path);
+                unsafe { (&mut *window_ptr).close(); }
+            });
         }
 
         {
-            let window_save_as = window.deref_mut() as *mut Window;
-            let button = Button::new();
-            button.position((w as i32)/2 + 4, 8 + 28 + 8)
-                .size((w - 16)/2 - 4, 28)
-                .text_offset(6, 6)
-                .text(title)
-                .on_click(move |_button: &Button, _point: Point| {
-                    let path = text_box.text.get();
-                    func(&path);
-                    unsafe { (&mut *window_save_as).close(); }
-                });
-            window.add(&button);
+            let window_ptr = window.deref_mut() as *mut Window;
+            cancel_button.on_click(move |_button: &Button, _point: Point| {
+                unsafe { (&mut *window_ptr).close(); }
+            });
         }
+
+        {
+            let func_rc = func_rc.clone();
+            let window_ptr = window.deref_mut() as *mut Window;
+            confirm_button.on_click(move |_button: &Button, _point: Point| {
+                let path = text_box.text.get();
+                func_rc(&path);
+                unsafe { (&mut *window_ptr).close(); }
+            });
+        }
+        // } CODE
 
         window
     }
