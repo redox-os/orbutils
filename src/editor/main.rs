@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 
 extern crate orbclient;
 extern crate orbtk;
@@ -8,62 +8,164 @@ use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
 use orbtk::traits::{Click, Place, Resize, Text};
 
 use std::{cmp, env};
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
+use std::ops::DerefMut;
+use std::sync::Arc;
 
-fn main(){
-    let path_option = env::args().nth(1);
+pub struct Editor {
+    path_option: Option<String>,
+    text_box: Arc<TextBox>,
+    window: *mut Window,
+}
 
-    let title = if let Some(ref path) = path_option {
-        format!("{} - Editor", path)
-    } else {
-        format!("Editor")
-    };
+impl Editor {
+    pub fn new(path_option: Option<String>, width: u32, height: u32) -> Box<Window> {
+        // DESIGN {
+        let mut window =  Box::new(Window::new_flags(Rect::new(-1, -1, width, height), "Editor", &[WindowFlag::Resizable]));
 
-    let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
-    let (width, height) = (cmp::min(1024, display_width * 4/5), cmp::min(768, display_height * 4/5));
+        let text_box = TextBox::new();
+        text_box.position(0, 16)
+            .size(width, height - 16);
+        window.add(&text_box);
 
-    let mut window = Window::new_flags(Rect::new(-1, -1, width, height), &title, &[WindowFlag::Resizable]);
+        let menu = Menu::new("File");
+        menu.position(0, 0).size(32, 16);
 
-    let text_box = TextBox::new();
-    text_box.position(0, 16)
-        .size(width, height - 16);
-    window.add(&text_box);
+        let open_action = Action::new("Open");
+        menu.add(&open_action);
 
-    if let Some(ref path) = path_option {
-        match File::open(path) {
-            Ok(mut file) => {
-                let mut text = String::new();
-                match file.read_to_string(&mut text) {
-                    Ok(_) => text_box.text.set(text),
-                    Err(err) => println!("Failed to read {}: {}", path, err)
-                }
-            },
-            Err(err) => println!("Failed to open {}: {}", path, err)
-        }
-    }
+        let reload_action = Action::new("Reload");
+        menu.add(&reload_action);
 
-    let menu = Menu::new("File");
-    menu.position(0, 0).size(32, 16);
+        menu.add(&Separator::new());
 
-    let open_action = Action::new("Open");
-    let open_text_box = text_box.clone();
-    open_action.on_click(move |_action: &Action, _point: Point| {
-        println!("Open");
-        let mut window = Window::new(Rect::new(-1, -1, 320, 8 + 28 + 8 + 28 + 8), "Open");
+        let save_action = Action::new("Save");
+        menu.add(&save_action);
 
-        let path_box = TextBox::new();
-        path_box.position(8, 8)
-            .size(320 - 16, 28)
-            .text_offset(6, 6)
-            .grab_focus(true);
-        window.add(&path_box);
+        let save_as_action = Action::new("Save As");
+        menu.add(&save_as_action);
+
+        menu.add(&Separator::new());
+
+        let close_action = Action::new("Close");
+        menu.add(&close_action);
+
+        window.add(&menu);
+        // } DESIGN
+
+        // CODE {
+        let editor_cell = Arc::new(RefCell::new(Editor {
+            path_option: path_option,
+            text_box: text_box.clone(),
+            window: window.deref_mut() as *mut Window,
+        }));
 
         {
-            let window_cancel = &mut window as *mut Window;
+            let mut editor = editor_cell.borrow_mut();
+            if editor.path_option.is_some() {
+                editor.load();
+            }
+        }
+
+        {
+            let editor_cell = editor_cell.clone();
+            open_action.on_click(move |_action: &Action, _point: Point| {
+                println!("Open");
+
+                let mut window = {
+                    let editor_dialog = editor_cell.clone();
+                    editor_cell.borrow_mut().path_dialog("Open", move |path| {
+                        println!("Open {}", path);
+                        editor_dialog.borrow_mut().open(&path);
+                    })
+                };
+
+                window.exec();
+            });
+        }
+
+        {
+            let editor_cell = editor_cell.clone();
+            reload_action.on_click(move |_action: &Action, _point: Point| {
+                println!("Reload");
+                editor_cell.borrow_mut().load();
+            });
+        }
+
+        {
+            let editor_cell = editor_cell.clone();
+            save_action.on_click(move |_action: &Action, _point: Point| {
+                println!("Save");
+                editor_cell.borrow_mut().save();
+            });
+        }
+
+        {
+            let editor_cell = editor_cell.clone();
+            save_as_action.on_click(move |_action: &Action, _point: Point| {
+                println!("Save As");
+
+                let mut window = {
+                    let editor_dialog = editor_cell.clone();
+                    editor_cell.borrow_mut().path_dialog("Save As", move |path| {
+                        println!("Save As {}", path);
+                        editor_dialog.borrow_mut().save_as(&path);
+                    })
+                };
+
+                window.exec();
+            });
+        }
+
+        {
+            let editor_cell = editor_cell.clone();
+            close_action.on_click(move |_action: &Action, _point: Point| {
+                println!("Close");
+                editor_cell.borrow_mut().close();
+            });
+        }
+
+        {
+            let editor_cell = editor_cell.clone();
+            window.on_resize(move |_, width, height| {
+                editor_cell.borrow().text_box.size(width, height - 16);
+            });
+        }
+        // } CODE
+
+        window
+    }
+
+    fn path_dialog<F: Fn(&str) + 'static>(&mut self, title: &str, func: F) -> Box<Window> {
+        let (p_x, p_y, p_w, p_h) = {
+            let window = unsafe { &mut *self.window };
+            (window.x(), window.y(), window.width(), window.height())
+        };
+
+        let w = 320;
+        let h = 8 + 28 + 8 + 28 + 8;
+        let x = p_x + (p_w as i32 - w as i32)/2;
+        let y = p_y + (p_h as i32 - h as i32)/2;
+        let mut window = Box::new(Window::new(Rect::new(x, y, w, h), title));
+
+        let text_box = TextBox::new();
+        text_box.position(8, 8)
+            .size(w - 16, 28)
+            .text_offset(6, 6)
+            .grab_focus(true);
+        window.add(&text_box);
+
+        if let Some(ref path) = self.path_option {
+            text_box.text.set(path.clone());
+        }
+
+        {
+            let window_cancel = window.deref_mut() as *mut Window;
             let button = Button::new();
             button.position(8, 8 + 28 + 8)
-                .size((320 - 16)/2 - 4, 28)
+                .size((w - 16)/2 - 4, 28)
                 .text_offset(6, 6)
                 .text("Cancel")
                 .on_click(move |_button: &Button, _point: Point| {
@@ -73,46 +175,53 @@ fn main(){
         }
 
         {
-            let open_text_box = open_text_box.clone();
-            let window_save_as = &mut window as *mut Window;
+            let window_save_as = window.deref_mut() as *mut Window;
             let button = Button::new();
-            button.position(320/2 + 4, 8 + 28 + 8)
-                .size((320 - 16)/2 - 4, 28)
+            button.position((w as i32)/2 + 4, 8 + 28 + 8)
+                .size((w - 16)/2 - 4, 28)
                 .text_offset(6, 6)
-                .text("Open")
+                .text(title)
                 .on_click(move |_button: &Button, _point: Point| {
-                    match File::open(path_box.text.get()) {
-                        Ok(mut f) => {
-                            let mut contents = String::new();
-                            f.read_to_string(&mut contents).expect("Cannot read file");
-                            open_text_box.text.set(contents);
-                        },
-                        Err(e) => {
-                            println!("File does not exist: {}", e);
-                        }
-                    }
+                    let path = text_box.text.get();
+                    func(&path);
                     unsafe { (&mut *window_save_as).close(); }
                 });
             window.add(&button);
         }
 
-        window.exec();
+        window
+    }
 
-    });
-    menu.add(&open_action);
+    fn load(&mut self) {
+        if let Some(ref path) = self.path_option {
+            println!("Load {}", path);
+            match File::open(path) {
+                Ok(mut f) => {
+                    let mut contents = String::new();
+                    match f.read_to_string(&mut contents) {
+                        Ok(_) => {
+                            self.text_box.text.set(contents);
+                        },
+                        Err(e) => {
+                            println!("Failed to read {}: {}", path, e);
+                        }
+                    }
+                },
+                Err(e) => {
+                    println!("Failed to open {}: {}", path, e);
+                }
+            }
+        } else {
+            println!("Path not set");
+        }
+    }
 
-    menu.add(&Separator::new());
-
-    let save_action = Action::new("Save");
-    let save_path_option = path_option.clone();
-    let save_text_box = text_box.clone();
-    save_action.on_click(move |_action: &Action, _point: Point| {
-        println!("Save");
-        if let Some(ref path) = save_path_option {
-            println!("Create {}", path);
+    fn save(&mut self) {
+        if let Some(ref path) = self.path_option {
+            println!("Save {}", path);
             match File::create(path) {
                 Ok(mut file) => {
-                    let text = save_text_box.text.borrow();
+                    let text = self.text_box.text.borrow();
                     match file.write(&text.as_bytes()) {
                         Ok(_) => match file.set_len(text.len() as u64) {
                             Ok(_) => println!("Successfully saved {}", path),
@@ -124,74 +233,37 @@ fn main(){
                 Err(err) => println!("Failed to open {}: {}", path, err)
             }
         } else {
-            println!("Need to create file!");
+            println!("Path not set");
         }
-    });
-    menu.add(&save_action);
+    }
 
-    let save_as_action = Action::new("Save As");
-    let save_as_path_option = path_option.clone();
-    save_as_action.on_click(move |_action: &Action, _point: Point| {
-        println!("Save As");
-        let mut window = Window::new(Rect::new(-1, -1, 320, 8 + 28 + 8 + 28 + 8), "Save As");
+    fn set_path(&mut self, path: &str) {
+        self.path_option = Some(path.to_string());
+        let window = unsafe { &mut *self.window };
+        window.set_title(&format!("{} - Editor", path));
+    }
 
-        let text_box = TextBox::new();
-        text_box.position(8, 8)
-            .size(320 - 16, 28)
-            .text_offset(6, 6)
-            .grab_focus(true);
-        window.add(&text_box);
+    fn open(&mut self, path: &str) {
+        self.set_path(path);
+        self.load();
+    }
 
-        if let Some(ref path) = save_as_path_option {
-            text_box.text.set(path.clone());
-        }
+    fn save_as(&mut self, path: &str) {
+        self.set_path(path);
+        self.save();
+    }
 
-        {
-            let window_cancel = &mut window as *mut Window;
-            let button = Button::new();
-            button.position(8, 8 + 28 + 8)
-                .size((320 - 16)/2 - 4, 28)
-                .text_offset(6, 6)
-                .text("Cancel")
-                .on_click(move |_button: &Button, _point: Point| {
-                    unsafe { (&mut *window_cancel).close(); }
-                });
-            window.add(&button);
-        }
+    fn close(&mut self) {
+        let window = unsafe { &mut *self.window };
+        window.close();
+    }
+}
 
-        {
-            let window_save_as = &mut window as *mut Window;
-            let button = Button::new();
-            button.position(320/2 + 4, 8 + 28 + 8)
-                .size((320 - 16)/2 - 4, 28)
-                .text_offset(6, 6)
-                .text("Save As")
-                .on_click(move |_button: &Button, _point: Point| {
-                    println!("Save {}", text_box.text.get());
-                    unsafe { (&mut *window_save_as).close(); }
-                });
-            window.add(&button);
-        }
+fn main(){
+    let path_option = env::args().nth(1);
 
-        window.exec();
-    });
-    menu.add(&save_as_action);
+    let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+    let (width, height) = (cmp::min(1024, display_width * 4/5), cmp::min(768, display_height * 4/5));
 
-    menu.add(&Separator::new());
-
-    let close_action = Action::new("Close");
-    let window_close = &mut window as *mut Window;
-    close_action.on_click(move |_action: &Action, _point: Point| {
-        println!("Close");
-        unsafe { (&mut *window_close).close(); }
-    });
-    menu.add(&close_action);
-
-    window.add(&menu);
-
-    window.on_resize(move |_, width, height| {
-        text_box.size(width, height - 16);
-    });
-
-    window.exec();
+    Editor::new(path_option, width, height).exec();
 }
