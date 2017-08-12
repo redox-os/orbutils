@@ -442,7 +442,7 @@ fn bar_main() {
 
     event_queue.run().expect("launcher: failed to run event loop");
 
-    for mut child in bar.borrow_mut().children.iter_mut() {
+    for child in bar.borrow_mut().children.iter_mut() {
         let pid = child.id();
         match child.kill() {
             Ok(()) => (),
