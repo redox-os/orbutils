@@ -199,7 +199,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 window.rect(x + 2, y + 2, 196, 24, Color::rgb(40, 40, 40));
                 let mut string = username.to_string();
                 if item == 0 {
-                    string.push('▌');
+                    string.push('|');
                 }
                 font.render(&string, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
             }
@@ -214,7 +214,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                     string.push('•');
                 }
                 if item == 1 {
-                    string.push('▌');
+                    string.push('|');
                 }
                 font.render(&string, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
             }
