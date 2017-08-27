@@ -142,6 +142,9 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
     let mut failure = false;
 
     let mut scaled_image = image.clone();
+    let mut mouse_x = 0;
+    let mut mouse_y = 0;
+    let mut mouse_left = false;
     let mut redraw = true;
     let mut resize = Some((display_width, display_height));
     loop {
@@ -163,8 +166,11 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
             scaled_image.draw(&mut window, x, y);
 
             let x = (window.width() as i32 - 216)/2;
-            let y = (window.height() as i32 - 80)/2;
-            window.rect(x, y, 216, 80, Color::rgba(0, 0, 0, 128));
+            let y = (window.height() as i32 - 164)/2;
+            window.rect(x, y, 216, 164, Color::rgba(0, 0, 0, 128));
+
+            font.render("Username:", 16.0).draw(&mut window, x + 8, y + 8, Color::rgb(255, 255, 255));
+            font.render("Password:", 16.0).draw(&mut window, x + 8, y + 68, Color::rgb(255, 255, 255));
 
             redraw = true;
         }
@@ -180,25 +186,47 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
             let inactive = if failure {
                 Color::rgb(128, 0, 0)
             } else {
-                Color::rgb(128, 128, 128)
+                Color::rgb(29, 29, 29)
             };
 
             let x = (window.width() as i32 - 200)/2;
-            let mut y = (window.height() as i32 - 64)/2;
+            let mut y = (window.height() as i32 - 148)/2;
 
-            window.rect(x, y, 200, 28, if item == 0 { active } else { inactive });
-            window.rect(x + 2, y + 2, 196, 24, Color::rgb(128, 128, 128));
-            font.render(&username, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
+            y += 24;
+
+            {
+                window.rect(x, y, 200, 28, if item == 0 { active } else { inactive });
+                window.rect(x + 2, y + 2, 196, 24, Color::rgb(40, 40, 40));
+                let mut string = username.to_string();
+                if item == 0 {
+                    string.push('▌');
+                }
+                font.render(&string, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
+            }
+
+            y += 60;
+
+            {
+                window.rect(x, y, 200, 28, if item == 1 { active } else { inactive });
+                window.rect(x + 2, y + 2, 196, 24, Color::rgb(40, 40, 40));
+                let mut string = String::new();
+                for _c in password.chars() {
+                    string.push('•');
+                }
+                if item == 1 {
+                    string.push('▌');
+                }
+                font.render(&string, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
+            }
 
             y += 36;
 
-            window.rect(x, y, 200, 28, if item == 1 { active } else { inactive });
-            window.rect(x + 2, y + 2, 196, 24, Color::rgb(128, 128, 128));
-            let mut mask = String::new();
-            for _c in password.chars() {
-                mask.push('•');
+            {
+                window.rect(x, y, 200, 28, Color::rgb(29, 29, 29));
+                window.rect(x + 2, y + 2, 196, 24, Color::rgb(39, 72, 105));
+                let text = font.render(&"Login", 16.0);
+                text.draw(&mut window, x + (200 - text.width() as i32)/2, y + 6, Color::rgb(255, 255, 255));
             }
-            font.render(&mask, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
 
             window.sync();
         }
@@ -223,7 +251,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                                 if let Some(command) = login_command(&username, &password, launcher_cmd, launcher_args) {
                                     return Some(command);
                                 } else {
-                                    item = 1;
+                                    item = 0;
                                     password.clear();
                                     failure = true
                                 }
@@ -262,6 +290,35 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                         }
                     }
                 },
+                EventOption::Mouse(mouse_event) => {
+                    mouse_x = mouse_event.x;
+                    mouse_y = mouse_event.y;
+                },
+                EventOption::Button(button_event) => {
+                    if ! button_event.left && mouse_left {
+                        let x = (window.width() as i32 - 216)/2;
+                        let y = (window.height() as i32 - 164)/2;
+
+                        if mouse_x >= x && mouse_x < x + 216 && mouse_y >= y && mouse_y < y + 164 {
+                            if mouse_y < y + 64 {
+                                item = 0;
+                            } else if mouse_y < y + 128 {
+                                item = 1;
+                            } else {
+                                if let Some(command) = login_command(&username, &password, launcher_cmd, launcher_args) {
+                                    return Some(command);
+                                } else {
+                                    item = 0;
+                                    password.clear();
+                                    failure = true
+                                }
+                            }
+
+                            redraw = true;
+                        }
+                    }
+                    mouse_left = button_event.left;
+                },
                 EventOption::Resize(resize_event) => {
                     resize = Some((resize_event.width, resize_event.height));
                 },
@@ -294,7 +351,8 @@ fn main() {
         }
     };
 
-    loop {
+    //loop
+    {
         if let Some(mut command) = login_window(&launcher_cmd, &launcher_args, &font, &image, image_mode) {
             match command.spawn() {
                 Ok(mut child) => match child.wait() {
