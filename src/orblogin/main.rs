@@ -351,8 +351,7 @@ fn main() {
         }
     };
 
-    //loop
-    {
+    loop {
         if let Some(mut command) = login_window(&launcher_cmd, &launcher_args, &font, &image, image_mode) {
             match command.spawn() {
                 Ok(mut child) => match child.wait() {
