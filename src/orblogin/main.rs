@@ -4,7 +4,6 @@
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
-extern crate orbtk;
 extern crate userutils;
 
 use std::{env, str};

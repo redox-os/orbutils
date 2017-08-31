@@ -1,8 +1,6 @@
 #![deny(warnings)]
 
-extern crate html5ever_atoms;
 extern crate html5ever;
-//extern crate mime_guess;
 extern crate orbclient;
 extern crate orbfont;
 extern crate orbimage;
