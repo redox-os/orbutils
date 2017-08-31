@@ -5,6 +5,7 @@ extern crate orbtk;
 
 use orbclient::WindowFlag;
 use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
+use orbtk::dialogs::FileDialog;
 use orbtk::traits::{Click, Enter, Place, Resize, Text};
 
 use std::{cmp, env};
@@ -12,17 +13,18 @@ use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::ops::DerefMut;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub struct Editor {
-    path_option: Option<String>,
+    path_option: Option<PathBuf>,
     text_box: Arc<TextBox>,
     window: *mut Window,
 }
 
 impl Editor {
-    pub fn new(path_option: Option<String>, width: u32, height: u32) -> Box<Window> {
+    pub fn new(path_option: Option<PathBuf>, width: u32, height: u32) -> Box<Window> {
         // DESIGN {
         let mut window =  Box::new(Window::new_flags(Rect::new(-1, -1, width, height), "Editor", &[WindowFlag::Resizable]));
 
@@ -75,15 +77,20 @@ impl Editor {
             open_action.on_click(move |_action: &Action, _point: Point| {
                 println!("Open");
 
-                let mut window = {
-                    let editor_dialog = editor_cell.clone();
-                    editor_cell.borrow_mut().path_dialog("Open", move |path| {
-                        println!("Open {}", path);
-                        editor_dialog.borrow_mut().open(&path);
-                    })
-                };
+                let mut dialog = FileDialog::new();
+                dialog.title = "Open File".to_string();
+                if let Some(ref path) = editor_cell.borrow().path_option {
+                    if let Ok(canon) = path.canonicalize() {
+                        if let Some(parent) = canon.parent() {
+                            dialog.path = parent.to_owned();
+                        }
+                    }
+                }
 
-                window.exec();
+                if let Some(path) = dialog.exec() {
+                    println!("Open {}", path.display());
+                    editor_cell.borrow_mut().open(&path);
+                }
             });
         }
 
@@ -179,7 +186,9 @@ impl Editor {
 
         // CODE {
         if let Some(ref path) = self.path_option {
-            text_box.text.set(path.clone());
+            if let Some(path_str) = path.to_str() {
+                text_box.text.set(path_str.to_string());
+            }
         }
 
         {
@@ -215,7 +224,7 @@ impl Editor {
 
     fn load(&mut self) {
         if let Some(ref path) = self.path_option {
-            println!("Load {}", path);
+            println!("Load {}", path.display());
             match File::open(path) {
                 Ok(mut f) => {
                     let mut contents = String::new();
@@ -224,12 +233,12 @@ impl Editor {
                             self.text_box.text.set(contents);
                         },
                         Err(e) => {
-                            println!("Failed to read {}: {}", path, e);
+                            println!("Failed to read {}: {}", path.display(), e);
                         }
                     }
                 },
                 Err(e) => {
-                    println!("Failed to open {}: {}", path, e);
+                    println!("Failed to open {}: {}", path.display(), e);
                 }
             }
         } else {
@@ -239,37 +248,37 @@ impl Editor {
 
     fn save(&mut self) {
         if let Some(ref path) = self.path_option {
-            println!("Save {}", path);
+            println!("Save {}", path.display());
             match File::create(path) {
                 Ok(mut file) => {
                     let text = self.text_box.text.borrow();
                     match file.write(&text.as_bytes()) {
                         Ok(_) => match file.set_len(text.len() as u64) {
-                            Ok(_) => println!("Successfully saved {}", path),
-                            Err(err) => println!("Failed to truncate {}: {}", path, err)
+                            Ok(_) => println!("Successfully saved {}", path.display()),
+                            Err(err) => println!("Failed to truncate {}: {}", path.display(), err)
                         },
-                        Err(err) => println!("Failed to write {}: {}", path, err)
+                        Err(err) => println!("Failed to write {}: {}", path.display(), err)
                     }
                 },
-                Err(err) => println!("Failed to open {}: {}", path, err)
+                Err(err) => println!("Failed to open {}: {}", path.display(), err)
             }
         } else {
             println!("Path not set");
         }
     }
 
-    fn set_path(&mut self, path: &str) {
-        self.path_option = Some(path.to_string());
+    fn set_path<P: AsRef<Path>>(&mut self, path: P) {
+        self.path_option = Some(path.as_ref().to_owned());
         let window = unsafe { &mut *self.window };
-        window.set_title(&format!("{} - Editor", path));
+        window.set_title(&format!("{} - Editor", path.as_ref().display()));
     }
 
-    fn open(&mut self, path: &str) {
+    fn open<P: AsRef<Path>>(&mut self, path: P) {
         self.set_path(path);
         self.load();
     }
 
-    fn save_as(&mut self, path: &str) {
+    fn save_as<P: AsRef<Path>>(&mut self, path: P) {
         self.set_path(path);
         self.save();
     }
@@ -281,7 +290,7 @@ impl Editor {
 }
 
 fn main(){
-    let path_option = env::args().nth(1);
+    let path_option = env::args().nth(1).map(PathBuf::from);
 
     let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
     let (width, height) = (cmp::min(1024, display_width * 4/5), cmp::min(768, display_height * 4/5));
