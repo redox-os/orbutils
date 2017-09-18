@@ -34,7 +34,7 @@ impl Editor {
         window.add(&text_box);
 
         let menu = Menu::new("File");
-        menu.position(0, 0).size(32, 16);
+        menu.position(4, 0).size(32, 16);
 
         let open_action = Action::new("Open");
         menu.add(&open_action);
