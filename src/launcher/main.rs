@@ -345,7 +345,7 @@ fn bar_main() {
 
                     if i == bar.selected {
                         let start_h = bar.start_packages.len() as u32 * ICON_SMALL_SIZE as u32;
-                        let mut start_window = Window::new(0, bar.height as i32 - ICON_SIZE - start_h as i32, 320, start_h, "").unwrap();
+                        let mut start_window = Window::new(0, bar.height as i32 - ICON_SIZE - start_h as i32, 200, start_h, "").unwrap();
 
                         let mut selected = -1;
                         let mut mouse_y = 0;
@@ -480,7 +480,7 @@ fn chooser_main(paths: env::Args) {
         });
 
         if packages.len() > 1 {
-            let mut window = Window::new(-1, -1, 320, packages.len() as u32 * ICON_SMALL_SIZE as u32, path).expect("launcher: failed to open window");
+            let mut window = Window::new(-1, -1, 200, packages.len() as u32 * ICON_SMALL_SIZE as u32, path).expect("launcher: failed to open window");
             let font = Font::find(Some("Sans"), None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
