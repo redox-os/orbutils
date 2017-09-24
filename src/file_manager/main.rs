@@ -1,4 +1,4 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 #![feature(inclusive_range_syntax)]
 
 extern crate orbclient;
@@ -9,6 +9,7 @@ extern crate mime;
 
 use std::{cmp, env, fs};
 use std::collections::BTreeMap;
+use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::string::{String, ToString};
@@ -21,7 +22,7 @@ use mime::TopLevel as MimeTop;
 use orbclient::{Color, Renderer, WindowFlag};
 use orbimage::Image;
 
-use orbtk::{Window, Point, Rect, List, Entry, Label, Place, Resize, Text, Click};
+use orbtk::{Window, Point, Rect, Button, List, Entry, Label, Place, Resize, Text, TextBox, Click};
 
 const ICON_SIZE: i32 = 32;
 
@@ -39,19 +40,19 @@ static LAUNCH_COMMAND: &'static str = "xdg-open";
 
 struct FileInfo {
     name: String,
-    full_path: String,
+    path: PathBuf,
     size: u64,
     size_str: String,
     is_dir: bool,
 }
 
 impl FileInfo {
-    fn new(name: String, full_path: String, is_dir: bool) -> FileInfo {
+    fn new<P: AsRef<Path>>(name: String, path: P, is_dir: bool) -> FileInfo {
         let (size, size_str) = {
             if is_dir {
-                FileManager::get_num_entries(&full_path)
+                FileManager::get_num_entries(path.as_ref())
             } else {
-                match fs::metadata(&full_path) {
+                match fs::metadata(path.as_ref()) {
                     Ok(metadata) => {
                         let size = metadata.len();
                         if size >= 1_000_000_000 {
@@ -70,7 +71,7 @@ impl FileInfo {
         };
         FileInfo {
             name: name,
-            full_path: full_path,
+            path: path.as_ref().to_owned(),
             size: size,
             size_str: size_str,
             is_dir: is_dir,
@@ -182,8 +183,10 @@ impl FileTypesInfo {
 }
 
 enum FileManagerCommand {
-    ChangeDir(String),
-    Execute(String),
+    ChangeDir(PathBuf),
+    Execute(PathBuf),
+    CreateFile(String),
+    CreateFolder(String),
     ChangeSort(usize),
     Resize(u32, u32),
 }
@@ -219,6 +222,7 @@ struct Column {
 }
 
 pub struct FileManager {
+    path: PathBuf,
     file_types_info: FileTypesInfo,
     files: Vec<FileInfo>,
     columns: [Column; 3],
@@ -248,7 +252,7 @@ fn load_icon(path: &Path) -> Image {
 }
 
 impl FileManager {
-    pub fn new() -> Self {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
         let (tx, rx) = channel();
 
         let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
@@ -266,6 +270,10 @@ impl FileManager {
         });
 
         FileManager {
+            path: match fs::canonicalize(path.as_ref()) {
+                Ok(p) => p,
+                _ => PathBuf::from("/"),
+            },
             file_types_info: FileTypesInfo::new(),
             files: Vec::new(),
             columns: [
@@ -300,28 +308,8 @@ impl FileManager {
         }
     }
 
-    fn get_parent_directory(path: &str) -> Option<String> {
-        match fs::canonicalize(path.to_owned() + "../") {
-            Ok(parent) => {
-                let mut parent = parent.into_os_string().into_string().unwrap_or("/".to_string());
-                if ! parent.ends_with('/') {
-                    parent.push('/');
-                }
-
-                if parent == path {
-                    return None
-                } else {
-                    return Some(parent);
-                }
-            },
-            Err(err) => println!("failed to get path: {}", err)
-        }
-
-        None
-    }
-
-    fn get_num_entries(path: &str) -> (u64, String) {
-        let count = match fs::read_dir(path) {
+    fn get_num_entries<P: AsRef<Path>>(path: P) -> (u64, String) {
+        let count = match fs::read_dir(path.as_ref()) {
             Ok(entry_readdir) => entry_readdir.count(),
             Err(_) => 0,
         };
@@ -377,11 +365,104 @@ impl FileManager {
     }
 
     fn update_headers(&mut self) {
+        if let None = self.column_labels.get(0) {
+            let label = Label::new();
+            self.window.add(&label);
+            label.bg.set(Color::rgba(255, 255, 255, 0));
+            label.text_offset.set(Point::new(0, 8));
+
+            let tx = self.tx.clone();
+            let self_ptr = self as *mut FileManager;
+            label.on_click(move |_, _| {
+                // DESIGN {
+                let (p_x, p_y, p_w, p_h) = {
+                    let s = unsafe { &mut *self_ptr };
+                    (s.window.x(), s.window.y(), s.window.width(), s.window.height())
+                };
+
+                let w = 320;
+                let h = 8 + 28 + 8 + 28 + 8;
+                let x = p_x + (p_w as i32 - w as i32)/2;
+                let y = p_y + (p_h as i32 - h as i32)/2;
+
+                let mut window = Box::new(Window::new(Rect::new(x, y, w, h), "New"));
+
+                let text_box = TextBox::new();
+                text_box.position(8, 8)
+                    .size(w - 16, 28)
+                    .text_offset(6, 6)
+                    .grab_focus(true);
+                window.add(&text_box);
+
+                let cancel_button = Button::new();
+                cancel_button.position(8, 8 + 28 + 8)
+                    .size((w - 16)/3 - 4, 28)
+                    .text_offset(6, 6)
+                    .text("Cancel");
+                window.add(&cancel_button);
+
+                let folder_button = Button::new();
+                folder_button.position((w as i32)/3 + 4, 8 + 28 + 8)
+                    .size((w - 16)/3 - 4, 28)
+                    .text_offset(6, 6)
+                    .text("Folder");
+                window.add(&folder_button);
+
+                let file_button = Button::new();
+                file_button.position((w as i32) * 2/3 + 4, 8 + 28 + 8)
+                    .size((w - 16)/3 - 4, 28)
+                    .text_offset(6, 6)
+                    .text("File");
+                window.add(&file_button);
+                // } DESIGN
+
+                {
+                    let window_ptr = window.deref_mut() as *mut Window;
+                    cancel_button.on_click(move |_button: &Button, _point: Point| {
+                        unsafe { (&mut *window_ptr).close(); }
+                    });
+                }
+
+                {
+                    let text_box = text_box.clone();
+                    let tx = tx.clone();
+                    let window_ptr = window.deref_mut() as *mut Window;
+                    file_button.on_click(move |_button: &Button, _point: Point| {
+                        let name = text_box.text.get();
+                        if ! name.is_empty() {
+                            tx.send(FileManagerCommand::CreateFile(name)).unwrap();
+                        }
+                        unsafe { (&mut *window_ptr).close(); }
+                    });
+                }
+
+                {
+                    let text_box = text_box.clone();
+                    let tx = tx.clone();
+                    let window_ptr = window.deref_mut() as *mut Window;
+                    folder_button.on_click(move |_button: &Button, _point: Point| {
+                        let name = text_box.text.get();
+                        if ! name.is_empty() {
+                            tx.send(FileManagerCommand::CreateFolder(name)).unwrap();
+                        }
+                        unsafe { (&mut *window_ptr).close(); }
+                    });
+                }
+
+                window.exec();
+            });
+            self.column_labels.push(label);
+        }
+
+        if let Some(label) = self.column_labels.get(0) {
+            label.position(16, 0).size(8, 32).text("+".to_string());
+        }
+
         let columns = self.resized_columns();
         for (i, column) in columns.iter().enumerate() {
-            if let None = self.column_labels.get(i * 2) {
+            if let None = self.column_labels.get(i * 2 + 1) {
                 // header text
-                let mut label = Label::new();
+                let label = Label::new();
                 self.window.add(&label);
                 label.bg.set(Color::rgba(255, 255, 255, 0));
                 label.text_offset.set(Point::new(0, 8));
@@ -393,7 +474,7 @@ impl FileManager {
                 self.column_labels.push(label);
 
                 // sort arrow
-                label = Label::new();
+                let label = Label::new();
                 self.window.add(&label);
                 label.bg.set(Color::rgba(255, 255, 255, 0));
                 label.fg.set(Color::rgb(140, 140, 140));
@@ -401,11 +482,11 @@ impl FileManager {
                 self.column_labels.push(label);
             }
 
-            if let Some(label) = self.column_labels.get(i * 2) {
+            if let Some(label) = self.column_labels.get(i * 2 + 1) {
                 label.position(column.x, 0).size(column.width as u32, 32).text(column.name.clone());
             }
 
-            if let Some(label) = self.column_labels.get(i * 2 + 1) {
+            if let Some(label) = self.column_labels.get(i * 2 + 2) {
                 if column.sort_predicate == self.sort_predicate {
                     let arrow = match self.sort_direction {
                         SortDirection::Asc => "↓",
@@ -431,11 +512,11 @@ impl FileManager {
             for file in self.files.iter() {
                 let entry = Entry::new(ICON_SIZE as u32);
 
-                let path = file.full_path.clone();
+                let path = file.path.clone();
                 let tx = self.tx.clone();
 
                 entry.on_click(move |_, _| {
-                    if path.ends_with('/') {
+                    if path.is_dir() {
                         tx.send(FileManagerCommand::ChangeDir(path.clone())).unwrap();
                     } else {
                         tx.send(FileManagerCommand::Execute(path.clone())).unwrap();
@@ -481,8 +562,8 @@ impl FileManager {
         }
     }
 
-    fn set_path(&mut self, path: &str) {
-        self.window.set_title(&path);
+    fn update_path(&mut self) {
+        self.window.set_title(&format!("{}", self.path.display()));
 
         for column in self.columns.iter_mut() {
             column.width = (column.name.len() * 8) as i32 + 16;
@@ -491,11 +572,11 @@ impl FileManager {
         self.files.clear();
 
         // check to see if parent directory exists
-        if let Some(parent) = FileManager::get_parent_directory(path) {
+        if let Some(parent) = self.path.parent().map(|p| p.to_owned()) {
             self.push_file(FileInfo::new("../".to_string(), parent, true));
         }
 
-        match fs::read_dir(path) {
+        match fs::read_dir(&self.path) {
             Ok(readdir) => {
                 for entry_result in readdir {
                     match entry_result {
@@ -508,11 +589,11 @@ impl FileManager {
                                 }
                             };
 
-                            let entry_path = match entry.file_name().to_str() {
-                                Some(path_str) => if directory {
-                                    path_str.to_string() + "/"
+                            let name = match entry.file_name().to_str() {
+                                Some(name) => if directory {
+                                    name.to_string() + "/"
                                 } else {
-                                    path_str.to_string()
+                                    name.to_string()
                                 },
                                 None => {
                                     println!("Failed to read file name");
@@ -520,15 +601,14 @@ impl FileManager {
                                 }
                             };
 
-                            let full_path = path.to_owned() + entry_path.clone().as_str();
-                            self.push_file(FileInfo::new(entry_path, full_path, directory));
+                            self.push_file(FileInfo::new(name, entry.path(), directory));
                         },
                         Err(err) => println!("failed to read dir entry: {}", err)
                     }
                 }
             },
             Err(err) => {
-                println!("failed to readdir {}: {}", path, err);
+                println!("failed to readdir {}: {}", self.path.display(), err);
             },
         }
 
@@ -546,18 +626,9 @@ impl FileManager {
         self.window.needs_redraw();
     }
 
-    fn main(&mut self, path: &str) {
-        // Filter out invalid paths
-        let mut path = match fs::canonicalize(path.to_owned()) {
-            Ok(p) => p.into_os_string().into_string().unwrap_or("file:/".to_owned()),
-            _ => "file:/".to_owned(),
-        };
-        if ! path.ends_with('/') {
-            path.push('/');
-        }
-
-        println!("main path: {}", path);
-        self.set_path(&path);
+    fn exec(&mut self) {
+        println!("main path: {}", self.path.display());
+        self.update_path();
         self.redraw();
         self.window.draw_if_needed();
 
@@ -567,11 +638,38 @@ impl FileManager {
             while let Ok(event) = self.rx.try_recv() {
                 match event {
                     FileManagerCommand::ChangeDir(dir) => {
-                        self.set_path(&dir);
+                        self.path = dir;
+                        self.update_path();
                         self.redraw();
                     }
                     FileManagerCommand::Execute(cmd) => {
                         Command::new(LAUNCH_COMMAND).arg(&cmd).spawn().unwrap();
+                    },
+                    FileManagerCommand::CreateFile(name) => {
+                        let path = self.path.join(name);
+                        match fs::File::create(&path) {
+                            Ok(_) => {
+                                println!("Created file {}", path.display());
+                            },
+                            Err(err) => {
+                                println!("Failed to create file {}: {}", path.display(), err);
+                            }
+                        }
+                        self.update_path();
+                        self.redraw();
+                    },
+                    FileManagerCommand::CreateFolder(name) => {
+                        let path = self.path.join(name);
+                        match fs::create_dir(&path) {
+                            Ok(_) => {
+                                println!("Created folder {}", path.display());
+                            },
+                            Err(err) => {
+                                println!("Failed to create folder {}: {}", path.display(), err);
+                            }
+                        }
+                        self.update_path();
+                        self.redraw();
                     },
                     FileManagerCommand::ChangeSort(i) => {
                         let predicate = match i {
@@ -607,11 +705,11 @@ impl FileManager {
 
 fn main() {
     match env::args().nth(1) {
-        Some(ref arg) => FileManager::new().main(arg),
+        Some(ref arg) => FileManager::new(arg).exec(),
         None => if let Some(home) = env::home_dir() {
-            FileManager::new().main(home.into_os_string().to_str().unwrap_or("."))
+            FileManager::new(home).exec()
         } else {
-            FileManager::new().main(".")
+            FileManager::new(".").exec()
         }
     }
 }
