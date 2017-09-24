@@ -83,7 +83,7 @@ fn main() {
 
     match Image::from_path(&path) {
         Ok(image) => {
-            let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+            let (display_width, display_height) = orbclient::get_display_size().expect("background: failed to get display size");
 
             let mut window = Window::new_flags(
                 0, 0, display_width, display_height, "",
