@@ -22,7 +22,7 @@ use mime::TopLevel as MimeTop;
 use orbclient::{Color, Renderer, WindowFlag};
 use orbimage::Image;
 
-use orbtk::{Window, Point, Rect, Button, List, Entry, Label, Place, Resize, Text, TextBox, Click};
+use orbtk::{Window, Point, Rect, Button, List, Entry, Label, Place, Resize, Text, TextBox, Click, Enter};
 
 const ICON_SIZE: i32 = 32;
 
@@ -415,6 +415,19 @@ impl FileManager {
                     .text("File");
                 window.add(&file_button);
                 // } DESIGN
+
+                {
+                    let text_box = text_box.clone();
+                    let tx = tx.clone();
+                    let window_ptr = window.deref_mut() as *mut Window;
+                    text_box.on_enter(move |text_box: &TextBox| {
+                        let name = text_box.text.get();
+                        if ! name.is_empty() {
+                            tx.send(FileManagerCommand::CreateFile(name)).unwrap();
+                        }
+                        unsafe { (&mut *window_ptr).close(); }
+                    });
+                }
 
                 {
                     let window_ptr = window.deref_mut() as *mut Window;
