@@ -5,7 +5,6 @@ extern crate orbclient;
 extern crate orbfont;
 extern crate orbimage;
 extern crate orbtk;
-extern crate tendril;
 extern crate url;
 extern crate hyper;
 extern crate hyper_rustls;
@@ -22,9 +21,9 @@ use std::time::Duration;
 
 use html5ever::parse_document;
 use html5ever::rcdom::{Document, Doctype, Text, Comment, Element, RcDom, Handle};
+use html5ever::tendril::TendrilSink;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_BKSP, K_ESC, K_LEFT, K_RIGHT, K_DOWN, K_PGDN, K_UP, K_PGUP, K_ENTER};
 use orbfont::Font;
-use tendril::TendrilSink;
 use url::Url;
 use hyper::header::{self, Headers};
 use hyper::Client;

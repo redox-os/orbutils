@@ -45,17 +45,16 @@ path = "src/viewer/main.rs"
 
 [dependencies]
 calculate = "0.1.*"
-html5ever = "0.12"
-html5ever-atoms = "0.1"
+html5ever = "0.13"
 hyper-rustls = "0.6"
 mime_guess = "1.8"
-mime = "0.2"
+mime = "0.3"
 orbclient = "0.3"
 orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.2"
-tendril = "0.2"
-url = "1.2"
+tendril = "0.4"
+url = "1.5"
 userutils = { git = "https://github.com/redox-os/userutils.git" }
 
 [dependencies.hyper]
