@@ -15,7 +15,7 @@ use std::process::Command;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
 use orbimage::Image;
-use userutils::Passwd;
+use redox_users::User;
 
 #[derive(Clone, Copy)]
 enum BackgroundMode {
@@ -85,7 +85,7 @@ fn login_command(user: &str, pass: &str, launcher_cmd: &str, launcher_args: &[St
 
     let mut passwd_option = None;
     for line in passwd_string.lines() {
-        if let Ok(passwd) = Passwd::parse(line) {
+        if let Ok(passwd) = User::parse(line) {
             if user == passwd.user && "" == passwd.hash {
                 passwd_option = Some(passwd);
                 break;
@@ -95,8 +95,8 @@ fn login_command(user: &str, pass: &str, launcher_cmd: &str, launcher_args: &[St
 
     if passwd_option.is_none() {
         for line in passwd_string.lines() {
-            if let Ok(passwd) = Passwd::parse(line) {
-                if user == passwd.user && passwd.verify(&pass) {
+            if let Ok(passwd) = User::parse(line) {
+                if user == passwd.user && passwd.verify_passwd(&pass) {
                     passwd_option = Some(passwd);
                     break;
                 }
@@ -113,12 +113,12 @@ fn login_command(user: &str, pass: &str, launcher_cmd: &str, launcher_args: &[St
         command.uid(passwd.uid);
         command.gid(passwd.gid);
 
-        command.current_dir(passwd.home);
+        command.current_dir(passwd.home.clone());
 
         command.env("USER", &user);
         command.env("UID", format!("{}", passwd.uid));
         command.env("GROUPS", format!("{}", passwd.gid));
-        command.env("HOME", passwd.home);
+        command.env("HOME", passwd.home.clone());
         command.env("SHELL", passwd.shell);
 
         Some(command)
