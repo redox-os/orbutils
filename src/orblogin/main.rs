@@ -4,7 +4,7 @@
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
-extern crate userutils;
+extern crate redox_users;
 
 use std::{env, str};
 use std::fs::File;
