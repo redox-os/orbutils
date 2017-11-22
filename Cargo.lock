@@ -1,25 +1,3 @@
-[root]
-name = "orbutils"
-version = "0.1.16"
-dependencies = [
- "calculate 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "html5ever 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper-rustls 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.32 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime_guess 1.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbclient 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbimage 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbtk 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_event 0.1.0 (git+https://github.com/redox-os/event.git)",
- "redox_syscall 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
- "tendril 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "url 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)",
-]
-
 [[package]]
 name = "adler32"
 version = "1.0.2"
@@ -84,6 +62,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "calculate"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "chrono"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "num 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "coco"
@@ -507,12 +494,35 @@ dependencies = [
 
 [[package]]
 name = "orbtk"
-version = "0.2.25"
+version = "0.2.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "orbclient 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbimage 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "orbutils"
+version = "0.1.16"
+dependencies = [
+ "calculate 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "chrono 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "html5ever 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.10.13 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper-rustls 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.32 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime_guess 1.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbclient 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbimage 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbtk 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)",
+ "redox_event 0.1.0 (git+https://github.com/redox-os/event.git)",
+ "redox_syscall 0.1.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tendril 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "url 1.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "userutils 0.1.0 (git+https://github.com/redox-os/userutils.git)",
 ]
 
 [[package]]
@@ -969,6 +979,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum byteorder 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "96c8b41881888cc08af32d47ac4edd52bc7fa27fef774be47a92443756451304"
 "checksum byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ff81738b726f5d099632ceaffe7fb65b90212e8dce59d518729e7e8634032d3d"
 "checksum calculate 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1b593017444d7b7d0d1cacfea9dd28a507e42cfd30c5366130d14e1e16eb33e0"
+"checksum chrono 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7c20ebe0b2b08b0aeddba49c609fe7957ba2e33449882cb186a180bc60682fa9"
 "checksum coco 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c06169f5beb7e31c7c67ebf5540b8b472d23e3eade3b2ec7d1f5b504a85f91bd"
 "checksum color_quant 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a475fc4af42d83d28adf72968d9bcfaf035a1a9381642d8e85d8a04957767b0d"
 "checksum constant_time_eq 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8ff012e225ce166d4422e0e78419d901719760f62ae2b7969ca6b564d1b54a9e"
@@ -1022,7 +1033,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum orbclient 0.3.12 (registry+https://github.com/rust-lang/crates.io-index)" = "6e5d8d9900998fb4b9394e27058aa22a6d3509fb67dd860f74ba0507d4406943"
 "checksum orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "da4dfbc851e5c24c3cf1e16ec5222f868f3362d2b7493d0b53051fe2669267a2"
 "checksum orbimage 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)" = "c3b031607ef7a3c562949dfb595b1ea2b2d697b14544af407242a52dce811a6f"
-"checksum orbtk 0.2.25 (registry+https://github.com/rust-lang/crates.io-index)" = "89ef3aebc50371b50a1486406f59fa84cfad228b76d95883cac81f1bfc1a9b1b"
+"checksum orbtk 0.2.26 (registry+https://github.com/rust-lang/crates.io-index)" = "1fdeb80960b8fdf548f12a694569ba35aec436246277393bcc13d9559722e443"
 "checksum percent-encoding 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de154f638187706bde41d9b4738748933d64e6b37bdbffc0b47a97d16a6ae356"
 "checksum phf 0.7.21 (registry+https://github.com/rust-lang/crates.io-index)" = "cb325642290f28ee14d8c6201159949a872f220c62af6e110a56ea914fbe42fc"
 "checksum phf_codegen 0.7.21 (registry+https://github.com/rust-lang/crates.io-index)" = "d62594c0bb54c464f633175d502038177e90309daf2e0158be42ed5f023ce88f"
