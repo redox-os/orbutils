@@ -7,15 +7,13 @@ extern crate orbfont;
 extern crate redox_users;
 
 use std::{env, str};
-use std::fs::File;
-use std::io::Read;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
 use orbimage::Image;
-use redox_users::User;
+use redox_users::{get_user_by_name};
 
 #[derive(Clone, Copy)]
 enum BackgroundMode {
@@ -79,47 +77,34 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
     }
 }
 
-fn login_command(user: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
-    let mut passwd_string = String::new();
-    File::open("/etc/passwd").unwrap().read_to_string(&mut passwd_string).unwrap();
+fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
 
-    let mut passwd_option = None;
-    for line in passwd_string.lines() {
-        if let Ok(passwd) = User::parse(line) {
-            if user == passwd.user && "" == passwd.hash {
-                passwd_option = Some(passwd);
-                break;
+    let mut user_option = match get_user_by_name(&username) {
+        Ok(user) => {
+            // A little redundant, but a good final check before we actually start verification
+            if username == user.user && (user.hash == "" || user.verify_passwd(&pass)) {
+                user_option = Some(user);
             }
-        }
+        },
+        Err(err) => None
     }
 
-    if passwd_option.is_none() {
-        for line in passwd_string.lines() {
-            if let Ok(passwd) = User::parse(line) {
-                if user == passwd.user && passwd.verify_passwd(&pass) {
-                    passwd_option = Some(passwd);
-                    break;
-                }
-            }
-        }
-    }
-
-    if let Some(passwd) = passwd_option {
+    if let Some(user) = user_option {
         let mut command = Command::new(&launcher_cmd);
         for arg in launcher_args.iter() {
             command.arg(&arg);
         }
 
-        command.uid(passwd.uid);
-        command.gid(passwd.gid);
+        command.uid(user.uid);
+        command.gid(user.gid);
 
-        command.current_dir(passwd.home.clone());
+        command.current_dir(user.home.clone());
 
-        command.env("USER", &user);
-        command.env("UID", format!("{}", passwd.uid));
-        command.env("GROUPS", format!("{}", passwd.gid));
-        command.env("HOME", passwd.home.clone());
-        command.env("SHELL", passwd.shell);
+        command.env("USER", &username);
+        command.env("UID", format!("{}", user.uid));
+        command.env("GROUPS", format!("{}", user.gid));
+        command.env("HOME", user.home.clone());
+        command.env("SHELL", user.shell);
 
         Some(command)
     } else {
