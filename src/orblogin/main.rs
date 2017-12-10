@@ -79,15 +79,15 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
 
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
 
-    let mut user_option = match get_user_by_name(&username) {
-        Ok(user) => {
-            // A little redundant, but a good final check before we actually start verification
-            if username == user.user && (user.hash == "" || user.verify_passwd(&pass)) {
-                user_option = Some(user);
-            }
+    let user_option = match get_user_by_name(&username) {
+        // A little redundant, but a good final check before we actually start verification
+        Ok(user) => if username == user.user && (user.hash == "" || user.verify_passwd(&pass)) {
+            Some(user)
+        } else {
+            None
         },
-        Err(err) => None
-    }
+        Err(_) => None
+    };
 
     if let Some(user) = user_option {
         let mut command = Command::new(&launcher_cmd);
