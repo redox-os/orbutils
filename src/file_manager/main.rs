@@ -22,7 +22,8 @@ use mime::TopLevel as MimeTop;
 use orbclient::{Color, Renderer, WindowFlag};
 use orbimage::Image;
 
-use orbtk::{Window, Point, Rect, Button, List, Entry, Label, Place, Resize, Text, TextBox, Click, Enter};
+use orbtk::{Window, WindowBuilder, Point, Rect, Button, List, Entry, Label, Place, Resize, Text, Style, TextBox, Click, Enter};
+use orbtk::theme::Theme;
 
 const ICON_SIZE: i32 = 32;
 
@@ -37,6 +38,8 @@ static LAUNCH_COMMAND: &'static str = "/ui/bin/launcher";
 
 #[cfg(not(target_os = "redox"))]
 static LAUNCH_COMMAND: &'static str = "xdg-open";
+
+static FILE_MANAGER_THEME_CSS: &'static str = include_str!("theme.css");
 
 struct FileInfo {
     name: String,
@@ -258,11 +261,13 @@ impl FileManager {
         let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
         let (window_w, window_h) = (cmp::min(640, display_width * 4/5) as i32, cmp::min(480, display_height * 4/5) as i32);
 
-        let window = Window::new_flags(
-            Rect::new(-1, -1, window_w as u32, window_h as u32), "File Manager", &[WindowFlag::Resizable]
-        );
+        let theme = Theme::parse(FILE_MANAGER_THEME_CSS);
 
-        window.bg.set(Color::rgb(255, 255, 255));
+        let mut window_builder = WindowBuilder::new(Rect::new(-1, -1, window_w as u32, window_h as u32), "File Manager")
+            .theme(theme)
+            .flags(&[WindowFlag::Resizable]);
+        window_builder = window_builder;
+        let window = window_builder.build();
 
         let tx_resize = tx.clone();
         window.on_resize(move |_window, width, height| {
@@ -368,7 +373,7 @@ impl FileManager {
         if let None = self.column_labels.get(0) {
             let label = Label::new();
             self.window.add(&label);
-            label.bg.set(Color::rgba(255, 255, 255, 0));
+            label.with_class("entry");
             label.text_offset.set(Point::new(0, 8));
 
             let tx = self.tx.clone();
@@ -477,7 +482,7 @@ impl FileManager {
                 // header text
                 let label = Label::new();
                 self.window.add(&label);
-                label.bg.set(Color::rgba(255, 255, 255, 0));
+                label.with_class("header");
                 label.text_offset.set(Point::new(0, 8));
 
                 let tx = self.tx.clone();
@@ -489,8 +494,7 @@ impl FileManager {
                 // sort arrow
                 let label = Label::new();
                 self.window.add(&label);
-                label.bg.set(Color::rgba(255, 255, 255, 0));
-                label.fg.set(Color::rgb(140, 140, 140));
+                label.with_class("sort");
                 label.text_offset.set(Point::new(0, 8));
                 self.column_labels.push(label);
             }
@@ -546,20 +550,20 @@ impl FileManager {
                 let mut label = Label::new();
                 label.position(columns[0].x, 0).size(w, ICON_SIZE as u32).text(file.name.clone());
                 label.text_offset.set(Point::new(0, 8));
-                label.bg.set(Color::rgba(255, 255, 255, 0));
+                label.with_class("file-name");
                 entry.add(&label);
 
                 label = Label::new();
                 label.position(columns[1].x, 0).size(w, ICON_SIZE as u32).text(file.size_str.clone());
                 label.text_offset.set(Point::new(0, 8));
-                label.bg.set(Color::rgba(255, 255, 255, 0));
+                label.with_class("file-size");
                 entry.add(&label);
 
                 let description = self.file_types_info.description_for(&file.name);
                 label = Label::new();
                 label.position(columns[2].x, 0).size(w, ICON_SIZE as u32).text(description);
                 label.text_offset.set(Point::new(0, 8));
-                label.bg.set(Color::rgba(255, 255, 255, 0));
+                label.with_class("description");
                 entry.add(&label);
 
                 list.push(&entry);
