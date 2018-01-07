@@ -1,0 +1,10 @@
+label.date {
+    background: white;
+    border-width: 1;
+    border-radius: 4;
+}
+
+label.date.today {
+    background: #5294E2;
+    color: white;
+}

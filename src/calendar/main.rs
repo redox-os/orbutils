@@ -2,15 +2,16 @@ extern crate orbtk;
 extern crate chrono;
 extern crate orbclient;
 
-use orbtk::{Rect, Window, Grid, Label, Button};
-use orbtk::traits::{Place, Text, Border, Click};
-use orbclient::{Color};
+use orbtk::{Rect, Window, WindowBuilder, Grid, Label, Button, Style};
+use orbtk::traits::{Place, Text, Click};
+use orbtk::theme::Theme;
 use chrono::prelude::*;
 use chrono::Duration;
 use std::ops::{Sub, Add};
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver};
 
+static CALENDAR_THEME_CSS: &'static str = include_str!("theme.css");
 
 pub struct TimeMachine {
     date: DateTime<Local>,
@@ -67,7 +68,11 @@ impl Calendar {
         let cell_day_name_height = 16;
         let window_width = 7 * (cell_width + 8) + 8;
         let window_height = 6 * (cell_height + 8) + 16 + cell_day_name_height + 24;
-        let window = Window::new(Rect::new(-1, -1, window_width, window_height), "Calendar");
+        let theme = Theme::parse(CALENDAR_THEME_CSS);
+
+        let mut window_builder = WindowBuilder::new(Rect::new(-1, -1, window_width, window_height), "Calendar");
+        window_builder = window_builder.theme(theme);
+        let window = window_builder.build();
 
         let label_date = Label::new();
         label_date.size(300, 16)
@@ -153,14 +158,12 @@ impl Calendar {
 
                     cell
                         .size(self.cell_width, self.cell_height)
-                        .border(true)
+                        .with_class("date")
                         .text(text)
                         .text_offset(text_offset as i32, (self.cell_width / 2 -8) as i32);
 
                     if x.date() == Local::now().date() {
-                        cell.bg.set(Color::rgb(82, 148, 226));
-                    } else {
-                        cell.bg.set(Color::rgb(255, 255, 255));
+                        cell.with_class("today");
                     }
 
                     self.grid_calendar.insert(idx % 7, (idx / 7) + 1, &cell);
