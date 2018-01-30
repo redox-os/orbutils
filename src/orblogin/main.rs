@@ -7,13 +7,12 @@ extern crate orbfont;
 extern crate redox_users;
 
 use std::{env, str};
-use std::os::unix::process::CommandExt;
 use std::process::Command;
 
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
 use orbimage::Image;
-use redox_users::{get_user_by_name};
+use redox_users::{AllUsers};
 
 #[derive(Clone, Copy)]
 enum BackgroundMode {
@@ -78,37 +77,27 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
 }
 
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
+    
+    let sys_users = match AllUsers::new() {
+        Ok(users) => users,
+        // Not maybe the best thing to do...
+        Err(_) => {
+            return None;
+        }
+    };
+    
+    match sys_users.get_by_name(&username) {
+        Some(user) => if user.verify_passwd(&pass) {
+            let mut command = user.login_cmd(&launcher_cmd);
+            for arg in launcher_args.iter() {
+                command.arg(&arg);
+            }
 
-    let user_option = match get_user_by_name(&username) {
-        // A little redundant, but a good final check before we actually start verification
-        Ok(user) => if username == user.user && (user.hash == "" || user.verify_passwd(&pass)) {
-            Some(user)
+            Some(command)
         } else {
             None
         },
-        Err(_) => None
-    };
-
-    if let Some(user) = user_option {
-        let mut command = Command::new(&launcher_cmd);
-        for arg in launcher_args.iter() {
-            command.arg(&arg);
-        }
-
-        command.uid(user.uid);
-        command.gid(user.gid);
-
-        command.current_dir(user.home.clone());
-
-        command.env("USER", &username);
-        command.env("UID", format!("{}", user.uid));
-        command.env("GROUPS", format!("{}", user.gid));
-        command.env("HOME", user.home.clone());
-        command.env("SHELL", user.shell);
-
-        Some(command)
-    } else {
-        None
+        None => None
     }
 }
 
