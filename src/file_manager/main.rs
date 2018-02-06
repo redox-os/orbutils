@@ -129,8 +129,7 @@ impl FileType {
         if file_name.ends_with('/') {
             Self::new("folder".to_owned(), "inode-directory")
         } else {
-            let pos = file_name.rfind('.').unwrap_or(0) + 1;
-            let ext = &file_name[pos..];
+            let ext = file_name.rsplitn(2, '.').next().unwrap_or("");
             let mime = mime_guess::get_mime_type(ext);
             let image = match (&mime.0, &mime.1) {
                 (&MimeTop::Image, _) => "image-x-generic",
