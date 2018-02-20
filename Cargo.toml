@@ -75,5 +75,5 @@ redox_syscall = "0.1"
 
 #temporary patch to avoid decoding jpg with rayon 
 [patch.crates-io]
-jpeg-decoder = { git = "https://github.com/redox-os/jpeg-decoder.git", default-features = false }
+jpeg-decoder = { git = "https://github.com/robbycerantola/jpeg-decoder.git" }
 
