@@ -72,3 +72,8 @@ libc = "0.2"
 [target.'cfg(target_os = "redox")'.dependencies]
 redox_event = { git = "https://github.com/redox-os/event.git" }
 redox_syscall = "0.1"
+
+#temporary patch to avoid decoding jpg with rayon 
+[patch.crates-io]
+jpeg-decoder = { git = "https://github.com/redox-os/jpeg-decoder.git", default-features = false }
+
