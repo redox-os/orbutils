@@ -60,7 +60,7 @@ orbimage = "0.1"
 orbtk = { git = "https://github.com/redox-os/orbtk.git" }
 tendril = "0.4"
 url = "1.5"
-redox_users = { git = "https://github.com/redox-os/users.git" }
+redox_users = "0.1"
 
 [dependencies.hyper]
 version = "0.10"
@@ -73,7 +73,6 @@ libc = "0.2"
 redox_event = { git = "https://github.com/redox-os/event.git" }
 redox_syscall = "0.1"
 
-#temporary patch to avoid decoding jpg with rayon 
+#temporary patch to avoid decoding jpg with rayon
 [patch.crates-io]
 jpeg-decoder = { git = "https://github.com/robbycerantola/jpeg-decoder.git" }
-
