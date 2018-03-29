@@ -246,11 +246,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "extra"
-version = "0.1.0"
-source = "git+https://github.com/redox-os/libextra.git#f38608acd9cc00e1c8bd41a1a96d31becf239913"
-
-[[package]]
 name = "failure"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -603,7 +598,7 @@ dependencies = [
  "orbtk 0.2.26 (git+https://github.com/redox-os/orbtk.git)",
  "redox_event 0.1.0 (git+https://github.com/redox-os/event.git)",
  "redox_syscall 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)",
- "redox_users 0.1.0 (git+https://github.com/redox-os/users.git)",
+ "redox_users 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tendril 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -730,10 +725,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "redox_users"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/users.git#820ab8f1ea19816175ac400ddc1d1be6c0b8d992"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "argon2rs 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "extra 0.1.0 (git+https://github.com/redox-os/libextra.git)",
  "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_syscall 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1083,7 +1077,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum encoding-index-tradchinese 1.20141219.5 (registry+https://github.com/rust-lang/crates.io-index)" = "fd0e20d5688ce3cab59eb3ef3a2083a5c77bf496cb798dc6fcdb75f323890c18"
 "checksum encoding_index_tests 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "a246d82be1c9d791c5dfde9a2bd045fc3cbba3fa2b11ad558f27d01712f00569"
 "checksum enum_primitive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "be4551092f4d519593039259a9ed8daedf0da12e5109c5280338073eaeb81180"
-"checksum extra 0.1.0 (git+https://github.com/redox-os/libextra.git)" = "<none>"
 "checksum failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "934799b6c1de475a012a02dab0ace1ace43789ee4b99bcfbf1a2e3e8ced5de82"
 "checksum failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c7cdda555bb90c9bb67a3b670a0f42de8e73f5981524123ad8578aafec8ddb8b"
 "checksum fuchsia-zircon 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2e9763c69ebaae630ba35f74888db465e49e259ba1bc0eda7d06f4a067615d82"
@@ -1140,7 +1133,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rayon-core 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9d24ad214285a7729b174ed6d3bcfcb80177807f959d95fafd5bfc5c4f201ac8"
 "checksum redox_event 0.1.0 (git+https://github.com/redox-os/event.git)" = "<none>"
 "checksum redox_syscall 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)" = "0d92eecebad22b767915e4d529f89f28ee96dbbf5a4810d2b844373f136417fd"
-"checksum redox_users 0.1.0 (git+https://github.com/redox-os/users.git)" = "<none>"
+"checksum redox_users 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8f397689f52220d81047787beee186e207e6c528c9f8273c0f150061360932c4"
 "checksum resize 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3e8f5c5cf4d79776ed121e1c5052718b4bb06d2b48049144a2f0e5ad613b608e"
 "checksum ring 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1f2a6dc7fc06a05e6de183c5b97058582e9da2de0c136eafe49609769c507724"
 "checksum rustc-demangle 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "f312457f8a4fa31d3581a6f423a70d6c33a10b95291985df55f1ff670ec10ce8"
