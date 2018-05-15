@@ -160,7 +160,8 @@ impl Bar {
             width: width,
             height: height,
             window: Window::new_flags(
-                0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "", &[WindowFlag::Async]
+                0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "Launcher",
+                &[WindowFlag::Async, WindowFlag::Borderless]
             ).expect("launcher: failed to open window"),
             selected: -1,
             time: String::new()
@@ -345,7 +346,10 @@ fn bar_main() {
 
                     if i == bar.selected {
                         let start_h = bar.start_packages.len() as u32 * ICON_SMALL_SIZE as u32;
-                        let mut start_window = Window::new(0, bar.height as i32 - ICON_SIZE - start_h as i32, 200, start_h, "").unwrap();
+                        let mut start_window = Window::new_flags(
+                            0, bar.height as i32 - ICON_SIZE - start_h as i32, 200, start_h, "Start",
+                            &[WindowFlag::Borderless]
+                        ).unwrap();
 
                         let mut selected = -1;
                         let mut mouse_y = 0;

@@ -77,7 +77,7 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
 }
 
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
-    
+
     let sys_users = match AllUsers::new() {
         Ok(users) => users,
         // Not maybe the best thing to do...
@@ -85,7 +85,7 @@ fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: 
             return None;
         }
     };
-    
+
     match sys_users.get_by_name(&username) {
         Some(user) => if user.verify_passwd(&pass) {
             let mut command = user.login_cmd(&launcher_cmd);
@@ -105,8 +105,8 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
     let (display_width, display_height) = orbclient::get_display_size().expect("orblogin: failed to get display size");
 
     let mut window = Window::new_flags(
-        0, 0, display_width, display_height, "",
-        &[WindowFlag::Unclosable]
+        0, 0, display_width, display_height, "orblogin",
+        &[WindowFlag::Borderless, WindowFlag::Unclosable]
     ).unwrap();
 
     let mut item = 0;

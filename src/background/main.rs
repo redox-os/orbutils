@@ -86,8 +86,8 @@ fn main() {
             let (display_width, display_height) = orbclient::get_display_size().expect("background: failed to get display size");
 
             let mut window = Window::new_flags(
-                0, 0, display_width, display_height, "",
-                &[WindowFlag::Back, WindowFlag::Unclosable]
+                0, 0, display_width, display_height, &format!("{} - Background", path),
+                &[WindowFlag::Back, WindowFlag::Borderless, WindowFlag::Unclosable]
             ).unwrap();
 
             let mut scaled_image = image.clone();
