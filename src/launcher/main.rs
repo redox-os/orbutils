@@ -284,7 +284,7 @@ fn bar_main() {
     let mut mouse_y = 0;
     let mut mouse_left = false;
     let mut last_mouse_left = false;
-    event_queue.add(bar.borrow().window.as_raw_fd(), move |_| -> io::Result<Option<()>> {
+    event_queue.add(bar.borrow().window.as_raw_fd(), move |_event| -> io::Result<Option<()>> {
         let mut bar = bar_window.borrow_mut();
 
         for event in bar.window.events() {
@@ -442,7 +442,10 @@ fn bar_main() {
         Ok(None)
     }).expect("launcher: failed to poll window events");
 
-    event_queue.trigger_all(0).expect("launcher: failed to trigger events");
+    event_queue.trigger_all(event::Event {
+        fd: 0,
+        flags: 0,
+    }).expect("launcher: failed to trigger events");
 
     event_queue.run().expect("launcher: failed to run event loop");
 
