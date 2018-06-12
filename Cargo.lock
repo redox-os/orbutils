@@ -575,7 +575,7 @@ dependencies = [
 [[package]]
 name = "orbtk"
 version = "0.2.27"
-source = "git+https://github.com/redox-os/orbtk.git#5797de0be268d938a5e6607c79eaf31278c95e0b"
+source = "git+https://gitlab.redox-os.org/redox-os/orbtk.git#5797de0be268d938a5e6607c79eaf31278c95e0b"
 dependencies = [
  "cssparser 0.16.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -599,8 +599,8 @@ dependencies = [
  "orbclient 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbimage 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbtk 0.2.27 (git+https://github.com/redox-os/orbtk.git)",
- "redox_event 0.1.0 (git+https://github.com/redox-os/event.git)",
+ "orbtk 0.2.27 (git+https://gitlab.redox-os.org/redox-os/orbtk.git)",
+ "redox_event 0.1.0 (git+https://gitlab.redox-os.org/redox-os/event.git)",
  "redox_syscall 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_users 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tendril 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -740,7 +740,7 @@ dependencies = [
 [[package]]
 name = "redox_event"
 version = "0.1.0"
-source = "git+https://github.com/redox-os/event.git#e9bf8ee4622cb82af2a10032ed711174b2188afd"
+source = "git+https://gitlab.redox-os.org/redox-os/event.git#e9bf8ee4622cb82af2a10032ed711174b2188afd"
 dependencies = [
  "redox_syscall 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1161,7 +1161,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum orbclient 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)" = "b4ed8bb95b73402c263324f1074744ed951bb0c4aa519ab5db917eebf592ba0b"
 "checksum orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "da4dfbc851e5c24c3cf1e16ec5222f868f3362d2b7493d0b53051fe2669267a2"
 "checksum orbimage 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)" = "4ba0f4046c0c2c3325a87055396d19929122095366d8da2292fbda6347977ce1"
-"checksum orbtk 0.2.27 (git+https://github.com/redox-os/orbtk.git)" = "<none>"
+"checksum orbtk 0.2.27 (git+https://gitlab.redox-os.org/redox-os/orbtk.git)" = "<none>"
 "checksum percent-encoding 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "31010dd2e1ac33d5b46a5b413495239882813e0369f8ed8a5e266f173602f831"
 "checksum phf 0.7.22 (registry+https://github.com/rust-lang/crates.io-index)" = "7d37a244c75a9748e049225155f56dbcb98fe71b192fd25fd23cb914b5ad62f2"
 "checksum phf_codegen 0.7.22 (registry+https://github.com/rust-lang/crates.io-index)" = "4e4048fe7dd7a06b8127ecd6d3803149126e9b33c7558879846da3a63f734f2b"
@@ -1178,7 +1178,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rayon 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a77c51c07654ddd93f6cb543c7a849863b03abc7e82591afda6dc8ad4ac3ac4a"
 "checksum rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b614fe08b6665cb9a231d07ac1364b0ef3cb3698f1239ee0c4c3a88a524f54c8"
 "checksum rayon-core 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9d24ad214285a7729b174ed6d3bcfcb80177807f959d95fafd5bfc5c4f201ac8"
-"checksum redox_event 0.1.0 (git+https://github.com/redox-os/event.git)" = "<none>"
+"checksum redox_event 0.1.0 (git+https://gitlab.redox-os.org/redox-os/event.git)" = "<none>"
 "checksum redox_syscall 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)" = "0d92eecebad22b767915e4d529f89f28ee96dbbf5a4810d2b844373f136417fd"
 "checksum redox_users 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8f397689f52220d81047787beee186e207e6c528c9f8273c0f150061360932c4"
 "checksum resize 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3e8f5c5cf4d79776ed121e1c5052718b4bb06d2b48049144a2f0e5ad613b608e"
