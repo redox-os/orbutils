@@ -78,7 +78,7 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
 
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
 
-    let sys_users = match AllUsers::new() {
+    let sys_users = match AllUsers::new(true) {
         Ok(users) => users,
         // Not maybe the best thing to do...
         Err(_) => {
