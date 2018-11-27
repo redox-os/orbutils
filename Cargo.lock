@@ -609,11 +609,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "linked-hash-map"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
 name = "log"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -751,17 +746,8 @@ dependencies = [
 
 [[package]]
 name = "orbfont"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "orbclient 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "rusttype 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "orbfont"
 version = "0.1.9"
-source = "git+https://gitlab.redox-os.org/redox-os/orbfont.git#b244af6373b1487d378fa2328cc9ccc3d4da5567"
+source = "git+https://gitlab.redox-os.org/redox-os/orbfont#80d5962f39d713e9d40866885190bd6beb4d7577"
 dependencies = [
  "font-loader 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbclient 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -781,12 +767,13 @@ dependencies = [
 [[package]]
 name = "orbtk"
 version = "0.3.0"
+source = "git+https://gitlab.redox-os.org/redox-os/orbtk#7f13718add59332c180c3765d90ab449c76a8801"
 dependencies = [
  "cssparser 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dces 0.1.2 (git+https://gitlab.redox-os.org/redox-os/dces-rust.git)",
  "lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbclient 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbfont 0.1.9 (git+https://gitlab.redox-os.org/redox-os/orbfont.git)",
+ "orbfont 0.1.9 (git+https://gitlab.redox-os.org/redox-os/orbfont)",
  "orbimage 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -803,9 +790,9 @@ dependencies = [
  "mime 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.8.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "orbclient 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "orbfont 0.1.9 (git+https://gitlab.redox-os.org/redox-os/orbfont)",
  "orbimage 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "orbtk 0.3.0",
+ "orbtk 0.3.0 (git+https://gitlab.redox-os.org/redox-os/orbtk)",
  "redox_event 0.1.0 (git+https://gitlab.redox-os.org/redox-os/event.git)",
  "redox_syscall 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "redox_users 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1072,16 +1059,6 @@ dependencies = [
  "sct 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "untrusted 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "webpki 0.18.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rusttype"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "arrayvec 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "linked-hash-map 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "stb_truetype 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1558,7 +1535,6 @@ source = "git+https://github.com/robbycerantola/jpeg-decoder.git#fded71064bc8133
 "checksum lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a374c89b9db55895453a74c1e38861d9deec0b01b405a82516e9d5de4820dea1"
 "checksum libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)" = "76e3a3ef172f1a0b9a9ff0dd1491ae5e6c948b94479a3021819ba7d860c8645d"
 "checksum liner 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "e21c5e49e5d73f18124fd3c751a0823f754c5ae7193cb9e8aa467b03b161241c"
-"checksum linked-hash-map 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "70fb39025bc7cdd76305867c4eccf2f2dcf6e9a57f5b21a93e1c2d86cd03ec9e"
 "checksum log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "e19e8d5c34a3e0e2223db8e060f9e8264aeeb5c5fc64a4ee9965c062211c024b"
 "checksum log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "d4fcce5fa49cc693c312001daf1d13411c4a5283796bac1084299ea3e567113f"
 "checksum lzw 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7d947cbb889ed21c2a84be6ffbaebf5b4e0f4340638cba0444907e38b56be084"
@@ -1577,9 +1553,9 @@ source = "git+https://github.com/robbycerantola/jpeg-decoder.git#fded71064bc8133
 "checksum num-traits 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "0b3a5d7cc97d6d30d8b9bc8fa19bf45349ffe46241e8816f50f62f6d6aaabee1"
 "checksum num_cpus 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c51a3322e4bca9d212ad9a158a02abc6934d005490c054a2778df73a70aa0a30"
 "checksum orbclient 0.3.17 (registry+https://github.com/rust-lang/crates.io-index)" = "3abb51a8964ed904abb6bc7b77c1e468fea1ea390385ee52b0e38e3966c1002c"
-"checksum orbfont 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "da4dfbc851e5c24c3cf1e16ec5222f868f3362d2b7493d0b53051fe2669267a2"
-"checksum orbfont 0.1.9 (git+https://gitlab.redox-os.org/redox-os/orbfont.git)" = "<none>"
+"checksum orbfont 0.1.9 (git+https://gitlab.redox-os.org/redox-os/orbfont)" = "<none>"
 "checksum orbimage 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)" = "4ba0f4046c0c2c3325a87055396d19929122095366d8da2292fbda6347977ce1"
+"checksum orbtk 0.3.0 (git+https://gitlab.redox-os.org/redox-os/orbtk)" = "<none>"
 "checksum ord_subset 3.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d7ce14664caf5b27f5656ff727defd68ae1eb75ef3c4d95259361df1eb376bef"
 "checksum ordered-float 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2f0015e9e8e28ee20c581cfbfe47c650cedeb9ed0721090e0b7ebb10b9cdbcc2"
 "checksum percent-encoding 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "31010dd2e1ac33d5b46a5b413495239882813e0369f8ed8a5e266f173602f831"
@@ -1613,7 +1589,6 @@ source = "git+https://github.com/robbycerantola/jpeg-decoder.git#fded71064bc8133
 "checksum rustc-demangle 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "bcfe5b13211b4d78e5c2cadfebd7769197d95c639c35a50057eb4c05de811395"
 "checksum rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)" = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
 "checksum rustls 0.13.1 (registry+https://github.com/rust-lang/crates.io-index)" = "942b71057b31981152970d57399c25f72e27a6ee0d207a669d8304cabf44705b"
-"checksum rusttype 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "30047cc747a78ae042bf2cd65c79f83c3485d90107535b532d6e8f60e2c89cb1"
 "checksum rusttype 0.7.3 (registry+https://github.com/rust-lang/crates.io-index)" = "436c67ae0d0d24f14e1177c3ed96780ee16db82b405f0fba1bb80b46c9a30625"
 "checksum safemem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e27a8b19b835f7aea908818e871f5cc3a5a186550c30773be987e155e8163d8f"
 "checksum safemem 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8dca453248a96cb0749e36ccdfe2b0b4e54a61bfef89fb97ec621eb8e0a93dd9"

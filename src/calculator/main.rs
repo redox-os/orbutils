@@ -57,7 +57,7 @@ fn generate_button(state: &Rc<MainViewState>, sight: &str) -> Template {
     Container::create().with_child(
         Button::create()
             .with_property(Label(sight.clone()))
-            .with_property(Selector::new().with("squarebutton"))
+            .with_property(Selector::new().with("button").with_class("square"))
             .with_event_handler(MouseEventHandler::default().on_click(Rc::new(
                 move |_pos: Point, _widget: &mut WidgetContainer| -> bool {
                     state.input(&String::from(sight.clone()));
@@ -71,7 +71,7 @@ fn generate_operation_button(sight: &str, handler: MouseEventHandler) -> Templat
     Container::create().with_child(
         Button::create()
             .with_property(Label(sight.to_string()))
-            .with_property(Selector::new().with("squarebutton"))
+            .with_property(Selector::new().with("button").with_class("square"))
             .with_event_handler(handler),
     )
 }
@@ -152,7 +152,7 @@ impl Widget for MainView {
 fn main() {
     let mut application = Application::new();
 
-   let theme = format!("{}{}", DARK_THEME_EXTENSION, DEFAULT_THEME_CSS);
+    let theme = format!("{}{}", DARK_THEME_EXTENSION, DEFAULT_THEME_CSS);
     //let theme = format!("{}{}", LIGHT_THEME_EXTENSION, LIGHT_THEME_CSS);
 
     application
