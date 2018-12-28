@@ -57,7 +57,7 @@ mime = "0.2"
 orbclient = "0.3.17"
 orbfont = "0.1"
 orbimage = "0.1"
-orbtk = { git = "https://gitlab.redox-os.org/redox-os/orbtk.git" }
+orbtk = "0.2"
 tendril = "0.4"
 url = "1.5"
 redox_users = "0.2"
