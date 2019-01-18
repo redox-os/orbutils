@@ -21,7 +21,7 @@ use mime::TopLevel as MimeTop;
 use orbclient::{Color, Renderer, WindowFlag};
 use orbimage::Image;
 
-use orbtk::{Window, WindowBuilder, Point, Rect, Button, List, Entry, Label, Place, Resize, Text, Style, TextBox, Click, Enter};
+use orbtk::{Window, WindowBuilder, Point, Bounds, Button, List, Entry, Label, Place, Resize, Text, Style, TextBox, Click, Enter};
 use orbtk::theme::Theme;
 
 const ICON_SIZE: i32 = 32;
@@ -261,7 +261,7 @@ impl FileManager {
 
         let theme = Theme::parse(FILE_MANAGER_THEME_CSS);
 
-        let mut window_builder = WindowBuilder::new(Rect::new(-1, -1, window_w as u32, window_h as u32), "File Manager")
+        let mut window_builder = WindowBuilder::new(Bounds::new(-1, -1, window_w as u32, window_h as u32), "File Manager")
             .theme(theme)
             .flags(&[WindowFlag::Resizable]);
         window_builder = window_builder;
@@ -388,7 +388,7 @@ impl FileManager {
                 let x = p_x + (p_w as i32 - w as i32)/2;
                 let y = p_y + (p_h as i32 - h as i32)/2;
 
-                let mut window = Box::new(Window::new(Rect::new(x, y, w, h), "New"));
+                let mut window = Box::new(Window::new(Bounds::new(x, y, w, h), "New"));
 
                 let text_box = TextBox::new();
                 text_box.position(8, 8)

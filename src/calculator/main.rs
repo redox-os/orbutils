@@ -38,8 +38,8 @@ impl MainViewState {
 }
 
 impl State for MainViewState {
-    fn update(&self, widget: &mut WidgetContainer) {
-        if let Ok(label) = widget.borrow_mut_property::<Label>() {
+    fn update(&self, context: &mut Context) {
+        if let Ok(label) = context.widget().borrow_mut_property::<Label>() {
             if self.updated.get() {
                 label.0 = self.result.borrow().clone();
             } else {
@@ -51,15 +51,26 @@ impl State for MainViewState {
     }
 }
 
-fn generate_button(state: &Rc<MainViewState>, sight: &str) -> Template {
+fn get_button_selector(primary: bool) -> Selector {
+    let selector = Selector::from("button").with_class("square");
+
+    if primary {
+        selector.with_class("primary")
+    } else {
+        selector
+    }
+}
+
+fn generate_button(state: &Rc<MainViewState>, sight: &str, primary: bool) -> Template {
     let sight = String::from(sight);
     let state = state.clone();
+
     Container::create().with_child(
         Button::create()
             .with_property(Label(sight.clone()))
-            .with_property(Selector::new().with("button").with_class("square"))
+            .with_property(get_button_selector(primary))
             .with_event_handler(MouseEventHandler::default().on_click(Rc::new(
-                move |_pos: Point, _widget: &mut WidgetContainer| -> bool {
+                move |_pos: Point| -> bool {
                     state.input(&String::from(sight.clone()));
                     true
                 },
@@ -67,11 +78,11 @@ fn generate_button(state: &Rc<MainViewState>, sight: &str) -> Template {
     )
 }
 
-fn generate_operation_button(sight: &str, handler: MouseEventHandler) -> Template {
+fn generate_operation_button(sight: &str, handler: MouseEventHandler, primary: bool) -> Template {
     Container::create().with_child(
         Button::create()
             .with_property(Label(sight.to_string()))
-            .with_property(Selector::new().with("button").with_class("square"))
+            .with_property(get_button_selector(primary).with_class("square"))
             .with_event_handler(handler),
     )
 }
@@ -91,58 +102,68 @@ impl Widget for MainView {
                 Column::create()
                     .with_child(
                         Container::create()
+                            .with_property(Selector::from("container").with_class("header"))
                             .with_child(TextBox::create().with_shared_property(label.clone())),
                     )
                     .with_child(
-                        Row::create()
-                            .with_child(generate_button(&state, "("))
-                            .with_child(generate_button(&state, ")"))
-                            .with_child(generate_button(&state, "^"))
-                            .with_child(generate_button(&state, "/")),
-                    )
-                    .with_child(
-                        Row::create()
-                            .with_child(generate_button(&state, "7"))
-                            .with_child(generate_button(&state, "8"))
-                            .with_child(generate_button(&state, "9"))
-                            .with_child(generate_button(&state, "*")),
-                    )
-                    .with_child(
-                        Row::create()
-                            .with_child(generate_button(&state, "4"))
-                            .with_child(generate_button(&state, "5"))
-                            .with_child(generate_button(&state, "6"))
-                            .with_child(generate_button(&state, "-")),
-                    )
-                    .with_child(
-                        Row::create()
-                            .with_child(generate_button(&state, "1"))
-                            .with_child(generate_button(&state, "2"))
-                            .with_child(generate_button(&state, "3"))
-                            .with_child(generate_button(&state, "+")),
-                    )
-                    .with_child(
-                        Row::create()
-                            .with_child(generate_button(&state, "0"))
-                            .with_child(generate_button(&state, "."))
-                            .with_child(generate_operation_button(
-                                "C",
-                                MouseEventHandler::default().on_click(Rc::new(
-                                    move |_pos: Point, _widget: &mut WidgetContainer| -> bool {
-                                        clear_state.clear();
-                                        true
-                                    },
-                                )),
-                            ))
-                            .with_child(generate_operation_button(
-                                "=",
-                                MouseEventHandler::default().on_click(Rc::new(
-                                    move |_pos: Point, _widget: &mut WidgetContainer| -> bool {
-                                        state.eval();
-                                        true
-                                    },
-                                )),
-                            )),
+                        Container::create()
+                            .with_property(Selector::from("container").with_class("content"))
+                            .with_child(
+                                Column::create()
+                                    .with_child(
+                                        Row::create()
+                                            .with_child(generate_button(&state, "(", false))
+                                            .with_child(generate_button(&state, ")", false))
+                                            .with_child(generate_button(&state, "^", false))
+                                            .with_child(generate_button(&state, "/", true)),
+                                    )
+                                    .with_child(
+                                        Row::create()
+                                            .with_child(generate_button(&state, "7", false))
+                                            .with_child(generate_button(&state, "8", false))
+                                            .with_child(generate_button(&state, "9", false))
+                                            .with_child(generate_button(&state, "*", true)),
+                                    )
+                                    .with_child(
+                                        Row::create()
+                                            .with_child(generate_button(&state, "4", false))
+                                            .with_child(generate_button(&state, "5", false))
+                                            .with_child(generate_button(&state, "6", false))
+                                            .with_child(generate_button(&state, "-", true)),
+                                    )
+                                    .with_child(
+                                        Row::create()
+                                            .with_child(generate_button(&state, "1", false))
+                                            .with_child(generate_button(&state, "2", false))
+                                            .with_child(generate_button(&state, "3", false))
+                                            .with_child(generate_button(&state, "+", true)),
+                                    )
+                                    .with_child(
+                                        Row::create()
+                                            .with_child(generate_button(&state, "0", false))
+                                            .with_child(generate_button(&state, ".", false))
+                                            .with_child(generate_operation_button(
+                                                "C",
+                                                MouseEventHandler::default().on_click(Rc::new(
+                                                    move |_pos: Point| -> bool {
+                                                        clear_state.clear();
+                                                        true
+                                                    },
+                                                )),
+                                                false,
+                                            ))
+                                            .with_child(generate_operation_button(
+                                                "=",
+                                                MouseEventHandler::default().on_click(Rc::new(
+                                                    move |_pos: Point| -> bool {
+                                                        state.eval();
+                                                        true
+                                                    },
+                                                )),
+                                                true,
+                                            )),
+                                    ),
+                            ),
                     ),
             )
             .with_shared_property(label)
@@ -157,7 +178,7 @@ fn main() {
 
     application
         .create_window()
-        .with_bounds(Rect::new(0, 0, 176, 256))
+        .with_bounds(Bounds::new(0, 0, 220, 364))
         .with_title("Calculator")
         .with_theme(Theme::parse(&theme))
         .with_root(MainView::create())

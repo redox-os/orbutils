@@ -157,8 +157,8 @@ impl Bar {
             start: load_icon(&format!("{}/icons/places/start-here.png", UI_PATH)),
             start_packages: start_packages,
             font: Font::find(Some("Sans"), None, None).unwrap(),
-            width: width,
-            height: height,
+           width,
+            height,
             window: Window::new_flags(
                 0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "Launcher",
                 &[WindowFlag::Async, WindowFlag::Borderless]

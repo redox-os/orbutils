@@ -1,3 +1,11 @@
+container.header {
+    min-height: 72;
+    background: #444e55;
+}
+
+container.content {
+    padding: 6;
+}
 
 container {
     background: transparent;
