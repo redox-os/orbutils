@@ -4,7 +4,7 @@ extern crate orbclient;
 extern crate orbtk;
 
 use orbclient::WindowFlag;
-use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
+use orbtk::{Action, Button, Menu, Point, Bounds, Separator, TextBox, Window};
 use orbtk::dialogs::FileDialog;
 use orbtk::traits::{Click, Enter, Place, Resize, Text};
 
@@ -26,7 +26,7 @@ pub struct Editor {
 impl Editor {
     pub fn new(path_option: Option<PathBuf>, width: u32, height: u32) -> Box<Window> {
         // DESIGN {
-        let mut window =  Box::new(Window::new_flags(Rect::new(-1, -1, width, height), "Editor", &[WindowFlag::Resizable]));
+        let mut window =  Box::new(Window::new_flags(Bounds::new(-1, -1, width, height), "Editor", &[WindowFlag::Resizable]));
 
         let text_box = TextBox::new();
         text_box.position(0, 16)
@@ -160,7 +160,7 @@ impl Editor {
         let x = p_x + (p_w as i32 - w as i32)/2;
         let y = p_y + (p_h as i32 - h as i32)/2;
 
-        let mut window = Box::new(Window::new(Rect::new(x, y, w, h), title));
+        let mut window = Box::new(Window::new(Bounds::new(x, y, w, h), title));
 
         let text_box = TextBox::new();
         text_box.position(8, 8)

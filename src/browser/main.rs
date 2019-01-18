@@ -551,7 +551,7 @@ fn url_parse<'a>(url: &Url, font: &'a Font, font_bold: &'a Font, window: &Window
 }
 
 fn open_dialog(url: &Url) -> Option<Url> {
-    use orbtk::{Button, Click, Enter, Place, Point, Rect, Text, TextBox, Window};
+    use orbtk::{Button, Click, Enter, Place, Point, Bounds, Text, TextBox, Window};
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -559,7 +559,7 @@ fn open_dialog(url: &Url) -> Option<Url> {
 
     {
         let w = 400;
-        let mut window = Window::new(Rect::new(-1, -1, w, 8 + 28 + 8 + 28 + 8), "Open");
+        let mut window = Window::new(Bounds::new(-1, -1, w, 8 + 28 + 8 + 28 + 8), "Open");
 
         let path_box = TextBox::new();
         {

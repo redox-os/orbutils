@@ -1,9 +1,20 @@
-# orbutils
+# OrbUtils
 The Orbital Utilities. Compatible with Redox and SDL2 platforms.
 
-[![Travis Build Status](https://travis-ci.org/redox-os/orbutils.svg?branch=master)](https://travis-ci.org/redox-os/orbutils)
+[![Build status](https://gitlab.redox-os.org/redox-os/orbutils/badges/master/build.svg)](https://gitlab.redox-os.org/redox-os/orbutils/pipelines)
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![crates.io](http://meritbadge.herokuapp.com/orbutils)](https://crates.io/crates/orbutils)
+[![crates.io](https://img.shields.io/badge/crates.io-v0.1.10-orange.svg)](https://crates.io/crates/orbtk)
+
+## List of utils
+
+* background: drawing desktop background image
+* browser: rudimentary web browser
+* calculator: visual calculator application
+* character_map: simple font viewer
+* file_manager: simple file manager application
+* launcher: Redox launcher
+* orblogin: Login ui
+* viewer: simple image viewer
 
 ## Quick setup
 
@@ -27,6 +38,6 @@ rustup override set nightly
 
 Clone and run
 ```
-git clone https://github.com/redox-os/orbutils.git
+git clone https://gitlab.redox-os.org/redox-os/orbutils.git
 cargo run --bin calculator
 ```

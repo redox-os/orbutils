@@ -2,7 +2,7 @@
 name = "orbutils"
 description = "The Orbital Utilities"
 repository = "https://gitlab.redox-os.org/redox-os/orbutils"
-version = "0.1.16"
+version = "0.2.0"
 license-file = "LICENSE"
 readme = "README.md"
 authors = ["Jeremy Soller <jackpot51@gmail.com>"]
@@ -11,9 +11,9 @@ authors = ["Jeremy Soller <jackpot51@gmail.com>"]
 name = "background"
 path = "src/background/main.rs"
 
-[[bin]]
-name = "browser"
-path = "src/browser/main.rs"
+# [[bin]]
+# name = "browser"
+# path = "src/browser/main.rs"
 
 [[bin]]
 name = "calculator"
@@ -23,41 +23,41 @@ path = "src/calculator/main.rs"
 name = "character_map"
 path = "src/character_map/main.rs"
 
-[[bin]]
-name = "editor"
-path = "src/editor/main.rs"
+# [[bin]]
+# name = "editor"
+# path = "src/editor/main.rs"
 
-[[bin]]
-name = "file_manager"
-path = "src/file_manager/main.rs"
+# [[bin]]
+# name = "file_manager"
+# path = "src/file_manager/main.rs"
 
-[[bin]]
-name = "launcher"
-path = "src/launcher/main.rs"
+# [[bin]]
+# name = "launcher"
+# path = "src/launcher/main.rs"
 
-[[bin]]
-name = "orblogin"
-path = "src/orblogin/main.rs"
+# [[bin]]
+# name = "orblogin"
+# path = "src/orblogin/main.rs"
 
 [[bin]]
 name = "viewer"
 path = "src/viewer/main.rs"
 
-[[bin]]
-name = "calendar"
-path = "src/calendar/main.rs"
+# [[bin]]
+# name = "calendar"
+# path = "src/calendar/main.rs"
 
 [dependencies]
-calculate = "0.1.*"
+calculate = "0.5.1"
 chrono = "0.4"
 html5ever = "0.15"
 hyper-rustls = "0.6"
 mime_guess = "1.8"
 mime = "0.2"
-orbclient = "0.3.17"
-orbfont = "0.1"
+orbclient = "0.3.20"
+orbfont = { git = "https://gitlab.redox-os.org/redox-os/orbfont" }
 orbimage = "0.1"
-orbtk = "0.2"
+orbtk = { git = "https://gitlab.redox-os.org/redox-os/orbtk" }
 tendril = "0.4"
 url = "1.5"
 redox_users = "0.2"

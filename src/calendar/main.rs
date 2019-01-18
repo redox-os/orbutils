@@ -2,7 +2,7 @@ extern crate orbtk;
 extern crate chrono;
 extern crate orbclient;
 
-use orbtk::{Rect, Window, WindowBuilder, Grid, Label, Button, Style};
+use orbtk::{Bounds, Window, WindowBuilder, Grid, Label, Button, Style};
 use orbtk::traits::{Place, Text, Click};
 use orbtk::theme::Theme;
 use chrono::prelude::*;
@@ -70,7 +70,7 @@ impl Calendar {
         let window_height = 6 * (cell_height + 8) + 16 + cell_day_name_height + 24;
         let theme = Theme::parse(CALENDAR_THEME_CSS);
 
-        let mut window_builder = WindowBuilder::new(Rect::new(-1, -1, window_width, window_height), "Calendar");
+        let mut window_builder = WindowBuilder::new(Bounds::new(-1, -1, window_width, window_height), "Calendar");
         window_builder = window_builder.theme(theme);
         let window = window_builder.build();
 
