@@ -166,6 +166,7 @@ impl Widget for MainView {
                                 Grid::create()
                                     .child(
                                         TextBox::create()
+                                            .width(0.0)
                                             .height(14.0)
                                             .padding(0.0)
                                             .selector(Selector::from("textbox").id("input"))
