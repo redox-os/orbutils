@@ -1,0 +1,29 @@
+container.header {
+    background: #444e55;
+}
+
+container.content {
+    background: #3b434a;
+}
+
+textbox {
+    background: transparent;
+    border-width: 0;
+    color: #9dafbf;
+    font-size: 16;
+}
+
+textblock {
+    font-size: 42;
+    color: #dfebf5;
+}
+
+container {
+    background: transparent;
+    padding: 2;
+}
+
+button {
+    border-radius: 1;
+    font-size: 20;
+}

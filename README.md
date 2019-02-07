@@ -41,3 +41,8 @@ Clone and run
 git clone https://gitlab.redox-os.org/redox-os/orbutils.git
 cargo run --bin calculator
 ```
+
+Run with light theme
+```
+cargo run --bin calculator --features light-theme
+```
