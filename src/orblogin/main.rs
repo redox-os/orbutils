@@ -132,11 +132,29 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3).unwrap();
             }
 
+            let (crop_x, crop_w) = if width > w  {
+                ((width - w)/2, w)
+            } else {
+                (0, width)
+            };
+
+            let (crop_y, crop_h) = if height > h {
+                ((height - h)/2, h)
+            } else {
+                (0, height)
+            };
+
             window.set(Color::rgb(0, 0, 0));
 
-            let x = (window.width() as i32 - scaled_image.width() as i32)/2;
-            let y = (window.height() as i32 - scaled_image.height() as i32)/2;
-            scaled_image.draw(&mut window, x, y);
+            let x = (w as i32 - crop_w as i32)/2;
+            let y = (h as i32 - crop_h as i32)/2;
+            scaled_image.roi(
+                crop_x, crop_y,
+                crop_w, crop_h,
+            ).draw(
+                &mut window,
+                x, y
+            );
 
             let x = (window.width() as i32 - 216)/2;
             let y = (window.height() as i32 - 164)/2;
