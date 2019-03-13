@@ -12,10 +12,6 @@ name = "background"
 path = "src/background/main.rs"
 
 [[bin]]
-name = "browser"
-path = "src/browser/main.rs"
-
-[[bin]]
 name = "calculator"
 path = "src/calculator/main.rs"
 
@@ -50,21 +46,13 @@ path = "src/calendar/main.rs"
 [dependencies]
 calculate = "0.1.*"
 chrono = "0.4"
-html5ever = "0.15"
-hyper-rustls = "0.6"
 mime_guess = "1.8"
 mime = "0.2"
 orbclient = "0.3.17"
 orbfont = "0.1"
 orbimage = "0.1"
 orbtk = "0.2"
-tendril = "0.4"
-url = "1.5"
 redox_users = "0.2"
-
-[dependencies.hyper]
-version = "0.10"
-default-features = false
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
 libc = "0.2"
