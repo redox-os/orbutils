@@ -44,23 +44,19 @@ name = "calendar"
 path = "src/calendar/main.rs"
 
 [dependencies]
-calculate = "0.1.*"
-chrono = "0.4"
-mime_guess = "1.8"
-mime = "0.2"
-orbclient = "0.3.17"
-orbfont = "0.1"
-orbimage = "0.1"
-orbtk = "0.2"
-redox_users = "0.2"
+calculate = "0.5.1"
+chrono = "0.4.6"
+mime_guess = "1.8.6"
+mime = "0.3.13"
+orbclient = "0.3.21"
+orbfont = "0.1.8"
+orbimage = "0.1.17"
+orbtk = "0.2.29"
+redox_users = "0.3.0"
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
-libc = "0.2"
+libc = "0.2.50"
 
 [target.'cfg(target_os = "redox")'.dependencies]
 redox_event = { git = "https://gitlab.redox-os.org/redox-os/event.git" }
-redox_syscall = "0.1"
-
-#temporary patch to avoid decoding jpg with rayon
-[patch.crates-io]
-jpeg-decoder = { git = "https://github.com/robbycerantola/jpeg-decoder.git" }
+redox_syscall = "0.1.51"
