@@ -12,7 +12,7 @@ use std::process::Command;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
 use orbimage::Image;
-use redox_users::{AllUsers};
+use redox_users::{All, AllUsers, Config};
 
 #[derive(Clone, Copy)]
 enum BackgroundMode {
@@ -78,7 +78,7 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
 
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
 
-    let sys_users = match AllUsers::new(true) {
+    let sys_users = match AllUsers::new(Config::with_auth()) {
         Ok(users) => users,
         // Not maybe the best thing to do...
         Err(_) => {
