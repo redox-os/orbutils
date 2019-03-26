@@ -56,7 +56,7 @@ impl State for MainViewState {
         let mut result = None;
 
         if let Some(child) = &mut context.child_by_id("input") {
-            if let Ok(text) = child.borrow_mut_property::<Text>() {
+            if let Ok(text) = child.borrow_mut::<Text>() {
                 if self.clear.get() {
                     text.0.clear();
                     self.clear.set(false);
@@ -83,7 +83,7 @@ impl State for MainViewState {
         }
 
         if self.updated.get() || self.clear.get() {
-            if let Ok(text) = context.widget().borrow_mut_property::<Text>() {
+            if let Ok(text) = context.widget().borrow_mut::<Text>() {
                 text.0 = self.result.borrow().clone();
             }
         }
@@ -121,8 +121,8 @@ fn generate_button(
             state.input(&String::from(sight.clone()));
             true
         })
-        .attach_property(GridColumn(column))
-        .attach_property(GridRow(row))
+        .attach(GridColumn(column))
+        .attach(GridRow(row))
 }
 
 fn generate_operation_button(
@@ -136,8 +136,8 @@ fn generate_operation_button(
         .min_width(0.0)
         .text(sight.to_string())
         .selector(get_button_selector(primary).class("square"))
-        .attach_property(GridColumn(column))
-        .attach_property(GridRow(row))
+        .attach(GridColumn(column))
+        .attach(GridRow(row))
 }
 
 struct MainView;
@@ -148,7 +148,7 @@ impl Widget for MainView {
     fn create() -> Self::Template {
         let state = Rc::new(MainViewState::default());
         let clear_state = state.clone();
-        let text = SharedProperty::new(Text::from(""));
+        let text = Property::new(Text::from(""));
 
         Template::default()
             .debug_name("MainView")
@@ -161,7 +161,7 @@ impl Widget for MainView {
                             .padding(8.0)
                             .constraint(Constraint::create().build())
                             .selector(Selector::from("container").class("header"))
-                            .attach_property(GridRow(0))
+                            .attach(GridRow(0))
                             .child(
                                 Grid::create()
                                     .child(
@@ -174,7 +174,7 @@ impl Widget for MainView {
                                     )
                                     .child(
                                         TextBlock::create()
-                                            .shared_text(text.clone())
+                                            .text_prop(text.clone())
                                             .vertical_alignment("End")
                                             .horizontal_alignment("End"),
                                     ),
@@ -184,7 +184,7 @@ impl Widget for MainView {
                         Container::create()
                             .selector(Selector::from("container").class("content"))
                             .padding(8.0)
-                            .attach_property(GridRow(1))
+                            .attach(GridRow(1))
                             .child(
                                 Grid::create()
                                     .columns(
@@ -249,7 +249,7 @@ impl Widget for MainView {
                             ),
                     ),
             )
-            .shared_property(text)
+            .property((text)
     }
 }
 
