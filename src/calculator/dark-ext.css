@@ -6,21 +6,20 @@ container.content {
     background: #3b434a;
 }
 
-textbox {
+text-box {
     background: transparent;
     border-width: 0;
     color: #9dafbf;
     font-size: 16;
 }
 
-textblock {
+text-block {
     font-size: 42;
     color: #dfebf5;
 }
 
 container {
-    background: transparent;
-    padding: 2;
+    background: "green";
 }
 
 button {

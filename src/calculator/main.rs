@@ -1,10 +1,9 @@
 extern crate orbtk;
-use orbtk::*;
+use orbtk::prelude::*;
 
 extern crate calc;
 
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
+use std::cell::Cell;
 
 static DARK_EXT: &'static str = include_str!("dark-ext.css");
 
@@ -25,7 +24,7 @@ fn get_theme() -> Theme {
 }
 
 #[derive(Default)]
-struct MainViewState {
+pub struct MainViewState {
     result: RefCell<String>,
     input: RefCell<String>,
     eval: Cell<bool>,
@@ -56,7 +55,7 @@ impl State for MainViewState {
         let mut result = None;
 
         if let Some(child) = &mut context.child_by_id("input") {
-            if let Ok(text) = child.borrow_mut::<Text>() {
+            if let Some(text) = child.try_get_mut::<Text>() {
                 if self.clear.get() {
                     text.0.clear();
                     self.clear.set(false);
@@ -83,7 +82,7 @@ impl State for MainViewState {
         }
 
         if self.updated.get() || self.clear.get() {
-            if let Ok(text) = context.widget().borrow_mut::<Text>() {
+            if let Some(text) = context.widget().try_get_mut::<Text>() {
                 text.0 = self.result.borrow().clone();
             }
         }
@@ -103,18 +102,20 @@ fn get_button_selector(primary: bool) -> Selector {
 }
 
 fn generate_button(
+    context: &mut BuildContext,
     state: &Rc<MainViewState>,
     sight: &str,
     primary: bool,
     column: usize,
     row: usize,
-) -> ButtonTemplate {
+) -> Entity {
     let sight = String::from(sight);
     let state = state.clone();
 
     Button::create()
+        .min_size(48.0, 48.0)
+        .max_size(48.0, 48.0)
         .size(48.0, 48.0)
-        .min_width(0.0)
         .text(sight.clone())
         .selector(get_button_selector(primary))
         .on_click(move |_| -> bool {
@@ -123,133 +124,137 @@ fn generate_button(
         })
         .attach(GridColumn(column))
         .attach(GridRow(row))
+        .build(context)
 }
 
-fn generate_operation_button(
-    sight: &str,
-    primary: bool,
-    column: usize,
-    row: usize,
-) -> ButtonTemplate {
+fn generate_operation_button(sight: &str, primary: bool, column: usize, row: usize) -> Button {
     Button::create()
+        .min_size(48.0, 48.0)
+        .max_size(48.0, 48.0)
         .size(48.0, 48.0)
-        .min_width(0.0)
         .text(sight.to_string())
         .selector(get_button_selector(primary).class("square"))
         .attach(GridColumn(column))
         .attach(GridRow(row))
 }
 
-struct MainView;
+widget!(MainView<MainViewState> {
+    text: Text
+});
 
-impl Widget for MainView {
-    type Template = Template;
-
-    fn create() -> Self::Template {
-        let state = Rc::new(MainViewState::default());
+impl Template for MainView {
+    fn template(self, id: Entity, context: &mut BuildContext) -> Self {
+        let state = self.clone_state();
         let clear_state = state.clone();
-        let text = Property::new(Text::from(""));
 
-        Template::default()
-            .debug_name("MainView")
-            .state(state.clone())
-            .child(
-                Grid::create()
-                    .rows(Rows::create().row(72.0).row("*").build())
-                    .child(
-                        Container::create()
-                            .padding(8.0)
-                            .constraint(Constraint::create().build())
-                            .selector(Selector::from("container").class("header"))
-                            .attach(GridRow(0))
-                            .child(
-                                Grid::create()
-                                    .child(
-                                        TextBox::create()
-                                            .width(0.0)
-                                            .height(14.0)
-                                            .padding(0.0)
-                                            .selector(Selector::from("textbox").id("input"))
-                                            .vertical_alignment("Start"),
-                                    )
-                                    .child(
-                                        TextBlock::create()
-                                            .text_prop(text.clone())
-                                            .vertical_alignment("End")
-                                            .horizontal_alignment("End"),
-                                    ),
-                            ),
-                    )
-                    .child(
-                        Container::create()
-                            .selector(Selector::from("container").class("content"))
-                            .padding(8.0)
-                            .attach(GridRow(1))
-                            .child(
-                                Grid::create()
-                                    .columns(
-                                        Columns::create()
-                                            .column(48.0)
-                                            .column(4.0)
-                                            .column(48.0)
-                                            .column(4.0)
-                                            .column(48.0)
-                                            .column(4.0)
-                                            .column(48.0)
-                                            .build(),
-                                    )
-                                    .rows(
-                                        Rows::create()
-                                            .row(48.0)
-                                            .row(4.0)
-                                            .row(48.0)
-                                            .row(4.0)
-                                            .row(48.0)
-                                            .row(4.0)
-                                            .row(48.0)
-                                            .row(4.0)
-                                            .row(48.0)
-                                            .build(),
-                                    )
-                                    // row 0
-                                    .child(generate_button(&state, "(", false, 0, 0))
-                                    .child(generate_button(&state, ")", false, 2, 0))
-                                    .child(generate_button(&state, "^", false, 4, 0))
-                                    .child(generate_button(&state, "/", true, 6, 0))
-                                    // row 2
-                                    .child(generate_button(&state, "7", false, 0, 2))
-                                    .child(generate_button(&state, "8", false, 2, 2))
-                                    .child(generate_button(&state, "9", false, 4, 2))
-                                    .child(generate_button(&state, "*", true, 6, 2))
-                                    // row 4
-                                    .child(generate_button(&state, "4", false, 0, 4))
-                                    .child(generate_button(&state, "5", false, 2, 4))
-                                    .child(generate_button(&state, "6", false, 4, 4))
-                                    .child(generate_button(&state, "-", true, 6, 4))
-                                    // row 6
-                                    .child(generate_button(&state, "1", false, 0, 6))
-                                    .child(generate_button(&state, "2", false, 2, 6))
-                                    .child(generate_button(&state, "3", false, 4, 6))
-                                    .child(generate_button(&state, "+", true, 6, 6))
-                                    // row 8
-                                    .child(generate_button(&state, "0", false, 0, 8))
-                                    .child(generate_button(&state, ".", false, 2, 8))
-                                    .child(generate_operation_button("C", false, 4, 8).on_click(
-                                        move |_| {
+        self.name("MainView").text("").child(
+            Grid::create()
+                .rows(Rows::create().row(72.0).row("*").build())
+                .child(
+                    Container::create()
+                        .padding(8.0)
+                        .selector(Selector::from("container").class("header"))
+                        .attach(GridRow(0))
+                        .child(
+                            Grid::create()
+                                .child(
+                                    TextBox::create()
+                                        .width(0.0)
+                                        .height(14.0)
+                                        .padding(0.0)
+                                        .text("")
+                                        .selector(Selector::from("text-box").id("input"))
+                                        .vertical_alignment("Start")
+                                        .build(context),
+                                )
+                                .child(
+                                    TextBlock::create()
+                                        .selector(Selector::from("text-block"))
+                                        .text(id)
+                                        .vertical_alignment("End")
+                                        .horizontal_alignment("End")
+                                        .build(context),
+                                )
+                                .build(context),
+                        )
+                        .build(context),
+                )
+                .child(
+                    Container::create()
+                        .selector(Selector::from("container").class("content"))
+                        .padding(8.0)
+                        .attach(GridRow(1))
+                        .child(
+                            Grid::create()
+                                .columns(
+                                    Columns::create()
+                                        .column(48.0)
+                                        .column(4.0)
+                                        .column(48.0)
+                                        .column(4.0)
+                                        .column(48.0)
+                                        .column(4.0)
+                                        .column(48.0)
+                                        .build(),
+                                )
+                                .rows(
+                                    Rows::create()
+                                        .row(48.0)
+                                        .row(4.0)
+                                        .row(48.0)
+                                        .row(4.0)
+                                        .row(48.0)
+                                        .row(4.0)
+                                        .row(48.0)
+                                        .row(4.0)
+                                        .row(48.0)
+                                        .build(),
+                                )
+                                // row 0
+                                .child(generate_button(context, &state, "(", false, 0, 0))
+                                .child(generate_button(context, &state, ")", false, 2, 0))
+                                .child(generate_button(context, &state, "^", false, 4, 0))
+                                .child(generate_button(context, &state, "/", true, 6, 0))
+                                // row 2
+                                .child(generate_button(context, &state, "7", false, 0, 2))
+                                .child(generate_button(context, &state, "8", false, 2, 2))
+                                .child(generate_button(context, &state, "9", false, 4, 2))
+                                .child(generate_button(context, &state, "*", true, 6, 2))
+                                // row 4
+                                .child(generate_button(context, &state, "4", false, 0, 4))
+                                .child(generate_button(context, &state, "5", false, 2, 4))
+                                .child(generate_button(context, &state, "6", false, 4, 4))
+                                .child(generate_button(context, &state, "-", true, 6, 4))
+                                // row 6
+                                .child(generate_button(context, &state, "1", false, 0, 6))
+                                .child(generate_button(context, &state, "2", false, 2, 6))
+                                .child(generate_button(context, &state, "3", false, 4, 6))
+                                .child(generate_button(context, &state, "+", true, 6, 6))
+                                // row 8
+                                .child(generate_button(context, &state, "0", false, 0, 8))
+                                .child(generate_button(context, &state, ".", false, 2, 8))
+                                .child(
+                                    generate_operation_button("C", false, 4, 8)
+                                        .on_click(move |_| {
                                             clear_state.clear();
                                             true
-                                        },
-                                    ))
-                                    .child(generate_operation_button("=", true, 6, 8).on_click(
-                                        move |_| {
+                                        })
+                                        .build(context),
+                                )
+                                .child(
+                                    generate_operation_button("=", true, 6, 8)
+                                        .on_click(move |_| {
                                             state.eval();
                                             true
-                                        },
-                                    )),
-                            ),
-                    ),
-            )
-            .property((text)
+                                        })
+                                        .build(context),
+                                )
+                                .build(context),
+                        )
+                        .build(context),
+                )
+                .build(context),
+        )
     }
 }
 
@@ -261,8 +266,7 @@ fn main() {
         .bounds((0.0, 0.0, 220.0, 344.0))
         .title("Calculator")
         .theme(get_theme())
-        .root(MainView::create())
         .debug_flag(false)
-        .build();
+        .build(MainView::create());
     application.run();
 }
