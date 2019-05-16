@@ -1,5 +1,6 @@
 extern crate orbtk;
 use orbtk::prelude::*;
+use orbtk::theme::DEFAULT_THEME_CSS;
 
 extern crate calc;
 
@@ -11,13 +12,13 @@ static DARK_EXT: &'static str = include_str!("dark-ext.css");
 static LIGHT_EXT: &'static str = include_str!("light-ext.css");
 
 #[cfg(not(feature = "light-theme"))]
-fn get_theme() -> Theme {
-    Theme::create().extension_css(DARK_EXT).build()
+fn get_theme() -> ThemeValue {
+    ThemeValue::create_from_css(DEFAULT_THEME_CSS).extension_css(DARK_EXT).build()
 }
 
 #[cfg(feature = "light-theme")]
-fn get_theme() -> Theme {
-    Theme::create_light_theme()
+fn get_theme() -> ThemeValue {
+    ThemeValue::create_light_theme()
         .extension_css(DARK_EXT)
         .extension_css(LIGHT_EXT)
         .build()
@@ -259,14 +260,15 @@ impl Template for MainView {
 }
 
 fn main() {
-    let mut application = Application::new();
-
-    application
-        .create_window()
-        .bounds((0.0, 0.0, 220.0, 344.0))
-        .title("Calculator")
-        .theme(get_theme())
-        .debug_flag(false)
-        .build(MainView::create());
-    application.run();
+     Application::new()
+        .window(|ctx| {
+            Window::create()
+                .title("Calculator")
+                .position((100.0, 100.0))
+                .size(220.0, 344.0)
+                .theme(get_theme())
+                .child(MainView::create().build(ctx))
+                .build(ctx)
+        })
+        .run();
 }

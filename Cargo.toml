@@ -57,8 +57,8 @@ mime = "0.2"
 orbclient = "0.3.20"
 orbfont = { git = "https://gitlab.redox-os.org/redox-os/orbfont" }
 orbimage = "0.1"
-# orbtk =  { path = "../orbtk" }
-orbtk = { git = "https://gitlab.redox-os.org/redox-os/orbtk" }
+orbtk =  { path = "../orbtk" }
+# orbtk = { git = "https://gitlab.redox-os.org/redox-os/orbtk" }
 tendril = "0.4"
 url = "1.5"
 redox_users = "0.2"
