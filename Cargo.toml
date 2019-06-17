@@ -44,7 +44,7 @@ name = "calendar"
 path = "src/calendar/main.rs"
 
 [dependencies]
-calculate = "0.5.1"
+calculate = { git = "https://gitlab.redox-os.org/redox-os/calc.git" }
 chrono = "0.4.6"
 mime_guess = "1.8.6"
 mime = "0.2.6"
