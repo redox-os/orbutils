@@ -221,7 +221,7 @@ impl Bar {
             i += 1;
         }
 
-        let text = self.font.render(&self.time, 32.0);
+        let text = self.font.render(&self.time, (32 * SCALE.load(Ordering::Relaxed)) as f32);
         x = self.width as i32 - text.width() as i32 - 8;
         y = (icon_size() - text.height() as i32)/2;
         text.draw(&mut self.window, x, y, TEXT_HIGHLIGHT_COLOR);
