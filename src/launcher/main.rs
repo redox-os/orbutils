@@ -16,6 +16,7 @@ use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicIsize, Ordering};
 
 use event::EventQueue;
 use orbclient::{EventOption, Renderer, Window, WindowFlag, K_ESC};
@@ -30,8 +31,15 @@ use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
 mod package;
 mod theme;
 
-pub const ICON_SIZE: i32 = 48;
-pub const ICON_SMALL_SIZE: i32 = 32;
+static SCALE: AtomicIsize = AtomicIsize::new(1);
+
+fn icon_size() -> i32 {
+    48 * SCALE.load(Ordering::Relaxed) as i32
+}
+
+fn icon_small_size() -> i32 {
+    32 * SCALE.load(Ordering::Relaxed) as i32
+}
 
 #[cfg(target_os = "redox")]
 static UI_PATH: &'static str = "/ui";
@@ -61,19 +69,19 @@ fn wait(status: &mut usize) -> usize {
 
 fn load_icon(path: &str) -> Image {
     let icon = Image::from_path(path).unwrap_or(Image::default());
-    if icon.width() == ICON_SIZE as u32 && icon.height() == ICON_SIZE as u32 {
+    if icon.width() == icon_size() as u32 && icon.height() == icon_size() as u32 {
         icon
     } else {
-        icon.resize(ICON_SIZE as u32, ICON_SIZE as u32, orbimage::ResizeType::Lanczos3).unwrap()
+        icon.resize(icon_size() as u32, icon_size() as u32, orbimage::ResizeType::Lanczos3).unwrap()
     }
 }
 
 fn load_icon_small(path: &str) -> Image {
     let icon = Image::from_path(path).unwrap_or(Image::default());
-    if icon.width() == ICON_SMALL_SIZE as u32 && icon.height() == ICON_SMALL_SIZE as u32 {
+    if icon.width() == icon_small_size() as u32 && icon.height() == icon_small_size() as u32 {
         icon
     } else {
-        icon.resize(ICON_SMALL_SIZE as u32, ICON_SMALL_SIZE as u32, orbimage::ResizeType::Lanczos3).unwrap()
+        icon.resize(icon_small_size() as u32, icon_small_size() as u32, orbimage::ResizeType::Lanczos3).unwrap()
     }
 }
 
@@ -110,14 +118,14 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selec
     let mut y = 0;
     for (i, package) in packages.iter().enumerate() {
         if i as i32 == selected {
-            window.rect(0, y, w, ICON_SMALL_SIZE as u32, BAR_HIGHLIGHT_COLOR);
+            window.rect(0, y, w, icon_small_size() as u32, BAR_HIGHLIGHT_COLOR);
         }
 
         package.icon_small.draw(window, 0, y);
 
-        font.render(&package.name, 16.0).draw(window, ICON_SMALL_SIZE + 8, y + 8, if i as i32 == selected { TEXT_HIGHLIGHT_COLOR } else { TEXT_COLOR });
+        font.render(&package.name, 16.0).draw(window, icon_small_size() + 8, y + 8, if i as i32 == selected { TEXT_HIGHLIGHT_COLOR } else { TEXT_COLOR });
 
-        y += ICON_SMALL_SIZE;
+        y += icon_small_size();
     }
 
     window.sync();
@@ -151,6 +159,8 @@ impl Bar {
 
         let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
 
+        SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
+
         Bar {
             children: Vec::new(),
             packages: packages,
@@ -160,7 +170,7 @@ impl Bar {
             width: width,
             height: height,
             window: Window::new_flags(
-                0, height as i32 - ICON_SIZE, width, ICON_SIZE as u32, "Launcher",
+                0, height as i32 - icon_size(), width, icon_size() as u32, "Launcher",
                 &[WindowFlag::Async, WindowFlag::Borderless]
             ).expect("launcher: failed to open window"),
             selected: -1,
@@ -214,7 +224,7 @@ impl Bar {
 
         let text = self.font.render(&self.time, 32.0);
         x = self.width as i32 - text.width() as i32 - 8;
-        y = (ICON_SIZE - text.height() as i32)/2;
+        y = (icon_size() - text.height() as i32)/2;
         text.draw(&mut self.window, x, y, TEXT_HIGHLIGHT_COLOR);
 
         self.window.sync();
@@ -301,8 +311,8 @@ fn bar_main() {
                 EventOption::Screen(screen_event) => {
                     bar.width = screen_event.width;
                     bar.height = screen_event.height;
-                    bar.window.set_pos(0, screen_event.height as i32 - ICON_SIZE);
-                    bar.window.set_size(screen_event.width, ICON_SIZE as u32);
+                    bar.window.set_pos(0, screen_event.height as i32 - icon_size());
+                    bar.window.set_size(screen_event.width, icon_size() as u32);
                     true
                 },
                 EventOption::Quit(_) => return Ok(Some(())),
@@ -345,9 +355,9 @@ fn bar_main() {
                     let mut i = 0;
 
                     if i == bar.selected {
-                        let start_h = bar.start_packages.len() as u32 * ICON_SMALL_SIZE as u32;
+                        let start_h = bar.start_packages.len() as u32 * icon_small_size() as u32;
                         let mut start_window = Window::new_flags(
-                            0, bar.height as i32 - ICON_SIZE - start_h as i32, 200, start_h, "Start",
+                            0, bar.height as i32 - icon_size() - start_h as i32, 200, start_h, "Start",
                             &[WindowFlag::Borderless]
                         ).unwrap();
 
@@ -388,10 +398,10 @@ fn bar_main() {
 
                                     let mut y = 0;
                                     for (j, _package) in bar.start_packages.iter().enumerate() {
-                                        if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
+                                        if mouse_y >= y && mouse_y < y + icon_small_size() {
                                             now_selected = j as i32;
                                         }
-                                        y += ICON_SMALL_SIZE;
+                                        y += icon_small_size();
                                     }
 
                                     if now_selected != selected {
@@ -402,7 +412,7 @@ fn bar_main() {
                                     if ! mouse_left && last_mouse_left {
                                         let mut y = 0;
                                         for package_i in 0..bar.start_packages.len() {
-                                            if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
+                                            if mouse_y >= y && mouse_y < y + icon_small_size() {
                                                 if bar.start_packages[package_i].binary == "exit" {
                                                     return Ok(Some(()));
                                                 } else {
@@ -413,7 +423,7 @@ fn bar_main() {
                                                 }
                                                 break 'start_choosing;
                                             }
-                                            y += ICON_SMALL_SIZE;
+                                            y += icon_small_size();
                                         }
                                     }
 
@@ -487,7 +497,7 @@ fn chooser_main(paths: env::Args) {
         });
 
         if packages.len() > 1 {
-            let mut window = Window::new(-1, -1, 200, packages.len() as u32 * ICON_SMALL_SIZE as u32, path).expect("launcher: failed to open window");
+            let mut window = Window::new(-1, -1, 200, packages.len() as u32 * icon_small_size() as u32, path).expect("launcher: failed to open window");
             let font = Font::find(Some("Sans"), None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
@@ -516,10 +526,10 @@ fn chooser_main(paths: env::Args) {
 
                         let mut y = 0;
                         for (i, _package) in packages.iter().enumerate() {
-                            if mouse_y >= y && mouse_y < y + ICON_SIZE {
+                            if mouse_y >= y && mouse_y < y + icon_size() {
                                 now_selected = i as i32;
                             }
-                            y += ICON_SMALL_SIZE;
+                            y += icon_small_size();
                         }
 
                         if now_selected != selected {
@@ -530,13 +540,13 @@ fn chooser_main(paths: env::Args) {
                         if ! mouse_left && last_mouse_left {
                             let mut y = 0;
                             for package in packages.iter() {
-                                if mouse_y >= y && mouse_y < y + ICON_SMALL_SIZE {
+                                if mouse_y >= y && mouse_y < y + icon_small_size() {
                                     if let Err(err) = Command::new(&package.binary).arg(path).spawn() {
                                         println!("launcher: failed to launch {}: {}", package.binary, err);
                                     }
                                     break 'choosing;
                                 }
-                                y += ICON_SMALL_SIZE;
+                                y += icon_small_size();
                             }
                         }
 

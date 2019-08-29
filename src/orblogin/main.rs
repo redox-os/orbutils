@@ -103,6 +103,9 @@ fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: 
 
 fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image: &Image, image_mode: BackgroundMode) -> Option<Command> {
     let (display_width, display_height) = orbclient::get_display_size().expect("orblogin: failed to get display size");
+    let s_u = (display_height / 1600) + 1;
+    let s_i = s_u as i32;
+    let s_f = s_i as f32;
 
     let mut window = Window::new_flags(
         0, 0, display_width, display_height, "orblogin",
@@ -156,12 +159,12 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 x, y
             );
 
-            let x = (window.width() as i32 - 216)/2;
-            let y = (window.height() as i32 - 164)/2;
-            window.rect(x, y, 216, 164, Color::rgba(0, 0, 0, 128));
+            let x = (window.width() as i32 - 216 * s_i)/2;
+            let y = (window.height() as i32 - 164 * s_i)/2;
+            window.rect(x, y, 216 * s_u, 164 * s_u, Color::rgba(0, 0, 0, 128));
 
-            font.render("Username:", 16.0).draw(&mut window, x + 8, y + 8, Color::rgb(255, 255, 255));
-            font.render("Password:", 16.0).draw(&mut window, x + 8, y + 68, Color::rgb(255, 255, 255));
+            font.render("Username:", 16.0 * s_f).draw(&mut window, x + 8 * s_i, y + 8 * s_i, Color::rgb(255, 255, 255));
+            font.render("Password:", 16.0 * s_f).draw(&mut window, x + 8 * s_i, y + 68 * s_i, Color::rgb(255, 255, 255));
 
             redraw = true;
         }
@@ -180,26 +183,26 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 Color::rgb(29, 29, 29)
             };
 
-            let x = (window.width() as i32 - 200)/2;
-            let mut y = (window.height() as i32 - 148)/2;
+            let x = (window.width() as i32 - 200 * s_i)/2;
+            let mut y = (window.height() as i32 - 148 * s_i)/2;
 
-            y += 24;
+            y += 24 * s_i;
 
             {
-                window.rect(x, y, 200, 28, if item == 0 { active } else { inactive });
-                window.rect(x + 2, y + 2, 196, 24, Color::rgb(40, 40, 40));
+                window.rect(x, y, 200 * s_u, 28 * s_u, if item == 0 { active } else { inactive });
+                window.rect(x + 2 * s_i, y + 2 * s_i, 196 * s_u, 24 * s_u, Color::rgb(40, 40, 40));
                 let mut string = username.to_string();
                 if item == 0 {
                     string.push('|');
                 }
-                font.render(&string, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
+                font.render(&string, 16.0 * s_f).draw(&mut window, x + 6 * s_i, y + 6 * s_i, Color::rgb(255, 255, 255));
             }
 
-            y += 60;
+            y += 60 * s_i;
 
             {
-                window.rect(x, y, 200, 28, if item == 1 { active } else { inactive });
-                window.rect(x + 2, y + 2, 196, 24, Color::rgb(40, 40, 40));
+                window.rect(x, y, 200 * s_u, 28 * s_u, if item == 1 { active } else { inactive });
+                window.rect(x + 2 * s_i, y + 2 * s_i, 196 * s_u, 24 * s_u, Color::rgb(40, 40, 40));
                 let mut string = String::new();
                 for _c in password.chars() {
                     string.push('•');
@@ -207,16 +210,16 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 if item == 1 {
                     string.push('|');
                 }
-                font.render(&string, 16.0).draw(&mut window, x + 6, y + 6, Color::rgb(255, 255, 255));
+                font.render(&string, 16.0 * s_f).draw(&mut window, x + 6 * s_i, y + 6 * s_i, Color::rgb(255, 255, 255));
             }
 
-            y += 36;
+            y += 36 * s_i;
 
             {
-                window.rect(x, y, 200, 28, Color::rgb(29, 29, 29));
-                window.rect(x + 2, y + 2, 196, 24, Color::rgb(39, 72, 105));
-                let text = font.render(&"Login", 16.0);
-                text.draw(&mut window, x + (200 - text.width() as i32)/2, y + 6, Color::rgb(255, 255, 255));
+                window.rect(x, y, 200 * s_u, 28 * s_u, Color::rgb(29, 29, 29));
+                window.rect(x + 2 * s_i, y + 2 * s_i, 196 * s_u, 24 * s_u, Color::rgb(39, 72, 105));
+                let text = font.render(&"Login", 16.0 * s_f);
+                text.draw(&mut window, x + (200 * s_i - text.width() as i32)/2, y + 6 * s_i, Color::rgb(255, 255, 255));
             }
 
             window.sync();
@@ -287,13 +290,13 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
                 },
                 EventOption::Button(button_event) => {
                     if ! button_event.left && mouse_left {
-                        let x = (window.width() as i32 - 216)/2;
-                        let y = (window.height() as i32 - 164)/2;
+                        let x = (window.width() as i32 - 216 * s_i)/2;
+                        let y = (window.height() as i32 - 164 * s_i)/2;
 
-                        if mouse_x >= x && mouse_x < x + 216 && mouse_y >= y && mouse_y < y + 164 {
-                            if mouse_y < y + 64 {
+                        if mouse_x >= x && mouse_x < x + 216 * s_i && mouse_y >= y && mouse_y < y + 164 * s_i {
+                            if mouse_y < y + 64 * s_i {
                                 item = 0;
-                            } else if mouse_y < y + 128 {
+                            } else if mouse_y < y + 128 * s_i {
                                 item = 1;
                             } else {
                                 if let Some(command) = login_command(&username, &password, launcher_cmd, launcher_args) {
