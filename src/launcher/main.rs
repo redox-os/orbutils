@@ -146,6 +146,9 @@ struct Bar {
 
 impl Bar {
     fn new() -> Bar {
+        let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
+        SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
+
         let packages = get_packages();
 
         let mut logout_package = Package::new();
@@ -156,10 +159,6 @@ impl Bar {
 
         let mut start_packages = packages.clone();
         start_packages.push(logout_package);
-
-        let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-
-        SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
 
         Bar {
             children: Vec::new(),
