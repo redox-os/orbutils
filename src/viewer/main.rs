@@ -100,7 +100,7 @@ fn main() {
             }
         },
         Err(err) => {
-            let msg = format!("{}", err);
+            let msg = err.to_string();
 
             let mut window = Window::new(-1, -1, max(320, msg.len() as u32 * 8), 32,
                                          &format!("{} - Viewer", path)).unwrap();

@@ -78,7 +78,7 @@ fn main() {
         None => "/ui/background.png".to_string(),
     };
 
-    let mode = BackgroundMode::from_str(&args.next().unwrap_or(String::new()));
+    let mode = BackgroundMode::from_str(&args.next().unwrap_or_default());
 
     match Image::from_path(&path) {
         Ok(image) => {

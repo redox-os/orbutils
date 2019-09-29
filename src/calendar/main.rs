@@ -24,7 +24,7 @@ impl TimeMachine {
             date: Local::now(),
         }
     }
-    
+
     pub fn increase_month(&mut self) {
         self.date = self.date.add(Duration::days(31))
                         .with_day(1)
@@ -36,7 +36,7 @@ impl TimeMachine {
                         .with_day(1)
                         .unwrap();
     }
-    
+
     pub fn get_date(&mut self) -> DateTime<Local> {
         self.date
     }
@@ -115,10 +115,10 @@ impl Calendar {
         window.add(&grid);
 
         Calendar {
-            window: window,
-            window_width: window_width,
-            cell_height: cell_height,
-            cell_width: cell_width,
+            window,
+            window_width,
+            cell_height,
+            cell_width,
             cell_day_name_height: cell_day_name_height,
             date: TimeMachine::new(),
             grid_calendar: grid,
