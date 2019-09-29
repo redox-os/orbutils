@@ -66,16 +66,15 @@ fn main() {
                                     .unwrap();
             window.set(Color::rgb(0, 0, 0));
             let mut x = 0;
-            for c in format!("{}", err).chars() {
+            for c in err.to_string().chars() {
                 window.char(x, 0, c, Color::rgb(255, 255, 255));
                 x += 8;
             }
             window.sync();
             loop {
                 for event in window.events() {
-                    match event.to_option() {
-                        EventOption::Quit(_) => return,
-                        _ => ()
+                    if let EventOption::Quit(_) = event.to_option() {
+                        return
                     }
                 }
             }

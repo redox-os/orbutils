@@ -333,7 +333,7 @@ impl FileManager {
     }
 
     fn resized_columns(&self) -> [Column; 3] {
-        let mut columns = self.columns.clone();
+        let mut columns = self.columns;
         columns[0].width = cmp::max(
             columns[0].width,
             self.window_width as i32
@@ -368,7 +368,7 @@ impl FileManager {
     }
 
     fn update_headers(&mut self) {
-        if let None = self.column_labels.get(0) {
+        if self.column_labels.get(0).is_none() {
             let label = Label::new();
             self.window.add(&label);
             label.with_class("entry");
@@ -428,14 +428,14 @@ impl FileManager {
                         if ! name.is_empty() {
                             tx.send(FileManagerCommand::CreateFile(name)).unwrap();
                         }
-                        unsafe { (&mut *window_ptr).close(); }
+                        unsafe { (&*window_ptr).close(); }
                     });
                 }
 
                 {
                     let window_ptr = window.deref_mut() as *mut Window;
                     cancel_button.on_click(move |_button: &Button, _point: Point| {
-                        unsafe { (&mut *window_ptr).close(); }
+                        unsafe { (&*window_ptr).close(); }
                     });
                 }
 
@@ -448,7 +448,7 @@ impl FileManager {
                         if ! name.is_empty() {
                             tx.send(FileManagerCommand::CreateFile(name)).unwrap();
                         }
-                        unsafe { (&mut *window_ptr).close(); }
+                        unsafe { (&*window_ptr).close(); }
                     });
                 }
 
@@ -461,7 +461,7 @@ impl FileManager {
                         if ! name.is_empty() {
                             tx.send(FileManagerCommand::CreateFolder(name)).unwrap();
                         }
-                        unsafe { (&mut *window_ptr).close(); }
+                        unsafe { (&*window_ptr).close(); }
                     });
                 }
 
@@ -476,7 +476,7 @@ impl FileManager {
 
         let columns = self.resized_columns();
         for (i, column) in columns.iter().enumerate() {
-            if let None = self.column_labels.get(i * 2 + 1) {
+            if self.column_labels.get(i * 2 + 1).is_none() {
                 // header text
                 let label = Label::new();
                 self.window.add(&label);
@@ -498,7 +498,7 @@ impl FileManager {
             }
 
             if let Some(label) = self.column_labels.get(i * 2 + 1) {
-                label.position(column.x, 0).size(column.width as u32, 32).text(column.name.clone());
+                label.position(column.x, 0).size(column.width as u32, 32).text(column.name);
             }
 
             if let Some(label) = self.column_labels.get(i * 2 + 2) {
