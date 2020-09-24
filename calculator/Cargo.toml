@@ -1,0 +1,28 @@
+[package]
+name = "calculator"
+version = "0.1.0"
+authors = ["Florian Blasius <flovanpt@posteo.de>"]
+edition = "2018"
+license-file = "../LICENSE"
+readme = "../README.md"
+repository = "https://gitlab.redox-os.org/redox-os/orbutils"
+
+[[bin]]
+name = "calculator"
+path = "calculator.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+orbtk = { git = "https://github.com/redox-os/orbtk.git", branch = "develop" }
+calculate = { git = "https://gitlab.redox-os.org/redox-os/calc.git" }
+lazy_static = "1.4.0"
+
+[features]
+light = []
+redox = []
+
+[package.metadata.bundle]
+name = "Calculator"
+identifier = "redox-os.calculator"
+short_description = "Calculator written in rust, developed with OrbTk."

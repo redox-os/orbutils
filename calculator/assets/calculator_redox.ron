@@ -1,0 +1,72 @@
+Theme (
+    styles: {
+        "input": (
+            base: "body",
+            properties: {
+                "font_family": "$REGULAR_FONT",
+                "foreground": "$BRIGHT_GRAY"
+            }
+        ),
+        "result": (
+            base: "body",
+            properties: {
+                "font_size": "$FONT_SIZE_36",
+                "foreground": "$BRIGHT_GRAY"
+            }
+        ),
+        "header_area": (
+            properties: {
+                "background": "$WHITE"
+            }
+        ),
+        "content_area": (
+            properties: {
+                "background": "$ATHENS_GREY"
+            }
+        ),
+         "button_calculator": ( 
+            base: "base",
+            properties: {
+                "width": 48,
+                "height": 48,
+                "foreground": "$BLACK",
+                "icon_brush": "$BLACK",
+                "background": "$WHITE",
+                "border_brush": "$BOTTICELLI",
+                "border_width": 1,
+                "border_radius": 2,
+                "spacing": 0,
+            }, 
+            states: {
+                "pressed": {
+                    "background": "$HAVELOCK_BLUE",
+                    "icon_brush": "$WHITE",
+                    "foreground": "$WHITE"
+                },
+                "selected": {
+                    "background": "$HAVELOCK_BLUE",
+                    "icon_brush": "$WHITE",
+                    "foreground": "$WHITE"
+                },
+                "disabled": {
+                    "background": "$ROLLING_STONE",
+                    "foreground": "$BRIGHT_GRAY",
+                    "icon_brush": "$BRIGHT_GRAY",
+                },
+            },
+        ),
+        "button_calculator_primary": (
+            base: "button_calculator",
+            properties: {
+                "background": "$HAVELOCK_BLUE",
+                "foreground": "$WHITE",
+                "icon_brush": "$WHITE",
+            },
+            states: {
+                "pressed": {
+                    "background": "#5277E2",
+                },
+            },
+        ),
+    }
+)

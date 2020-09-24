@@ -1,0 +1,19 @@
+[package]
+name = "file_manager"
+version = "0.1.0"
+authors = ["Jeremy Soller <jackpot51@gmail.com>"]
+edition = "2018"
+license-file = "../LICENSE"
+readme = "../README.md"
+repository = "https://gitlab.redox-os.org/redox-os/orbutils"
+
+[[bin]]
+name = "file_manager"
+path = "file_manager.rs"
+
+[dependencies]
+orbtk = { git = "https://github.com/redox-os/orbtk.git", branch = "0.2" }
+orbclient = { git = "https://gitlab.redox-os.org/redox-os/orbclient.git" }
+orbimage = { git = "https://gitlab.redox-os.org/redox-os/orbimage.git", branch = "develop" }
+mime_guess = "1.8.6"
+mime = "0.2.6"

@@ -1,0 +1,16 @@
+[package]
+name = "background"
+version = "0.1.0"
+authors = ["Jeremy Soller <jackpot51@gmail.com>"]
+edition = "2018"
+license-file = "../LICENSE"
+readme = "../README.md"
+repository = "https://gitlab.redox-os.org/redox-os/orbutils"
+
+[[bin]]
+name = "background"
+path = "background.rs"
+
+[dependencies]
+orbclient = { git = "https://gitlab.redox-os.org/redox-os/orbclient.git" }
+orbimage = { git = "https://gitlab.redox-os.org/redox-os/orbimage.git", branch = "develop" }

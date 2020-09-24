@@ -3,25 +3,30 @@
 
 extern crate event;
 extern crate orbclient;
-extern crate orbimage;
 extern crate orbfont;
+extern crate orbimage;
 extern crate syscall;
 
-use std::{env, io, mem};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::os::unix::io::AsRawFd;
-use std::os::unix::process::ExitStatusExt;
+use std::{env, io, mem};
+
 use std::path::Path;
 use std::process::{Child, Command, ExitStatus};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
+#[cfg(target_os = "redox")]
+use std::os::unix::io::AsRawFd;
+
+#[cfg(target_os = "redox")]
+use std::os::unix::process::ExitStatusExt;
+
 use event::EventQueue;
 use orbclient::{EventOption, Renderer, Window, WindowFlag, K_ESC};
-use orbimage::Image;
 use orbfont::Font;
+use orbimage::Image;
 use syscall::data::TimeSpec;
 use syscall::flag::{CLOCK_MONOTONIC, CLOCK_REALTIME};
 
@@ -72,7 +77,12 @@ fn load_icon(path: &str) -> Image {
     if icon.width() == icon_size() as u32 && icon.height() == icon_size() as u32 {
         icon
     } else {
-        icon.resize(icon_size() as u32, icon_size() as u32, orbimage::ResizeType::Lanczos3).unwrap()
+        icon.resize(
+            icon_size() as u32,
+            icon_size() as u32,
+            orbimage::ResizeType::Lanczos3,
+        )
+        .unwrap()
     }
 }
 
@@ -81,12 +91,19 @@ fn load_icon_small(path: &str) -> Image {
     if icon.width() == icon_small_size() as u32 && icon.height() == icon_small_size() as u32 {
         icon
     } else {
-        icon.resize(icon_small_size() as u32, icon_small_size() as u32, orbimage::ResizeType::Lanczos3).unwrap()
+        icon.resize(
+            icon_small_size() as u32,
+            icon_small_size() as u32,
+            orbimage::ResizeType::Lanczos3,
+        )
+        .unwrap()
     }
 }
 
 fn get_packages() -> Vec<Package> {
-    let read_dir = Path::new(&format!("{}/apps/", UI_PATH)).read_dir().expect("failed to read apps directory");
+    let read_dir = Path::new(&format!("{}/apps/", UI_PATH))
+        .read_dir()
+        .expect("failed to read apps directory");
 
     let mut entries = vec![];
     for dir in read_dir {
@@ -110,7 +127,7 @@ fn get_packages() -> Vec<Package> {
     packages
 }
 
-fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selected: i32){
+fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selected: i32) {
     let w = window.width();
 
     window.set(BAR_COLOR);
@@ -123,7 +140,16 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selec
 
         package.icon_small.draw(window, 0, y);
 
-        font.render(&package.name, 16.0).draw(window, icon_small_size() + 8, y + 8, if i as i32 == selected { TEXT_HIGHLIGHT_COLOR } else { TEXT_COLOR });
+        font.render(&package.name, 16.0).draw(
+            window,
+            icon_small_size() + 8,
+            y + 8,
+            if i as i32 == selected {
+                TEXT_HIGHLIGHT_COLOR
+            } else {
+                TEXT_COLOR
+            },
+        );
 
         y += icon_small_size();
     }
@@ -146,7 +172,8 @@ struct Bar {
 
 impl Bar {
     fn new() -> Bar {
-        let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
+        let (width, height) =
+            orbclient::get_display_size().expect("launcher: failed to get display size");
         SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
 
         let packages = get_packages();
@@ -154,7 +181,8 @@ impl Bar {
         let mut logout_package = Package::new();
         logout_package.name = "Logout".to_string();
         logout_package.icon = load_icon(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
-        logout_package.icon_small = load_icon_small(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
+        logout_package.icon_small =
+            load_icon_small(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
         logout_package.binary = "exit".to_string();
 
         let mut start_packages = packages.clone();
@@ -169,11 +197,16 @@ impl Bar {
             width,
             height,
             window: Window::new_flags(
-                0, height as i32 - icon_size(), width, icon_size() as u32, "Launcher",
-                &[WindowFlag::Async, WindowFlag::Borderless]
-            ).expect("launcher: failed to open window"),
+                0,
+                height as i32 - icon_size(),
+                width,
+                icon_size() as u32,
+                "Launcher",
+                &[WindowFlag::Async, WindowFlag::Borderless],
+            )
+            .expect("launcher: failed to open window"),
             selected: -1,
-            time: String::new()
+            time: String::new(),
         }
     }
 
@@ -182,9 +215,9 @@ impl Bar {
         syscall::clock_gettime(CLOCK_REALTIME, &mut time).expect("launcher: failed to read time");
 
         let ts = time.tv_sec;
-        let s = ts%86400;
-        let h = s/3600;
-        let m = s/60%60;
+        let s = ts % 86400;
+        let h = s / 3600;
+        let m = s / 60 % 60;
         self.time = format!("{:>02}:{:>02}", h, m)
     }
 
@@ -197,9 +230,13 @@ impl Bar {
 
         {
             if i == self.selected {
-                self.window.rect(x as i32, y as i32,
-                                  self.start.width() as u32, self.start.height() as u32,
-                                  BAR_HIGHLIGHT_COLOR);
+                self.window.rect(
+                    x as i32,
+                    y as i32,
+                    self.start.width() as u32,
+                    self.start.height() as u32,
+                    BAR_HIGHLIGHT_COLOR,
+                );
             }
 
             self.start.draw(&mut self.window, x as i32, y as i32);
@@ -210,9 +247,13 @@ impl Bar {
 
         for package in self.packages.iter() {
             if i == self.selected {
-                self.window.rect(x as i32, y as i32,
-                                  package.icon.width() as u32, package.icon.height() as u32,
-                                  BAR_HIGHLIGHT_COLOR);
+                self.window.rect(
+                    x as i32,
+                    y as i32,
+                    package.icon.width() as u32,
+                    package.icon.height() as u32,
+                    BAR_HIGHLIGHT_COLOR,
+                );
             }
 
             package.icon.draw(&mut self.window, x as i32, y as i32);
@@ -221,9 +262,11 @@ impl Bar {
             i += 1;
         }
 
-        let text = self.font.render(&self.time, (32 * SCALE.load(Ordering::Relaxed)) as f32);
+        let text = self
+            .font
+            .render(&self.time, (32 * SCALE.load(Ordering::Relaxed)) as f32);
         x = self.width as i32 - text.width() as i32 - 8;
-        y = (icon_size() - text.height() as i32)/2;
+        y = (icon_size() - text.height() as i32) / 2;
         text.draw(&mut self.window, x, y, TEXT_HIGHLIGHT_COLOR);
 
         self.window.sync();
@@ -233,60 +276,75 @@ impl Bar {
 fn bar_main() {
     let bar = Rc::new(RefCell::new(Bar::new()));
 
-    match Command::new("/ui/bin/background").arg("/ui/background.png").arg("zoom").spawn() {
+    match Command::new("/ui/bin/background")
+        .arg("/ui/background.png")
+        .arg("zoom")
+        .spawn()
+    {
         Ok(child) => bar.borrow_mut().children.push(child),
-        Err(err) => println!("launcher: failed to launch background: {}", err)
+        Err(err) => println!("launcher: failed to launch background: {}", err),
     }
 
     let mut event_queue = EventQueue::<()>::new().expect("launcher: failed to create event queue");
 
-    let mut time_file = File::open(&format!("time:{}", CLOCK_MONOTONIC)).expect("launcher: failed to open time");
+    let mut time_file =
+        File::open(&format!("time:{}", CLOCK_MONOTONIC)).expect("launcher: failed to open time");
     let bar_time = bar.clone();
-    event_queue.add(time_file.as_raw_fd(), move |_| -> io::Result<Option<()>> {
-        let mut time = TimeSpec::default();
-        if time_file.read(&mut time)? >= mem::size_of::<TimeSpec>() {
-            let mut bar = bar_time.borrow_mut();
+    event_queue
+        .add(time_file.as_raw_fd(), move |_| -> io::Result<Option<()>> {
+            let mut time = TimeSpec::default();
+            if time_file.read(&mut time)? >= mem::size_of::<TimeSpec>() {
+                let mut bar = bar_time.borrow_mut();
 
-            let mut i = 0;
-            while i < bar.children.len() {
-                let remove = match bar.children[i].try_wait() {
-                    Ok(None) => false,
-                    Ok(Some(status)) => {
-                        println!("launcher: {} exited with {}", bar.children[i].id(), status);
-                        true
-                    },
-                    Err(err) => {
-                        println!("launcher: failed to wait for {}: {}", bar.children[i].id(), err);
-                        true
+                let mut i = 0;
+                while i < bar.children.len() {
+                    let remove = match bar.children[i].try_wait() {
+                        Ok(None) => false,
+                        Ok(Some(status)) => {
+                            println!("launcher: {} exited with {}", bar.children[i].id(), status);
+                            true
+                        }
+                        Err(err) => {
+                            println!(
+                                "launcher: failed to wait for {}: {}",
+                                bar.children[i].id(),
+                                err
+                            );
+                            true
+                        }
+                    };
+                    if remove {
+                        bar.children.remove(i);
+                    } else {
+                        i += 1;
                     }
-                };
-                if remove {
-                    bar.children.remove(i);
-                } else {
-                    i += 1;
                 }
+
+                loop {
+                    let mut status = 0;
+                    let pid = wait(&mut status);
+                    if pid == 0 {
+                        break;
+                    } else {
+                        println!(
+                            "launcher: reaping zombie {}: {}",
+                            pid,
+                            ExitStatus::from_raw(status as i32)
+                        );
+                    }
+                }
+
+                bar.update_time();
+                bar.draw();
+
+                time.tv_sec += 1;
+                time.tv_nsec = 0;
+                time_file.write(&time)?;
             }
 
-            loop {
-                let mut status = 0;
-                let pid = wait(&mut status);
-                if pid == 0 {
-                    break;
-                } else {
-                    println!("launcher: reaping zombie {}: {}", pid, ExitStatus::from_raw(status as i32));
-                }
-            }
-
-            bar.update_time();
-            bar.draw();
-
-            time.tv_sec += 1;
-            time.tv_nsec = 0;
-            time_file.write(&time)?;
-        }
-
-        Ok(None)
-    }).expect("launcher: failed to poll time");
+            Ok(None)
+        })
+        .expect("launcher: failed to poll time");
 
     let bar_window = bar.clone();
     let mut mouse_x = 0;
@@ -451,12 +509,13 @@ fn bar_main() {
         Ok(None)
     }).expect("launcher: failed to poll window events");
 
-    event_queue.trigger_all(event::Event {
-        fd: 0,
-        flags: 0,
-    }).expect("launcher: failed to trigger events");
+    event_queue
+        .trigger_all(event::Event { fd: 0, flags: 0 })
+        .expect("launcher: failed to trigger events");
 
-    event_queue.run().expect("launcher: failed to run event loop");
+    event_queue
+        .run()
+        .expect("launcher: failed to run event loop");
 
     for child in bar.borrow_mut().children.iter_mut() {
         let pid = child.id();
@@ -476,7 +535,11 @@ fn bar_main() {
         if pid == 0 {
             break;
         } else {
-            println!("launcher: reaping zombie {}: {}", pid, ExitStatus::from_raw(status as i32));
+            println!(
+                "launcher: reaping zombie {}: {}",
+                pid,
+                ExitStatus::from_raw(status as i32)
+            );
         }
     }
 }
@@ -487,8 +550,9 @@ fn chooser_main(paths: env::Args) {
 
         packages.retain(|package| -> bool {
             for accept in package.accepts.iter() {
-                if (accept.starts_with('*') && path.ends_with(&accept[1 ..])) ||
-                   (accept.ends_with('*') && path.starts_with(&accept[.. accept.len() - 1])) {
+                if (accept.starts_with('*') && path.ends_with(&accept[1..]))
+                    || (accept.ends_with('*') && path.starts_with(&accept[..accept.len() - 1]))
+                {
                     return true;
                 }
             }
@@ -496,7 +560,14 @@ fn chooser_main(paths: env::Args) {
         });
 
         if packages.len() > 1 {
-            let mut window = Window::new(-1, -1, 200, packages.len() as u32 * icon_small_size() as u32, path).expect("launcher: failed to open window");
+            let mut window = Window::new(
+                -1,
+                -1,
+                200,
+                packages.len() as u32 * icon_small_size() as u32,
+                path,
+            )
+            .expect("launcher: failed to open window");
             let font = Font::find(Some("Sans"), None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
@@ -511,13 +582,13 @@ fn chooser_main(paths: env::Args) {
                         EventOption::Mouse(mouse_event) => {
                             mouse_y = mouse_event.y;
                             true
-                        },
+                        }
                         EventOption::Button(button_event) => {
                             mouse_left = button_event.left;
                             true
-                        },
+                        }
                         EventOption::Quit(_) => break 'choosing,
-                        _ => false
+                        _ => false,
                     };
 
                     if redraw {
@@ -536,12 +607,17 @@ fn chooser_main(paths: env::Args) {
                             draw_chooser(&mut window, &font, &packages, selected);
                         }
 
-                        if ! mouse_left && last_mouse_left {
+                        if !mouse_left && last_mouse_left {
                             let mut y = 0;
                             for package in packages.iter() {
                                 if mouse_y >= y && mouse_y < y + icon_small_size() {
-                                    if let Err(err) = Command::new(&package.binary).arg(path).spawn() {
-                                        println!("launcher: failed to launch {}: {}", package.binary, err);
+                                    if let Err(err) =
+                                        Command::new(&package.binary).arg(path).spawn()
+                                    {
+                                        println!(
+                                            "launcher: failed to launch {}: {}",
+                                            package.binary, err
+                                        );
                                     }
                                     break 'choosing;
                                 }

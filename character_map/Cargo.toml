@@ -1,0 +1,16 @@
+[package]
+name = "character_map"
+version = "0.1.0"
+authors = ["Jeremy Soller <jackpot51@gmail.com>"]
+edition = "2018"
+license-file = "../LICENSE"
+readme = "../README.md"
+repository = "https://gitlab.redox-os.org/redox-os/orbutils"
+
+[[bin]]
+name = "character_map"
+path = "character_map.rs"
+
+[dependencies]
+orbclient = { git = "https://gitlab.redox-os.org/redox-os/orbclient.git" }
+orbfont = { git = "https://gitlab.redox-os.org/redox-os/orbfont.git", branch = "develop" }

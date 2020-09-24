@@ -1,0 +1,21 @@
+[package]
+name = "launcher"
+version = "0.1.0"
+authors = ["Jeremy Soller <jackpot51@gmail.com>"]
+edition = "2018"
+license-file = "../LICENSE"
+readme = "../README.md"
+repository = "https://gitlab.redox-os.org/redox-os/orbutils"
+
+[dependencies]
+orbclient = { git = "https://gitlab.redox-os.org/redox-os/orbclient.git" }
+orbimage = { git = "https://gitlab.redox-os.org/redox-os/orbimage.git", branch = "develop" }
+orbfont = { git = "https://gitlab.redox-os.org/redox-os/orbfont.git", branch = "develop" }
+
+[target.'cfg(not(target_os = "redox"))'.dependencies]
+libc = "0.2.50"
+event = "0.2"
+
+[target.'cfg(target_os = "redox")'.dependencies]
+redox_event = { git = "https://gitlab.redox-os.org/redox-os/event.git" }
+redox_syscall = "0.1.51"

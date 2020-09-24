@@ -1,0 +1,68 @@
+Theme (
+    styles: {
+        "window": (
+            properties: {
+                "background": "#F5F6F7",
+                "border_brush": "#CFD6E6",
+                "border_radius": 0,
+                "border_width": 1,
+            }
+        ),
+        "base": (
+            properties: {
+                "font_size": "16",
+                "font_family": "Roboto-Medium",
+            }
+        ),
+        "text_block": (
+            properties: {
+                "foreground": "#000000",
+            }
+        ),
+        "text_block_today": (
+            properties: {
+                "foreground": "#FFFFFF",
+            }
+        ),
+        "button_styled": (
+            properties: {
+                "background": "#FFFFFF",
+                "border_brush": "#CFD6E6",
+                "border_radius": 2,
+                "border_width": 1,
+                "icon_brush": "#000000",
+                "height": 32,
+                "width": 32,
+                "max_width": 32,
+                "spacing": 0
+            },
+            states: {
+                "pressed": {
+                    "background": "#5294E2",
+                    "icon_brush": "white"
+                }
+            }
+        ),
+        "date_cell": (
+            properties: {
+                "background": "#FFFFFF",
+                "border_brush": "#CFD6E6",
+                "border_radius": 4,
+                "border_width": 1,
+                "width": 82,
+                "height": 82
+            }
+        ),
+        "date_today": (
+            properties: {
+                "background": "#5294E2",
+                "border_brush": "#000000",
+                "border_radius": 4,
+                "border_width": 1,
+                "foreground": "#FFFFFF",
+                "width": 82,
+                "height": 82
+            }
+        )
+    }
+)
