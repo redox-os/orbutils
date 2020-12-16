@@ -23,7 +23,7 @@ use orbclient::{EventOption, Renderer, Window, WindowFlag, K_ESC};
 use orbimage::Image;
 use orbfont::Font;
 use syscall::data::TimeSpec;
-use syscall::flag::{CLOCK_MONOTONIC, CLOCK_REALTIME};
+use syscall::flag::{CLOCK_MONOTONIC, CLOCK_REALTIME, EventFlags};
 
 use package::Package;
 use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
@@ -453,7 +453,7 @@ fn bar_main() {
 
     event_queue.trigger_all(event::Event {
         fd: 0,
-        flags: 0,
+        flags: EventFlags::empty(),
     }).expect("launcher: failed to trigger events");
 
     event_queue.run().expect("launcher: failed to run event loop");
