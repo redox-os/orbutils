@@ -335,7 +335,7 @@ fn bar_main() {
 
                 {
                     let mut x = 0;
-                    let y = self.offset;
+                    let y = bar.offset;
                     let mut i = 0;
 
                     {
