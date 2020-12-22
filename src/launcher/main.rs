@@ -400,7 +400,7 @@ fn bar_main() {
                         let start_h = bar.start_packages.len() as u32 * icon_small_size() as u32;
                         let mut start_window = Window::new_flags(
                             0, bar.height as i32 - icon_size() - start_h as i32, 200, start_h, "Start",
-                            &[WindowFlag::Borderless]
+                            &[WindowFlag::Borderless, WindowFlag::Transparent]
                         ).unwrap();
 
                         let mut selected = -1;
