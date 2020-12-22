@@ -68,6 +68,7 @@ fn wait(status: &mut i32) -> usize {
 fn wait(status: &mut usize) -> usize {
     extern crate syscall;
 
+    //TODO: handle ECHILD without panic
     syscall::waitpid(0, status, syscall::WNOHANG).unwrap()
 }
 
@@ -136,7 +137,7 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selec
 }
 
 struct Bar {
-    children: Vec<Child>,
+    children: Vec<(String, Child)>,
     packages: Vec<Package>,
     start: Image,
     start_packages: Vec<Package>,
@@ -240,13 +241,20 @@ impl Bar {
 
         self.window.sync();
     }
+
+    fn spawn(&mut self, binary: String) {
+        match Command::new(&binary).spawn() {
+            Ok(child) => self.children.push((binary, child)),
+            Err(err) => println!("launcher: failed to launch {}: {}", binary, err)
+        }
+    }
 }
 
 fn bar_main() {
     let bar = Rc::new(RefCell::new(Bar::new()));
 
     match Command::new("/ui/bin/background").arg("/ui/background.png").arg("zoom").spawn() {
-        Ok(child) => bar.borrow_mut().children.push(child),
+        Ok(child) => bar.borrow_mut().children.push(("/ui/bin/background".to_string(), child)),
         Err(err) => println!("launcher: failed to launch background: {}", err)
     }
 
@@ -261,14 +269,14 @@ fn bar_main() {
 
             let mut i = 0;
             while i < bar.children.len() {
-                let remove = match bar.children[i].try_wait() {
+                let remove = match bar.children[i].1.try_wait() {
                     Ok(None) => false,
                     Ok(Some(status)) => {
-                        println!("launcher: {} exited with {}", bar.children[i].id(), status);
+                        println!("launcher: {} ({}) exited with {}", bar.children[i].0, bar.children[i].1.id(), status);
                         true
                     },
                     Err(err) => {
-                        println!("launcher: failed to wait for {}: {}", bar.children[i].id(), err);
+                        println!("launcher: failed to wait for {} ({}): {}", bar.children[i].0, bar.children[i].1.id(), err);
                         true
                     }
                 };
@@ -434,10 +442,8 @@ fn bar_main() {
                                                 if bar.start_packages[package_i].binary == "exit" {
                                                     return Ok(Some(()));
                                                 } else {
-                                                    match Command::new(&bar.start_packages[package_i].binary).spawn() {
-                                                        Ok(child) => bar.children.push(child),
-                                                        Err(err) => println!("launcher: failed to launch {}: {}", bar.start_packages[package_i].binary, err)
-                                                    }
+                                                    let binary = bar.start_packages[package_i].binary.clone();
+                                                    bar.spawn(binary);
                                                 }
                                                 break 'start_choosing;
                                             }
@@ -454,10 +460,8 @@ fn bar_main() {
 
                     for package_i in 0..bar.packages.len() {
                         if i == bar.selected {
-                            match Command::new(&bar.packages[package_i].binary).spawn() {
-                                Ok(child) => bar.children.push(child),
-                                Err(err) => println!("launcher: failed to launch {}: {}", bar.packages[package_i].binary, err)
-                            }
+                            let binary = bar.packages[package_i].binary.clone();
+                            bar.spawn(binary);
                         }
                         i += 1;
                     }
@@ -477,15 +481,15 @@ fn bar_main() {
 
     event_queue.run().expect("launcher: failed to run event loop");
 
-    for child in bar.borrow_mut().children.iter_mut() {
+    for (binary, child) in bar.borrow_mut().children.iter_mut() {
         let pid = child.id();
         match child.kill() {
             Ok(()) => (),
-            Err(err) => println!("launcher: failed to kill {}: {}", pid, err),
+            Err(err) => println!("launcher: failed to kill {} ({}): {}", binary, pid, err),
         }
         match child.wait() {
-            Ok(status) => println!("launcher: {} exited with {}", pid, status),
-            Err(err) => println!("launcher: failed to wait for {}: {}", pid, err),
+            Ok(status) => println!("launcher: {} ({}) exited with {}", binary, pid, status),
+            Err(err) => println!("launcher: failed to wait for {} ({}): {}", binary, pid, err),
         }
     }
 
