@@ -19,7 +19,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
 use event::EventQueue;
-use orbclient::{EventOption, Renderer, Window, WindowFlag, K_ESC};
+use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_ESC};
 use orbimage::Image;
 use orbfont::Font;
 use syscall::data::TimeSpec;
@@ -32,6 +32,10 @@ mod package;
 mod theme;
 
 static SCALE: AtomicIsize = AtomicIsize::new(1);
+
+fn font_size() -> i32 {
+    16 * SCALE.load(Ordering::Relaxed) as i32
+}
 
 fn icon_size() -> i32 {
     48 * SCALE.load(Ordering::Relaxed) as i32
@@ -139,6 +143,7 @@ struct Bar {
     font: Font,
     width: u32,
     height: u32,
+    offset: i32,
     window: Window,
     selected: i32,
     time: String,
@@ -148,6 +153,7 @@ impl Bar {
     fn new() -> Bar {
         let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
         SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
+        let offset = font_size() * 2;
 
         let packages = get_packages();
 
@@ -168,9 +174,10 @@ impl Bar {
             font: Font::find(Some("Sans"), None, None).unwrap(),
             width,
             height,
+            offset,
             window: Window::new_flags(
-                0, height as i32 - icon_size(), width, icon_size() as u32, "Launcher",
-                &[WindowFlag::Async, WindowFlag::Borderless]
+                0, height as i32 - (icon_size() + offset), width, (icon_size() + offset) as u32, "Launcher",
+                &[WindowFlag::Async, WindowFlag::Borderless, WindowFlag::Transparent]
             ).expect("launcher: failed to open window"),
             selected: -1,
             time: String::new()
@@ -189,10 +196,11 @@ impl Bar {
     }
 
     fn draw(&mut self) {
-        self.window.set(BAR_COLOR);
+        self.window.set(Color::rgba(0, 0, 0, 0));
+        self.window.rect(0, self.offset, self.width, icon_size() as u32, BAR_COLOR);
 
         let mut x = 0;
-        let mut y = 0;
+        let mut y = self.offset;
         let mut i = 0;
 
         {
@@ -213,6 +221,10 @@ impl Bar {
                 self.window.rect(x as i32, y as i32,
                                   package.icon.width() as u32, package.icon.height() as u32,
                                   BAR_HIGHLIGHT_COLOR);
+
+                let text = self.font.render(&package.name, font_size() as f32);
+                self.window.rect(x, 0, text.width() + 8, text.height() + 8, BAR_COLOR);
+                text.draw(&mut self.window, x + 4, 4, TEXT_HIGHLIGHT_COLOR);
             }
 
             package.icon.draw(&mut self.window, x as i32, y as i32);
@@ -221,9 +233,9 @@ impl Bar {
             i += 1;
         }
 
-        let text = self.font.render(&self.time, (32 * SCALE.load(Ordering::Relaxed)) as f32);
+        let text = self.font.render(&self.time, (font_size() * 2) as f32);
         x = self.width as i32 - text.width() as i32 - 8;
-        y = (icon_size() - text.height() as i32)/2;
+        y = (icon_size() - text.height() as i32)/2 + self.offset;
         text.draw(&mut self.window, x, y, TEXT_HIGHLIGHT_COLOR);
 
         self.window.sync();
