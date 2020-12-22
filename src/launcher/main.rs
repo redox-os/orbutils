@@ -230,6 +230,18 @@ impl Bar {
 
             package.icon.draw(&mut self.window, x as i32, y as i32);
 
+            let mut count = 0;
+            for (binary, _) in self.children.iter() {
+                if binary == &package.binary {
+                    count += 1;
+                }
+            }
+            if count > 0 {
+                self.window.rect(x as i32 + 4, y as i32,
+                                  package.icon.width() - 8, 2,
+                                  TEXT_HIGHLIGHT_COLOR);
+            }
+
             x += package.icon.width() as i32;
             i += 1;
         }
@@ -244,7 +256,11 @@ impl Bar {
 
     fn spawn(&mut self, binary: String) {
         match Command::new(&binary).spawn() {
-            Ok(child) => self.children.push((binary, child)),
+            Ok(child) => {
+                self.children.push((binary, child));
+                //TODO: should redraw be done here?
+                self.draw();
+            },
             Err(err) => println!("launcher: failed to launch {}: {}", binary, err)
         }
     }
