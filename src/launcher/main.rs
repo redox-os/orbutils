@@ -326,6 +326,13 @@ fn bar_main() {
                     bar.window.set_size(screen_event.width, icon_size() as u32);
                     true
                 },
+                EventOption::Hover(hover_event) => if hover_event.entered {
+                    false
+                } else {
+                    mouse_x = 0;
+                    mouse_y = 0;
+                    true
+                },
                 EventOption::Quit(_) => return Ok(Some(())),
                 _ => false
             };
