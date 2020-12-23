@@ -231,7 +231,7 @@ impl Bar {
                 text.draw(&mut self.selected_window, x + 4, 4, TEXT_HIGHLIGHT_COLOR);
 
                 self.selected_window.sync();
-                let sw_y = self.window.y() - self.selected_window.height() as i32;
+                let sw_y = self.window.y() - self.selected_window.height() as i32 - 4;
                 self.selected_window.set_pos(0, sw_y);
             }
 
