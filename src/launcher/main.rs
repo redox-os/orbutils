@@ -144,9 +144,9 @@ struct Bar {
     font: Font,
     width: u32,
     height: u32,
-    offset: i32,
     window: Window,
     selected: i32,
+    selected_window: Window,
     time: String,
 }
 
@@ -154,7 +154,6 @@ impl Bar {
     fn new() -> Bar {
         let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
         SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
-        let offset = font_size() * 2;
 
         let packages = get_packages();
 
@@ -175,12 +174,15 @@ impl Bar {
             font: Font::find(Some("Sans"), None, None).unwrap(),
             width,
             height,
-            offset,
             window: Window::new_flags(
-                0, height as i32 - (icon_size() + offset), width, (icon_size() + offset) as u32, "Launcher",
+                0, height as i32 - icon_size(), width, icon_size() as u32, "Launcher",
                 &[WindowFlag::Async, WindowFlag::Borderless, WindowFlag::Transparent]
             ).expect("launcher: failed to open window"),
             selected: -1,
+            selected_window: Window::new_flags(
+                0, height as i32, width, (font_size() + 8) as u32, "Launcher Popup",
+                &[WindowFlag::Async, WindowFlag::Borderless, WindowFlag::Transparent],
+            ).expect("launcher: failed to open selected window"),
             time: String::new()
         }
     }
@@ -197,11 +199,10 @@ impl Bar {
     }
 
     fn draw(&mut self) {
-        self.window.set(Color::rgba(0, 0, 0, 0));
-        self.window.rect(0, self.offset, self.width, icon_size() as u32, BAR_COLOR);
+        self.window.set(BAR_COLOR);
 
         let mut x = 0;
-        let mut y = self.offset;
+        let mut y = 0;
         let mut i = 0;
 
         {
@@ -223,9 +224,15 @@ impl Bar {
                                   package.icon.width() as u32, package.icon.height() as u32,
                                   BAR_HIGHLIGHT_COLOR);
 
+                self.selected_window.set(Color::rgba(0, 0, 0, 0));
+
                 let text = self.font.render(&package.name, font_size() as f32);
-                self.window.rect(x, 0, text.width() + 8, text.height() + 8, BAR_COLOR);
-                text.draw(&mut self.window, x + 4, 4, TEXT_HIGHLIGHT_COLOR);
+                self.selected_window.rect(x, 0, text.width() + 8, text.height() + 8, BAR_COLOR);
+                text.draw(&mut self.selected_window, x + 4, 4, TEXT_HIGHLIGHT_COLOR);
+
+                self.selected_window.sync();
+                let sw_y = self.window.y() - self.selected_window.height() as i32;
+                self.selected_window.set_pos(0, sw_y);
             }
 
             package.icon.draw(&mut self.window, x as i32, y as i32);
@@ -248,7 +255,7 @@ impl Bar {
 
         let text = self.font.render(&self.time, (font_size() * 2) as f32);
         x = self.width as i32 - text.width() as i32 - 8;
-        y = (icon_size() - text.height() as i32)/2 + self.offset;
+        y = (icon_size() - text.height() as i32)/2;
         text.draw(&mut self.window, x, y, TEXT_HIGHLIGHT_COLOR);
 
         self.window.sync();
@@ -325,8 +332,8 @@ fn bar_main() {
     }).expect("launcher: failed to poll time");
 
     let bar_window = bar.clone();
-    let mut mouse_x = 0;
-    let mut mouse_y = 0;
+    let mut mouse_x = -1;
+    let mut mouse_y = -1;
     let mut mouse_left = false;
     let mut last_mouse_left = false;
     event_queue.add(bar.borrow().window.as_raw_fd(), move |_event| -> io::Result<Option<()>> {
@@ -348,13 +355,16 @@ fn bar_main() {
                     bar.height = screen_event.height;
                     bar.window.set_pos(0, screen_event.height as i32 - icon_size());
                     bar.window.set_size(screen_event.width, icon_size() as u32);
+                    bar.selected = -2; // Force bar redraw
+                    bar.selected_window.set_pos(0, screen_event.height as i32);
+                    bar.selected_window.set_size(screen_event.width, (font_size() + 8) as u32);
                     true
                 },
                 EventOption::Hover(hover_event) => if hover_event.entered {
                     false
                 } else {
-                    mouse_x = 0;
-                    mouse_y = 0;
+                    mouse_x = -1;
+                    mouse_y = -1;
                     true
                 },
                 EventOption::Quit(_) => return Ok(Some(())),
@@ -366,7 +376,7 @@ fn bar_main() {
 
                 {
                     let mut x = 0;
-                    let y = bar.offset;
+                    let y = 0;
                     let mut i = 0;
 
                     {
@@ -390,7 +400,9 @@ fn bar_main() {
 
                 if now_selected != bar.selected {
                     bar.selected = now_selected;
-                    bar.draw()
+                    let sw_y = bar.height as i32;
+                    bar.selected_window.set_pos(0, sw_y);
+                    bar.draw();
                 }
 
                 if ! mouse_left && last_mouse_left {
