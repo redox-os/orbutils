@@ -1,5 +1,4 @@
 #![deny(warnings)]
-#![feature(const_fn)]
 
 extern crate orbclient;
 extern crate orbimage;
@@ -78,7 +77,7 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
 
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
 
-    let sys_users = match AllUsers::new(Config::with_auth()) {
+    let sys_users = match AllUsers::authenticator(Config::default()) {
         Ok(users) => users,
         // Not maybe the best thing to do...
         Err(_) => {

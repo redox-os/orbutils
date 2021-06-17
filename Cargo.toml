@@ -52,11 +52,11 @@ orbclient = "0.3.30"
 orbfont = "0.1.8"
 orbimage = "0.1.17"
 orbtk = "0.2.29"
-redox_users = "0.3.1"
+redox_users = "0.4"
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
 libc = "0.2.50"
 
 [target.'cfg(target_os = "redox")'.dependencies]
 redox_event = { git = "https://gitlab.redox-os.org/redox-os/event.git" }
-redox_syscall = "0.2"
+redox_syscall = "0.2.9"
