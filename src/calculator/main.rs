@@ -65,7 +65,7 @@ fn main(){
                 }
             };
 
-            btn("("); btn(")"); btn("^"); btn("/");
+            btn("("); btn(")"); btn("**"); btn("/");
             btn("7"); btn("8"); btn("9"); btn("*");
             btn("4"); btn("5"); btn("6"); btn("-");
             btn("1"); btn("2"); btn("3"); btn("+");
