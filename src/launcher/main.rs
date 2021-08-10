@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 extern crate event;
 extern crate orbclient;
 extern crate orbimage;
@@ -339,6 +337,33 @@ fn bar_main() {
         let mut bar = bar_window.borrow_mut();
 
         for event in bar.window.events() {
+            //TODO: remove hack for super event
+            if event.code >= 0x1000_0000 {
+                let mut super_event = event;
+                super_event.code -= 0x1000_0000;
+
+                //TODO: configure super keybindings
+                let event_option = super_event.to_option();
+                println!("launcher: super {:?}", event_option);
+                match event_option {
+                    EventOption::Key(key_event) => match key_event.scancode {
+                        orbclient::K_B => if key_event.pressed {
+                            bar.spawn("netsurf-fb".to_string());
+                        },
+                        orbclient::K_F => if key_event.pressed {
+                            bar.spawn("file_manager".to_string());
+                        },
+                        orbclient::K_T => if key_event.pressed {
+                            bar.spawn("orbterm".to_string());
+                        },
+                        _ => (),
+                    }
+                    _ => (),
+                }
+
+                continue;
+            }
+
             let redraw = match event.to_option() {
                 EventOption::Mouse(mouse_event) => {
                     mouse_x = mouse_event.x;
