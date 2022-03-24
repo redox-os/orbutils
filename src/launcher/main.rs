@@ -30,6 +30,10 @@ mod theme;
 
 static SCALE: AtomicIsize = AtomicIsize::new(1);
 
+fn chooser_width() -> u32 {
+    200 * SCALE.load(Ordering::Relaxed) as u32
+}
+
 fn font_size() -> i32 {
     16 * SCALE.load(Ordering::Relaxed) as i32
 }
@@ -125,7 +129,7 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selec
 
         package.icon_small.draw(window, 0, y);
 
-        font.render(&package.name, 16.0).draw(window, icon_small_size() + 8, y + 8, if i as i32 == selected { TEXT_HIGHLIGHT_COLOR } else { TEXT_COLOR });
+        font.render(&package.name, font_size() as f32).draw(window, icon_small_size() + 8, y + 8, if i as i32 == selected { TEXT_HIGHLIGHT_COLOR } else { TEXT_COLOR });
 
         y += icon_small_size();
     }
@@ -148,10 +152,7 @@ struct Bar {
 }
 
 impl Bar {
-    fn new() -> Bar {
-        let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-        SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
-
+    fn new(width: u32, height: u32) -> Bar {
         let packages = get_packages();
 
         let mut logout_package = Package::new();
@@ -270,8 +271,8 @@ impl Bar {
     }
 }
 
-fn bar_main() {
-    let bar = Rc::new(RefCell::new(Bar::new()));
+fn bar_main(width: u32, height: u32) {
+    let bar = Rc::new(RefCell::new(Bar::new(width, height)));
 
     match Command::new("/ui/bin/background").arg("/ui/background.png").arg("zoom").spawn() {
         Ok(child) => bar.borrow_mut().children.push(("/ui/bin/background".to_string(), child)),
@@ -435,7 +436,7 @@ fn bar_main() {
                     if i == bar.selected {
                         let start_h = bar.start_packages.len() as u32 * icon_small_size() as u32;
                         let mut start_window = Window::new_flags(
-                            0, bar.height as i32 - icon_size() - start_h as i32, 200, start_h, "Start",
+                            0, bar.height as i32 - icon_size() - start_h as i32, chooser_width(), start_h, "Start",
                             &[WindowFlag::Borderless, WindowFlag::Transparent]
                         ).unwrap();
 
@@ -571,7 +572,7 @@ fn chooser_main(paths: env::Args) {
         });
 
         if packages.len() > 1 {
-            let mut window = Window::new(-1, -1, 200, packages.len() as u32 * icon_small_size() as u32, path).expect("launcher: failed to open window");
+            let mut window = Window::new(-1, -1, chooser_width(), packages.len() as u32 * icon_small_size() as u32, path).expect("launcher: failed to open window");
             let font = Font::find(Some("Sans"), None, None).expect("launcher: failed to open font");
 
             let mut selected = -1;
@@ -639,10 +640,13 @@ fn chooser_main(paths: env::Args) {
 }
 
 fn main() {
+    let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
+    SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
+
     let paths = env::args();
     if paths.len() > 1 {
         chooser_main(paths);
     } else {
-        bar_main();
+        bar_main(width, height);
     }
 }
