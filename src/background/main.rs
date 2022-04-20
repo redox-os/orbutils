@@ -1,5 +1,3 @@
-#![deny(warnings)]
-
 extern crate orbclient;
 extern crate orbimage;
 
@@ -23,10 +21,10 @@ enum BackgroundMode {
 impl BackgroundMode {
     fn from_str(string: &str) -> BackgroundMode {
         match string {
+            "center" => BackgroundMode::Center,
             "fill" => BackgroundMode::Fill,
             "scale" => BackgroundMode::Scale,
-            "zoom" => BackgroundMode::Zoom,
-            _ => BackgroundMode::Center
+            _ => BackgroundMode::Zoom,
         }
     }
 }
@@ -70,12 +68,33 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
     }
 }
 
+fn find_background() -> String {
+    match env::home_dir() {
+        Some(home) => {
+            for name in &[
+                "background.png",
+                "background.jpg",
+            ] {
+                let path = home.join(name);
+                if path.is_file() {
+                    if let Some(path_str) = path.to_str() {
+                        return path_str.to_string();
+                    }
+                }
+            }
+        }
+        _ => (),
+    }
+
+    "/ui/background.png".to_string()
+}
+
 fn main() {
     let mut args = env::args().skip(1);
 
     let path = match args.next() {
         Some(arg) => arg,
-        None => "/ui/background.png".to_string(),
+        None => find_background(),
     };
 
     let mode = BackgroundMode::from_str(&args.next().unwrap_or_default());

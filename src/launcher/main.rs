@@ -274,7 +274,7 @@ impl Bar {
 fn bar_main(width: u32, height: u32) {
     let bar = Rc::new(RefCell::new(Bar::new(width, height)));
 
-    match Command::new("/ui/bin/background").arg("/ui/background.png").arg("zoom").spawn() {
+    match Command::new("/ui/bin/background").spawn() {
         Ok(child) => bar.borrow_mut().children.push(("/ui/bin/background".to_string(), child)),
         Err(err) => println!("launcher: failed to launch background: {}", err)
     }
