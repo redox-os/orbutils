@@ -75,6 +75,24 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
     }
 }
 
+fn normal_usernames() -> Vec<String> {
+    let users = match AllUsers::authenticator(Config::default()) {
+        Ok(ok) => ok,
+        Err(_) => {
+            return Vec::new();
+        }
+    };
+
+    let mut usernames = Vec::new();
+    for user in users.iter() {
+        if user.uid >= 1000 {
+            usernames.push(user.user.clone());
+        }
+    }
+    usernames.sort();
+    usernames
+}
+
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
 
     let sys_users = match AllUsers::authenticator(Config::default()) {
@@ -106,13 +124,18 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image
     let s_i = s_u as i32;
     let s_f = s_i as f32;
 
+    let usernames = normal_usernames();
+
     let mut window = Window::new_flags(
         0, 0, display_width, display_height, "orblogin",
         &[WindowFlag::Borderless, WindowFlag::Unclosable]
     ).unwrap();
 
-    let mut item = 0;
-    let mut username = String::new();
+    let (mut item, mut username) = if usernames.len() == 1 {
+        (1, usernames[0].clone())
+    } else {
+        (0, String::new())
+    };
     let mut password = String::new();
     let mut failure = false;
 
