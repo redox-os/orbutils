@@ -118,7 +118,19 @@ fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: 
     }
 }
 
-fn login_window(launcher_cmd: &str, launcher_args: &[String], font: &Font, image: &Image, image_mode: BackgroundMode) -> Option<Command> {
+fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
+    let font = Font::find(Some("Sans"), None, None).expect("orblogin: no font found");
+
+    let image_mode = BackgroundMode::from_str("zoom");
+    let image_path = "/ui/login.png";
+    let image = match Image::from_path(image_path) {
+        Ok(image) => image,
+        Err(err) => {
+            println!("orblogin: error loading {}: {}", image_path, err);
+            Image::from_color(1, 1, Color::rgb(0x2d, 0x64, 0x8e))
+        }
+    };
+
     let (display_width, display_height) = orbclient::get_display_size().expect("orblogin: failed to get display size");
     let s_u = (display_height / 1600) + 1;
     let s_i = s_u as i32;
@@ -355,20 +367,8 @@ fn main() {
     let launcher_cmd = args.next().expect("orblogin: no window manager command");
     let launcher_args: Vec<String> = args.collect();
 
-    let font = Font::find(Some("Sans"), None, None).expect("orblogin: no font found");
-
-    let image_mode = BackgroundMode::from_str("zoom");
-    let image_path = "/ui/login.png";
-    let image = match Image::from_path(image_path) {
-        Ok(image) => image,
-        Err(err) => {
-            println!("orblogin: error loading {}: {}", image_path, err);
-            Image::from_color(1, 1, Color::rgb(0x2d, 0x64, 0x8e))
-        }
-    };
-
     loop {
-        if let Some(mut command) = login_window(&launcher_cmd, &launcher_args, &font, &image, image_mode) {
+        if let Some(mut command) = login_window(&launcher_cmd, &launcher_args) {
             match command.spawn() {
                 Ok(mut child) => match child.wait() {
                     Ok(_) => (),
