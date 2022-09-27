@@ -1,10 +1,19 @@
+extern crate event;
 extern crate orbclient;
 extern crate orbimage;
+extern crate orbutils;
+extern crate syscall;
 
-use std::env;
-
+use event::EventQueue;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbimage::Image;
+use std::{
+    env,
+    io,
+    os::unix::io::AsRawFd,
+    rc::Rc,
+};
+use syscall::flag::EventFlags;
 
 #[derive(Clone, Copy, Debug)]
 enum BackgroundMode {
@@ -99,70 +108,81 @@ fn main() {
 
     let mode = BackgroundMode::from_str(&args.next().unwrap_or_default());
 
-    match Image::from_path(&path) {
+    match Image::from_path(&path).map(Rc::new) {
         Ok(image) => {
-            let (display_width, display_height) = orbclient::get_display_size().expect("background: failed to get display size");
+            let mut event_queue = EventQueue::<()>::new().expect("background: failed to create event queue");
 
-            let mut window = Window::new_flags(
-                0, 0, display_width, display_height, &format!("{} - Background", path),
-                &[WindowFlag::Back, WindowFlag::Borderless, WindowFlag::Unclosable]
-            ).unwrap();
+            for display in orbutils::get_display_rects().expect("background: failed to get display rects") {
+                let mut window = Window::new_flags(
+                    display.x, display.y, display.width, display.height, &format!("{} - Background", path),
+                    &[WindowFlag::Async, WindowFlag::Back, WindowFlag::Borderless, WindowFlag::Unclosable]
+                ).unwrap();
 
-            let mut scaled_image = image.clone();
-            let mut resize = Some((display_width, display_height));
-            loop {
-                if let Some((w, h)) = resize.take() {
-                    let (width, height) = find_scale(&image, mode, w, h);
+                let image = image.clone();
+                let mut scaled_image = (*image).clone();
+                let mut resize = Some((display.width, display.height));
+                event_queue.add(window.as_raw_fd(), move |_event| -> io::Result<Option<()>> {
+                    if let Some((w, h)) = resize.take() {
+                        let (width, height) = find_scale(&image, mode, w, h);
 
-                    if width == scaled_image.width() && height == scaled_image.height() {
-                        // Do not resize scaled image
-                    } else if width == image.width() && height == image.height() {
-                        scaled_image = image.clone();
-                    } else {
-                        scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3).unwrap();
+                        if width == scaled_image.width() && height == scaled_image.height() {
+                            // Do not resize scaled image
+                        } else if width == image.width() && height == image.height() {
+                            scaled_image = (*image).clone();
+                        } else {
+                            scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3).unwrap();
+                        }
+
+                        let (crop_x, crop_w) = if width > w  {
+                            ((width - w)/2, w)
+                        } else {
+                            (0, width)
+                        };
+
+                        let (crop_y, crop_h) = if height > h {
+                            ((height - h)/2, h)
+                        } else {
+                            (0, height)
+                        };
+
+                        window.set(Color::rgb(0, 0, 0));
+
+                        let x = (w as i32 - crop_w as i32)/2;
+                        let y = (h as i32 - crop_h as i32)/2;
+                        scaled_image.roi(
+                            crop_x, crop_y,
+                            crop_w, crop_h,
+                        ).draw(
+                            &mut window,
+                            x, y
+                        );
+
+                        window.sync();
                     }
 
-                    let (crop_x, crop_w) = if width > w  {
-                        ((width - w)/2, w)
-                    } else {
-                        (0, width)
-                    };
-
-                    let (crop_y, crop_h) = if height > h {
-                        ((height - h)/2, h)
-                    } else {
-                        (0, height)
-                    };
-
-                    window.set(Color::rgb(0, 0, 0));
-
-                    let x = (w as i32 - crop_w as i32)/2;
-                    let y = (h as i32 - crop_h as i32)/2;
-                    scaled_image.roi(
-                        crop_x, crop_y,
-                        crop_w, crop_h,
-                    ).draw(
-                        &mut window,
-                        x, y
-                    );
-
-                    window.sync();
-                }
-
-                for event in window.events() {
-                    match event.to_option() {
-                        EventOption::Resize(resize_event) => {
-                            resize = Some((resize_event.width, resize_event.height));
-                        },
-                        EventOption::Screen(screen_event) => {
-                            window.set_size(screen_event.width, screen_event.height);
-                            resize = Some((screen_event.width, screen_event.height));
-                        },
-                        EventOption::Quit(_) => return,
-                        _ => ()
+                    for event in window.events() {
+                        match event.to_option() {
+                            EventOption::Resize(resize_event) => {
+                                resize = Some((resize_event.width, resize_event.height));
+                            },
+                            EventOption::Screen(screen_event) => {
+                                window.set_size(screen_event.width, screen_event.height);
+                                resize = Some((screen_event.width, screen_event.height));
+                            },
+                            _ => ()
+                        }
                     }
-                }
+
+                    Ok(None)
+                }).expect("background: failed to poll window events");
             }
+
+            event_queue.trigger_all(event::Event {
+                fd: 0,
+                flags: EventFlags::empty(),
+            }).expect("background: failed to trigger events");
+
+            event_queue.run().expect("background: failed to run event loop");
         },
         Err(err) => {
             println!("background: error loading {}: {}", path, err);
