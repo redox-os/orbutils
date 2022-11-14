@@ -122,6 +122,19 @@ fn main() {
                 let mut scaled_image = (*image).clone();
                 let mut resize = Some((display.width, display.height));
                 event_queue.add(window.as_raw_fd(), move |_event| -> io::Result<Option<()>> {
+                    for event in window.events() {
+                        match event.to_option() {
+                            EventOption::Resize(resize_event) => {
+                                resize = Some((resize_event.width, resize_event.height));
+                            },
+                            EventOption::Screen(screen_event) => {
+                                window.set_size(screen_event.width, screen_event.height);
+                                resize = Some((screen_event.width, screen_event.height));
+                            },
+                            _ => ()
+                        }
+                    }
+
                     if let Some((w, h)) = resize.take() {
                         let (width, height) = find_scale(&image, mode, w, h);
 
@@ -158,19 +171,6 @@ fn main() {
                         );
 
                         window.sync();
-                    }
-
-                    for event in window.events() {
-                        match event.to_option() {
-                            EventOption::Resize(resize_event) => {
-                                resize = Some((resize_event.width, resize_event.height));
-                            },
-                            EventOption::Screen(screen_event) => {
-                                window.set_size(screen_event.width, screen_event.height);
-                                resize = Some((screen_event.width, screen_event.height));
-                            },
-                            _ => ()
-                        }
                     }
 
                     Ok(None)
