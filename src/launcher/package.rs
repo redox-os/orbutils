@@ -12,6 +12,8 @@ pub struct Package {
     pub id: String,
     /// The name of the package
     pub name: String,
+    /// The category for the package
+    pub category: String,
     /// The binary for the package
     pub binary: String,
     /// The icon for the package
@@ -31,6 +33,7 @@ impl Package {
         Package {
             id: String::new(),
             name: String::new(),
+            category: String::new(),
             binary: String::new(),
             icon: Image::default(),
             icon_small: Image::default(),
@@ -60,6 +63,8 @@ impl Package {
         for line in info.lines() {
             if line.starts_with("name=") {
                 package.name = line[5..].to_string();
+            } else if line.starts_with("category=") {
+                package.category = line[9..].to_string();
             } else if line.starts_with("binary=") {
                 package.binary = line[7..].to_string();
             } else if line.starts_with("icon=") {

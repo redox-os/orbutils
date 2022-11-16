@@ -6,6 +6,7 @@ extern crate syscall;
 
 use std::{env, io, mem};
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::os::unix::io::AsRawFd;
@@ -153,7 +154,7 @@ struct Bar {
 
 impl Bar {
     fn new(width: u32, height: u32) -> Bar {
-        let packages = get_packages();
+        let all_packages = get_packages();
 
         let mut logout_package = Package::new();
         logout_package.name = "Logout".to_string();
@@ -161,12 +162,32 @@ impl Bar {
         logout_package.icon_small = load_icon_small(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
         logout_package.binary = "exit".to_string();
 
-        let mut start_packages = packages.clone();
+        let mut start_packages = all_packages.clone();
         start_packages.push(logout_package);
+
+        // Handle packages with categories
+        let mut bar_packages = Vec::new();
+        let mut category_packages = BTreeMap::<String, Vec<Package>>::new();
+        for package in all_packages {
+            if package.category.is_empty() {
+                // Packages without a category go on the bar
+                bar_packages.push(package);
+            } else {
+                // Packages with a category are collected
+                match category_packages.get_mut(&package.category) {
+                    Some(packages) => {
+                        packages.push(package);
+                    },
+                    None => {
+                        category_packages.insert(package.category.clone(), vec![package]);
+                    },
+                }
+            }
+        }
 
         Bar {
             children: Vec::new(),
-            packages,
+            packages: bar_packages,
             start: load_icon(&format!("{}/icons/places/start-here.png", UI_PATH)),
             start_packages,
             font: Font::find(Some("Sans"), None, None).unwrap(),
