@@ -143,6 +143,7 @@ struct Bar {
     packages: Vec<Package>,
     start: Image,
     start_packages: Vec<Package>,
+    category_packages: BTreeMap<String, Vec<Package>>,
     font: Font,
     width: u32,
     height: u32,
@@ -156,22 +157,13 @@ impl Bar {
     fn new(width: u32, height: u32) -> Bar {
         let all_packages = get_packages();
 
-        let mut logout_package = Package::new();
-        logout_package.name = "Logout".to_string();
-        logout_package.icon = load_icon(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
-        logout_package.icon_small = load_icon_small(&format!("{}/icons/actions/system-log-out.png", UI_PATH));
-        logout_package.binary = "exit".to_string();
-
-        let mut start_packages = all_packages.clone();
-        start_packages.push(logout_package);
-
         // Handle packages with categories
-        let mut bar_packages = Vec::new();
+        let mut root_packages = Vec::new();
         let mut category_packages = BTreeMap::<String, Vec<Package>>::new();
         for package in all_packages {
             if package.category.is_empty() {
                 // Packages without a category go on the bar
-                bar_packages.push(package);
+                root_packages.push(package);
             } else {
                 // Packages with a category are collected
                 match category_packages.get_mut(&package.category) {
@@ -185,11 +177,48 @@ impl Bar {
             }
         }
 
+        let mut start_packages = Vec::new();
+
+        for (category, packages) in category_packages.iter_mut() {
+            start_packages.push({
+                let mut package = Package::new();
+                package.name = category.to_string();
+                let icon = format!("{}/icons/mimetypes/inode-directory.png", UI_PATH);
+                package.icon = load_icon(&icon);
+                package.icon_small = load_icon_small(&icon);
+                package.binary = format!("category={}", category);
+                package
+            });
+
+            packages.insert(0, {
+                let mut package = Package::new();
+                package.name = "Go back".to_string();
+                let icon = format!("{}/icons/mimetypes/inode-directory.png", UI_PATH);
+                package.icon = load_icon(&icon);
+                package.icon_small = load_icon_small(&icon);
+                package.binary = "exit".to_string();
+                package
+            });
+        }
+
+        start_packages.extend_from_slice(&root_packages);
+
+        start_packages.push({
+            let mut package = Package::new();
+            package.name = "Logout".to_string();
+            let icon = format!("{}/icons/actions/system-log-out.png", UI_PATH);
+            package.icon = load_icon(&icon);
+            package.icon_small = load_icon_small(&icon);
+            package.binary = "exit".to_string();
+            package
+        });
+
         Bar {
             children: Vec::new(),
-            packages: bar_packages,
+            packages: root_packages,
             start: load_icon(&format!("{}/icons/places/start-here.png", UI_PATH)),
             start_packages,
+            category_packages,
             font: Font::find(Some("Sans"), None, None).unwrap(),
             width,
             height,
@@ -278,6 +307,82 @@ impl Bar {
         text.draw(&mut self.window, x, y, TEXT_HIGHLIGHT_COLOR);
 
         self.window.sync();
+    }
+
+    fn start_window(&self, category_opt: Option<&String>) -> Option<String> {
+        let packages = match category_opt {
+            Some(category) => self.category_packages.get(category)?,
+            None => &self.start_packages,
+        };
+
+        let start_h = packages.len() as u32 * icon_small_size() as u32;
+        let mut start_window = Window::new_flags(
+            0, self.height as i32 - icon_size() - start_h as i32, chooser_width(), start_h, "Start",
+            &[WindowFlag::Borderless, WindowFlag::Transparent]
+        ).unwrap();
+
+        let mut selected = -1;
+        let mut mouse_y = 0;
+        let mut mouse_left = false;
+        let mut last_mouse_left = false;
+        draw_chooser(&mut start_window, &self.font, packages, selected);
+        'start_choosing: loop {
+            for event in start_window.events() {
+                let redraw = match event.to_option() {
+                    EventOption::Mouse(mouse_event) => {
+                        mouse_y = mouse_event.y;
+                        true
+                    },
+                    EventOption::Button(button_event) => {
+                        mouse_left = button_event.left;
+                        true
+                    },
+                    EventOption::Key(key_event) => {
+                        match key_event.scancode {
+                            K_ESC => break 'start_choosing,
+                            _ => false
+                        }
+                    },
+                    EventOption::Focus(focus_event) => if ! focus_event.focused {
+                        break 'start_choosing;
+                    } else {
+                        false
+                    },
+                    EventOption::Quit(_) => break 'start_choosing,
+                    _ => false
+                };
+
+                if redraw {
+                    let mut now_selected = -1;
+
+                    let mut y = 0;
+                    for (j, _package) in packages.iter().enumerate() {
+                        if mouse_y >= y && mouse_y < y + icon_small_size() {
+                            now_selected = j as i32;
+                        }
+                        y += icon_small_size();
+                    }
+
+                    if now_selected != selected {
+                        selected = now_selected;
+                        draw_chooser(&mut start_window, &self.font, packages, selected);
+                    }
+
+                    if ! mouse_left && last_mouse_left {
+                        let mut y = 0;
+                        for package_i in 0..packages.len() {
+                            if mouse_y >= y && mouse_y < y + icon_small_size() {
+                                return Some(packages[package_i].binary.to_string());
+                            }
+                            y += icon_small_size();
+                        }
+                    }
+
+                    last_mouse_left = mouse_left;
+                }
+            }
+        }
+        None
     }
 
     fn spawn(&mut self, binary: String) {
@@ -455,78 +560,20 @@ fn bar_main(width: u32, height: u32) {
                     let mut i = 0;
 
                     if i == bar.selected {
-                        let start_h = bar.start_packages.len() as u32 * icon_small_size() as u32;
-                        let mut start_window = Window::new_flags(
-                            0, bar.height as i32 - icon_size() - start_h as i32, chooser_width(), start_h, "Start",
-                            &[WindowFlag::Borderless, WindowFlag::Transparent]
-                        ).unwrap();
-
-                        let mut selected = -1;
-                        let mut mouse_y = 0;
-                        let mut mouse_left = false;
-                        let mut last_mouse_left = false;
-
-                        draw_chooser(&mut start_window, &bar.font, &bar.start_packages, selected);
-                        'start_choosing: loop {
-                            for event in start_window.events() {
-                                let redraw = match event.to_option() {
-                                    EventOption::Mouse(mouse_event) => {
-                                        mouse_y = mouse_event.y;
-                                        true
-                                    },
-                                    EventOption::Button(button_event) => {
-                                        mouse_left = button_event.left;
-                                        true
-                                    },
-                                    EventOption::Key(key_event) => {
-                                        match key_event.scancode {
-                                            K_ESC => break 'start_choosing,
-                                            _ => false
-                                        }
-                                    },
-                                    EventOption::Focus(focus_event) => if ! focus_event.focused {
-                                        break 'start_choosing;
-                                    } else {
-                                        false
-                                    },
-                                    EventOption::Quit(_) => break 'start_choosing,
-                                    _ => false
-                                };
-
-                                if redraw {
-                                    let mut now_selected = -1;
-
-                                    let mut y = 0;
-                                    for (j, _package) in bar.start_packages.iter().enumerate() {
-                                        if mouse_y >= y && mouse_y < y + icon_small_size() {
-                                            now_selected = j as i32;
-                                        }
-                                        y += icon_small_size();
-                                    }
-
-                                    if now_selected != selected {
-                                        selected = now_selected;
-                                        draw_chooser(&mut start_window, &bar.font, &bar.start_packages, selected);
-                                    }
-
-                                    if ! mouse_left && last_mouse_left {
-                                        let mut y = 0;
-                                        for package_i in 0..bar.start_packages.len() {
-                                            if mouse_y >= y && mouse_y < y + icon_small_size() {
-                                                if bar.start_packages[package_i].binary == "exit" {
-                                                    return Ok(Some(()));
-                                                } else {
-                                                    let binary = bar.start_packages[package_i].binary.clone();
-                                                    bar.spawn(binary);
-                                                }
-                                                break 'start_choosing;
-                                            }
-                                            y += icon_small_size();
-                                        }
-                                    }
-
-                                    last_mouse_left = mouse_left;
+                        let mut category_opt = None;
+                        while let Some(binary) = bar.start_window(category_opt.as_ref()) {
+                            if binary.starts_with("category=") {
+                                let category = &binary[9..];
+                                category_opt = Some(category.to_string());
+                            } else if binary == "exit" {
+                                if category_opt.is_some() {
+                                    category_opt = None;
+                                } else {
+                                    return Ok(Some(()));
                                 }
+                            } else {
+                                bar.spawn(binary);
+                                break;
                             }
                         }
                     }
