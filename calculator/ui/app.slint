@@ -1,0 +1,179 @@
+import { CoopWindow, RoundButton, MediumTitle, Button, coop } from "_imports/coop_widgets.slint";
+
+export App := CoopWindow {
+    callback input(string);
+    callback calculate(string) -> string;
+    callback backspace(string) -> string;
+
+    private property <string> text <=> i_text.text;
+
+    input(text) => {  
+        root.text += text;
+    }
+
+    title: "Calculator";
+    width: 200px;
+    height: 222px;
+    accent_color: #5294E2;
+    on_accent_color: white;
+    forward-focus: i_focus_scope;
+    dark_theme: true;
+
+    VerticalLayout {
+        padding_top: coop.theme.spaces.medium;
+        padding_left: coop.theme.spaces.small;
+        padding_right: coop.theme.spaces.small;
+        padding_bottom: coop.theme.spaces.small;
+        spacing: coop.theme.spaces.medium;
+
+        Rectangle {  
+            vertical-stretch: 0;
+            clip: true;
+            i_text := MediumTitle {
+                width: 100%;
+                height: 100%;
+                vertical_alignment: center;
+                horizontal-alignment: right;
+            }
+        }
+       
+        GridLayout { 
+           
+            spacing: coop.theme.spaces.extra-small;
+
+            Row {
+                Button {
+                    text: "(";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: ")";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "^";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    primary: true;
+                    text: "/";
+                    clicked => { root.input(text); }
+                }
+            }
+
+            Row {
+                Button {
+                    text: "7";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "8";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "9";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    primary: true;
+                    text: "*";
+                    clicked => { root.input(text); }
+                }
+            }
+
+            Row {
+                Button {
+                    text: "4";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "5";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "6";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    primary: true;
+                    text: "-";
+                    clicked => { root.input(text); }
+                }
+            }
+
+            Row {
+                Button {
+                    text: "1";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "2";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "3";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    primary: true;
+                    text: "+";
+                    clicked => { root.input(text); }
+                }
+            }
+
+            Row {
+                Button {
+                    text: "0";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: ".";
+                    clicked => { root.input(text); }
+                }
+
+                Button {
+                    text: "C";
+                    clicked => { root.text = ""; }
+                }
+
+                i_result_button := Button {
+                    primary: true;
+                    text: "=";
+                    clicked => { root.text = root.calculate(root.text); }
+                }
+            }
+        }
+    }
+
+    i_focus_scope := FocusScope {  
+        width: 0px;
+
+        key_pressed(e) => { 
+            if(e.text == Key.Backspace) {
+                root.text = root.backspace(root.text);
+                return accept;
+            }
+
+            if(e.text == Key.Return) {
+                i_result_button.clicked();
+                return accept;
+            }
+
+            root.input(e.text);
+            accept
+         }
+    }
+}
