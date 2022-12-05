@@ -2357,11 +2357,11 @@ dependencies = [
 
 [[package]]
 name = "slint_orbclient"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fd742a630b5656c4d3e8e0e269327fee377d0588e721b0bc5dce770ade23f21"
+version = "0.1.1"
+source = "git+https://gitlab.redox-os.org/redox-os/slint_orbclient.git#07ecadd00d1350ea6a1d7ecc34204c7eddbad3d4"
 dependencies = [
  "instant",
+ "libc",
  "once_cell",
  "orbclient",
  "slint",

@@ -17,7 +17,6 @@ pub fn main() {
         slint_orbclient::Config::default()
             .width(200)
             .height(220)
-            .events_async(false)
             .title("Calculator"),
     );
 

@@ -16,7 +16,7 @@ path = "src/main.rs"
 calculate = { git = "https://gitlab.redox-os.org/redox-os/calc.git" }
 
 slint = { version = "0.3.2", default-features = false, features = ["compat-0-3-0"] }
-slint_orbclient = "0.1"
+slint_orbclient = { git = "https://gitlab.redox-os.org/redox-os/slint_orbclient.git" }
 
 [build-dependencies]
 slint-build = "0.3.2"
