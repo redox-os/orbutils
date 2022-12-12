@@ -1177,7 +1177,8 @@ checksum = "03087c2bad5e1034e8cace5926dec053fb3790248370865f5117a7d0213354c8"
 [[package]]
 name = "libc"
 version = "0.2.137"
-source = "git+https://gitlab.redox-os.org/redox-os/liblibc.git?branch=rust-2022-03-18#6ba4d1a527c2b53bdd5554cb219a1cd7d315d518"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db6d7e329c562c5dfab7a46a2afabc8b987ab9a4834c9d1ca04dc54c1546cef8"
 
 [[package]]
 name = "libloading"
@@ -2358,7 +2359,7 @@ dependencies = [
 [[package]]
 name = "slint_orbclient"
 version = "0.1.1"
-source = "git+https://gitlab.redox-os.org/redox-os/slint_orbclient.git#07ecadd00d1350ea6a1d7ecc34204c7eddbad3d4"
+source = "git+https://gitlab.redox-os.org/redox-os/slint_orbclient.git#e9e8a7957df1adcb5583021344177f92507a1a91"
 dependencies = [
  "instant",
  "libc",

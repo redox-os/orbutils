@@ -21,6 +21,7 @@ pub fn main() {
     );
 
     let app = App::new();
+    app.global::<coop>().set_embedded_helper(true);
 
     app.on_backspace(|input| {
         let mut input = input.to_string();
