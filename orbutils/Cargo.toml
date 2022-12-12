@@ -19,9 +19,9 @@ path = "src/character_map/main.rs"
 name = "editor"
 path = "src/editor/main.rs"
 
-[[bin]]
-name = "file_manager"
-path = "src/file_manager/main.rs"
+# [[bin]]
+# name = "file_manager"
+# path = "src/file_manager/main.rs"
 
 [[bin]]
 name = "launcher"

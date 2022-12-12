@@ -1,0 +1,24 @@
+import { CoopWindow, RoundButton, MediumTitle, Button, coop } from "_imports/coop_widgets.slint";
+
+import { FileView, FileViewAdapter } from "file_view.slint";
+import { SideBarView, SideBarViewAdapter } from "side_bar_view.slint";
+
+export { SideBarViewAdapter }
+
+export { coop }
+
+export App := CoopWindow {
+    title: "FileManager";
+    width: 600px;
+    height: 400px;
+    accent_color: #5294E2;
+    on_accent_color: #ffffff;
+
+
+    HorizontalLayout {  
+        SideBarView {}
+
+        FileView {  
+        }
+    }
+}

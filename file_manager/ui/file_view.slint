@@ -1,0 +1,32 @@
+import { HeaderBar, ListView, ItemModel, mi, coop } from "_imports/coop_widgets.slint";
+
+export global FileViewAdapter := {
+    // Represents the name of the current dir. The value is used as dummy data for the live preview.
+    property <string> current_dir_name: "Home";
+
+    // Represents the list of files. This is setup with dummy data for the live preview.
+    property <[ItemModel]> files: [
+        { leading_icon: mi.folder, text: "my_folder" },
+        { leading_icon: mi.image, text: "my_image.png" },
+    ];
+}
+
+export FileView := Rectangle {
+    horizontal_stretch: 1;
+
+    VerticalLayout {  
+        HeaderBar {  
+            title <=> FileViewAdapter.current_dir_name;
+            vertical_stretch: 0;
+        }
+
+        GridLayout {  
+            padding: coop.theme.spaces.medium;
+            ListView {
+                model: [
+                    { text: "", items: FileViewAdapter.files }
+                ];
+            }
+        }     
+    }
+}

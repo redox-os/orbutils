@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "orbutils",
-    "calculator"
+    "calculator",
+    "file_manager"
 ]

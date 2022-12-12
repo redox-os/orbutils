@@ -1,0 +1,27 @@
+import { SideBar, ListView, GroupItemModel, ItemModel, coop, mi } from "_imports/coop_widgets.slint";
+
+export global SideBarViewAdapter := {
+    // Represents the list of favorite dirs. This is setup with dummy data for the live preview.
+    property <[ItemModel]> favorites: [
+        { leading_icon: mi.home, text: "Home" },
+        { leading_icon: mi.desktop_windows, text: "Desktop" },
+        { leading_icon: mi.computer, text: "root" },
+    ];
+
+    property <int> selected_favorite;
+}
+
+export SideBarView := SideBar {
+    width: 160px;
+    horizontal_stretch: 0;
+
+    ListView {  
+        current-item-changed(current) => {  
+            SideBarViewAdapter.selected-favorite = current.item;
+        }
+        
+        model: [
+            { text: "", items: SideBarViewAdapter.favorites }
+        ];
+    }
+}
