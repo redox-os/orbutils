@@ -13,15 +13,7 @@ fn eval(input: &str) -> String {
 }
 
 pub fn main() {
-    slint_orbclient::init_config(
-        slint_orbclient::Config::default()
-            .width(200)
-            .height(220)
-            .title("Calculator"),
-    );
-
     let app = App::new();
-    app.global::<coop>().set_embedded_helper(true);
 
     app.on_backspace(|input| {
         let mut input = input.to_string();
