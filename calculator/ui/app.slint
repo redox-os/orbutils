@@ -1,17 +1,14 @@
-import { CoopWindow, RoundButton, MediumTitle, Button, coop } from "_imports/coop_widgets.slint";
+import { CoopWindow, RoundButton, MediumTitle, Button, Theme } from "_imports/coop_widgets.slint";
 
-export { coop }
+export { Theme }
 
-export App := CoopWindow {
-    callback input(string);
-    callback calculate(string) -> string;
-    callback backspace(string) -> string;
-
+export component App inherits CoopWindow {
+    private property <bool> display_result;
     private property <string> text <=> i_text.text;
 
-    input(text) => {  
-        root.text += text;
-    }
+    callback calculate(string) -> string;
+    callback backspace(string) -> string;
+    callback validate(string) -> string;
 
     title: "Calculator";
     width: 200px;
@@ -19,14 +16,13 @@ export App := CoopWindow {
     accent_color: #5294E2;
     on_accent_color: white;
     forward-focus: i_focus_scope;
-    dark_theme: true;
 
     VerticalLayout {
-        padding_top: coop.theme.spaces.medium;
-        padding_left: coop.theme.spaces.small;
-        padding_right: coop.theme.spaces.small;
-        padding_bottom: coop.theme.spaces.small;
-        spacing: coop.theme.spaces.medium;
+        padding_top: Theme.spaces.medium;
+        padding_left: Theme.spaces.small;
+        padding_right: Theme.spaces.small;
+        padding_bottom: Theme.spaces.small;
+        spacing: Theme.spaces.medium;
 
         Rectangle {  
             vertical-stretch: 0;
@@ -41,120 +37,123 @@ export App := CoopWindow {
        
         GridLayout { 
            
-            spacing: coop.theme.spaces.extra-small;
+            spacing: Theme.spaces.extra-small;
 
             Row {
                 Button {
                     text: "(";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: ")";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "^";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     primary: true;
                     text: "/";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
             }
 
             Row {
                 Button {
                     text: "7";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "8";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "9";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     primary: true;
                     text: "*";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
             }
 
             Row {
                 Button {
                     text: "4";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "5";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "6";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     primary: true;
                     text: "-";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
             }
 
             Row {
                 Button {
                     text: "1";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "2";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "3";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     primary: true;
                     text: "+";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
             }
 
             Row {
                 Button {
                     text: "0";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: ".";
-                    clicked => { root.input(text); }
+                    clicked => { root.input(self.text); }
                 }
 
                 Button {
                     text: "C";
-                    clicked => { root.text = ""; }
+                    clicked => { root.clear(); }
                 }
 
                 i_result_button := Button {
                     primary: true;
                     text: "=";
-                    clicked => { root.text = root.calculate(root.text); }
+                    clicked => { 
+                        root.text = root.calculate(root.text); 
+                        display_result = true;
+                    }
                 }
             }
         }
@@ -169,13 +168,31 @@ export App := CoopWindow {
                 return accept;
             }
 
-            if(e.text == Key.Return) {
+            if(e.text == Key.Return || e.text == "=") {
                 i_result_button.clicked();
+                return accept;
+            }
+
+            if(e.text == "C") {
+                root.clear();
                 return accept;
             }
 
             root.input(e.text);
             accept
          }
+    }
+
+    function input(text: string) { 
+        if(display_result) {
+            root.text = "";
+            root.display_result = false;
+        }
+        root.text += validate(text);
+    }
+
+    function clear() {
+        root.display_result = false;
+        root.text = "";
     }
 }
