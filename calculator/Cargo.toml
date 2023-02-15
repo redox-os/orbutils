@@ -10,14 +10,14 @@ build = "build.rs"
 name = "calculator"
 path = "src/main.rs"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 calculate = { git = "https://gitlab.redox-os.org/redox-os/calc.git" }
-
-slint = { version = "0.3.2", default-features = false, features = ["compat-0-3-0"] }
-slint_orbclient = { git = "https://gitlab.redox-os.org/redox-os/slint_orbclient.git" }
+slint = { git = "https://github.com/slint-ui/slint", default-features = false, features = ["compat-0-3-0", "renderer-winit-software"] }
 
 [build-dependencies]
-slint-build = "0.3.2"
+slint-build = { git = "https://github.com/slint-ui/slint" }
 coop_widgets = { git = "https://codeberg.org/flovansl/co_sl" }
+
+[features]
+default = []
+slint-default = ["slint/default"]
