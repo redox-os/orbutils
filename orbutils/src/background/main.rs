@@ -114,7 +114,7 @@ fn main() {
 
             for display in orbutils::get_display_rects().expect("background: failed to get display rects") {
                 let mut window = Window::new_flags(
-                    display.x, display.y, display.width, display.height, &format!("{} - Background", path),
+                    display.x, display.y, display.width, display.height, "",
                     &[WindowFlag::Async, WindowFlag::Back, WindowFlag::Borderless, WindowFlag::Unclosable]
                 ).unwrap();
 

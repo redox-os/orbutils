@@ -223,12 +223,12 @@ impl Bar {
             width,
             height,
             window: Window::new_flags(
-                0, height as i32 - icon_size(), width, icon_size() as u32, "Launcher",
+                0, height as i32 - icon_size(), width, icon_size() as u32, "",
                 &[WindowFlag::Async, WindowFlag::Borderless, WindowFlag::Transparent]
             ).expect("launcher: failed to open window"),
             selected: -1,
             selected_window: Window::new_flags(
-                0, height as i32, width, (font_size() + 8) as u32, "Launcher Popup",
+                0, height as i32, width, (font_size() + 8) as u32, "",
                 &[WindowFlag::Async, WindowFlag::Borderless, WindowFlag::Transparent],
             ).expect("launcher: failed to open selected window"),
             time: String::new()
