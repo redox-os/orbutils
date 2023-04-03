@@ -3,16 +3,19 @@ extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
 extern crate syscall;
+extern crate redox_log;
+extern crate log;
 
+use redox_log::{OutputBuilder, RedoxLogger};
+use log::{debug, error, info};
 use std::{env, io, mem};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::os::unix::io::AsRawFd;
-use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
-use std::process::{Child, Command, ExitStatus};
+use std::process::{Child, Command};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
@@ -54,24 +57,24 @@ static UI_PATH: &'static str = "/ui";
 static UI_PATH: &'static str = "ui";
 
 #[cfg(not(target_os = "redox"))]
-fn wait(status: &mut i32) -> usize {
+fn wait(status: &mut i32) -> io::Result<usize> {
     extern crate libc;
 
     use std::io::Error;
 
     let pid = unsafe { libc::waitpid(0, status as *mut i32, libc::WNOHANG) };
     if pid < 0 {
-        panic!("waitpid failed: {}", Error::last_os_error());
+        Err(io::Error::new(ErrorKind::Other,
+                           format!("waitpid failed: {}", Error::last_os_error())))
     }
-    pid as usize
+    Ok(pid as usize)
 }
 
 #[cfg(target_os = "redox")]
-fn wait(status: &mut usize) -> usize {
-    extern crate syscall;
-
-    //TODO: handle ECHILD without panic
-    syscall::waitpid(0, status, syscall::WNOHANG).unwrap()
+fn wait(status: &mut usize) -> io::Result<usize> {
+    syscall::waitpid(0, status, syscall::WNOHANG)
+        .map_err(|e| io::Error::new(ErrorKind::Other,
+                                        format!("Error in waitpid(): {}", e.to_string())))
 }
 
 fn load_icon(path: &str) -> Image {
@@ -392,22 +395,22 @@ impl Bar {
                 //TODO: should redraw be done here?
                 self.draw();
             },
-            Err(err) => println!("launcher: failed to launch {}: {}", binary, err)
+            Err(err) => error!("failed to spawn {}: {}", binary, err)
         }
     }
 }
 
-fn bar_main(width: u32, height: u32) {
+fn bar_main(width: u32, height: u32) -> io::Result<()> {
     let bar = Rc::new(RefCell::new(Bar::new(width, height)));
 
     match Command::new("/ui/bin/background").spawn() {
         Ok(child) => bar.borrow_mut().children.push(("/ui/bin/background".to_string(), child)),
-        Err(err) => println!("launcher: failed to launch background: {}", err)
+        Err(err) => error!("failed to launch background: {}", err)
     }
 
     let mut event_queue = EventQueue::<()>::new().expect("launcher: failed to create event queue");
 
-    let mut time_file = File::open(&format!("time:{}", CLOCK_MONOTONIC)).expect("launcher: failed to open time");
+    let mut time_file = File::open(&format!("time:{}", CLOCK_MONOTONIC))?;
     let bar_time = bar.clone();
     event_queue.add(time_file.as_raw_fd(), move |_| -> io::Result<Option<()>> {
         let mut time = TimeSpec::default();
@@ -419,11 +422,11 @@ fn bar_main(width: u32, height: u32) {
                 let remove = match bar.children[i].1.try_wait() {
                     Ok(None) => false,
                     Ok(Some(status)) => {
-                        println!("launcher: {} ({}) exited with {}", bar.children[i].0, bar.children[i].1.id(), status);
+                        info!("{} ({}) exited with {}", bar.children[i].0, bar.children[i].1.id(), status);
                         true
                     },
                     Err(err) => {
-                        println!("launcher: failed to wait for {} ({}): {}", bar.children[i].0, bar.children[i].1.id(), err);
+                        error!("failed to wait for {} ({}): {}", bar.children[i].0, bar.children[i].1.id(), err);
                         true
                     }
                 };
@@ -436,11 +439,9 @@ fn bar_main(width: u32, height: u32) {
 
             loop {
                 let mut status = 0;
-                let pid = wait(&mut status);
+                let pid = wait(&mut status)?;
                 if pid == 0 {
                     break;
-                } else {
-                    println!("launcher: reaping zombie {}: {}", pid, ExitStatus::from_raw(status as i32));
                 }
             }
 
@@ -453,7 +454,7 @@ fn bar_main(width: u32, height: u32) {
         }
 
         Ok(None)
-    }).expect("launcher: failed to poll time");
+    })?;
 
     let bar_window = bar.clone();
     let mut mouse_x = -1;
@@ -471,7 +472,7 @@ fn bar_main(width: u32, height: u32) {
 
                 //TODO: configure super keybindings
                 let event_option = super_event.to_option();
-                println!("launcher: super {:?}", event_option);
+                debug!("launcher: super {:?}", event_option);
                 match event_option {
                     EventOption::Key(key_event) => match key_event.scancode {
                         orbclient::K_B => if key_event.pressed {
@@ -593,36 +594,34 @@ fn bar_main(width: u32, height: u32) {
         }
 
         Ok(None)
-    }).expect("launcher: failed to poll window events");
+    })?;
 
     event_queue.trigger_all(event::Event {
         fd: 0,
         flags: EventFlags::empty(),
-    }).expect("launcher: failed to trigger events");
+    })?;
 
-    event_queue.run().expect("launcher: failed to run event loop");
+    event_queue.run()?;
 
+    debug!("Launcher exiting, killing {} children", bar.borrow_mut().children.len());
     for (binary, child) in bar.borrow_mut().children.iter_mut() {
         let pid = child.id();
         match child.kill() {
-            Ok(()) => (),
-            Err(err) => println!("launcher: failed to kill {} ({}): {}", binary, pid, err),
+            Ok(()) => debug!("Successfully killed child: {}", pid),
+            Err(err) => error!("failed to kill {} ({}): {}", binary, pid, err),
         }
         match child.wait() {
-            Ok(status) => println!("launcher: {} ({}) exited with {}", binary, pid, status),
-            Err(err) => println!("launcher: failed to wait for {} ({}): {}", binary, pid, err),
+            Ok(status) => info!("{} ({}) exited with {}", binary, pid, status),
+            Err(err) => error!("failed to wait for {} ({}): {}", binary, pid, err),
         }
     }
 
-    loop {
-        let mut status = 0;
-        let pid = wait(&mut status);
-        if pid == 0 {
-            break;
-        } else {
-            println!("launcher: reaping zombie {}: {}", pid, ExitStatus::from_raw(status as i32));
-        }
-    }
+    // kill any descendents of one of the children killed above that are still running
+    debug!("Launcher exiting, reaping all zombie processes");
+    let mut status = 0;
+    while wait(&mut status).is_ok() {};
+
+    Ok(())
 }
 
 fn chooser_main(paths: env::Args) {
@@ -632,7 +631,7 @@ fn chooser_main(paths: env::Args) {
         packages.retain(|package| -> bool {
             for accept in package.accepts.iter() {
                 if (accept.starts_with('*') && path.ends_with(&accept[1 ..])) ||
-                   (accept.ends_with('*') && path.starts_with(&accept[.. accept.len() - 1])) {
+                    (accept.ends_with('*') && path.starts_with(&accept[.. accept.len() - 1])) {
                     return true;
                 }
             }
@@ -707,14 +706,31 @@ fn chooser_main(paths: env::Args) {
     }
 }
 
-fn main() {
-    let (width, height) = orbclient::get_display_size().expect("launcher: failed to get display size");
-    SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
+fn start_logging() {
+    if let Err(e) = RedoxLogger::new()
+        .with_output(
+            OutputBuilder::stdout()
+                .with_filter(log::LevelFilter::Debug)
+                .with_ansi_escape_codes()
+                .build()
+        )
+        .with_process_name("launcher".into())
+        .enable() {
+        eprintln!("Launcher could not start logging: {}", e);
+    }
+}
 
+fn main() -> Result<(), String>{
+    start_logging();
+
+    let (width, height) = orbclient::get_display_size()?;
+    SCALE.store((height as isize / 1600) + 1, Ordering::Relaxed);
     let paths = env::args();
     if paths.len() > 1 {
         chooser_main(paths);
     } else {
-        bar_main(width, height);
+        bar_main(width, height).map_err(|e| e.to_string())?;
     }
+
+    Ok(())
 }
