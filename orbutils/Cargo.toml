@@ -49,6 +49,8 @@ orbfont = "0.1.8"
 orbimage = "0.1.17"
 orbtk = "0.2.29"
 redox_users = "0.4"
+redox-log = "0.1"
+log = "0.4.14"
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
 libc = "0.2.50"

@@ -2746,12 +2746,14 @@ dependencies = [
  "calculate",
  "chrono",
  "libc",
+ "log 0.4.17",
  "mime",
  "mime_guess",
  "orbclient",
  "orbfont",
  "orbimage",
  "orbtk",
+ "redox-log",
  "redox_event",
  "redox_syscall 0.3.4",
  "redox_users",
@@ -3346,6 +3348,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
 dependencies = [
  "rand_core 0.3.1",
+]
+
+[[package]]
+name = "redox-log"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cbf6d33a003a5c0b94ec11f10c7c797303f236592964ddb1bfb93e1b438a1557"
+dependencies = [
+ "chrono",
+ "log 0.4.17",
+ "smallvec",
+ "termion",
 ]
 
 [[package]]
