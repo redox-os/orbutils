@@ -5,6 +5,13 @@ extern crate orbimage;
 extern crate orbfont;
 extern crate redox_users;*/
 
+#[allow(clippy::all)]
+mod generated_code {
+    slint::include_modules!();
+}
+
+pub use generated_code::*;
+use slint::SharedString;
 use std::{env, str};
 use std::process::Command;
 
@@ -367,7 +374,7 @@ fn main() {
     let launcher_cmd = args.next().expect("orblogin: no window manager command");
     let launcher_args: Vec<String> = args.collect();
 
-    loop {
+    /*loop {
         if let Some(mut command) = login_window(&launcher_cmd, &launcher_args) {
             match command.spawn() {
                 Ok(mut child) => match child.wait() {
@@ -381,5 +388,7 @@ fn main() {
                 }
             }
         }
-    }
+    }*/
+    let login_window = LoginWindow::new().expect("Failed to initialize LoginWindow!");
+    login_window.run().expect("Failed to start LoginWindow!");
 }
