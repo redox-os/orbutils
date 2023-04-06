@@ -2615,6 +2615,7 @@ version = "0.2.0"
 dependencies = [
  "calculate",
  "coop_widgets",
+ "redox_users",
  "slint",
  "slint-build 1.0.0",
 ]
