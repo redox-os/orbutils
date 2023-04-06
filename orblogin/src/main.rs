@@ -1,19 +1,19 @@
-#![deny(warnings)]
+//#![deny(warnings)]
 
-extern crate orbclient;
+/*extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
-extern crate redox_users;
+extern crate redox_users;*/
 
 use std::{env, str};
 use std::process::Command;
 
-use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
+/*use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
-use orbimage::Image;
+use orbimage::Image;*/
 use redox_users::{All, AllUsers, Config};
 
-#[derive(Clone, Copy)]
+/*#[derive(Clone, Copy)]
 enum BackgroundMode {
     /// Do not resize the image, just center it
     Center,
@@ -73,7 +73,7 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
             ((i_w * scale) as u32, (i_h * scale) as u32)
         }
     }
-}
+}*/
 
 fn normal_usernames() -> Vec<String> {
     let users = match AllUsers::authenticator(Config::default()) {
@@ -118,7 +118,7 @@ fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: 
     }
 }
 
-fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
+/*fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
     let font = Font::find(Some("Sans"), None, None).expect("orblogin: no font found");
 
     let image_mode = BackgroundMode::from_str("zoom");
@@ -359,7 +359,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
             }
         }
     }
-}
+}*/
 
 fn main() {
     let mut args = env::args().skip(1);
