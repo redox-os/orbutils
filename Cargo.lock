@@ -2610,6 +2610,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "orblogin"
+version = "0.2.0"
+dependencies = [
+ "calculate",
+ "coop_widgets",
+ "slint",
+ "slint-build 1.0.0",
+]
+
+[[package]]
 name = "orbtk"
 version = "0.2.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
