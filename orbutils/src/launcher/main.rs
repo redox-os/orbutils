@@ -684,7 +684,7 @@ fn chooser_main(paths: env::Args) {
                             for package in packages.iter() {
                                 if mouse_y >= y && mouse_y < y + icon_small_size() {
                                     if let Err(err) = Command::new(&package.binary).arg(path).spawn() {
-                                        println!("launcher: failed to launch {}: {}", package.binary, err);
+                                        error!("failed to launch {}: {}", package.binary, err);
                                     }
                                     break 'choosing;
                                 }
@@ -698,10 +698,10 @@ fn chooser_main(paths: env::Args) {
             }
         } else if let Some(package) = packages.get(0) {
             if let Err(err) = Command::new(&package.binary).arg(&path).spawn() {
-                println!("launcher: failed to launch '{}': {}", package.binary, err);
+                error!("failed to launch '{}': {}", package.binary, err);
             }
         } else {
-            println!("launcher: no application found for '{}'", path);
+            error!("no application found for '{}'", path);
         }
     }
 }

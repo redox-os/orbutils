@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::Read;
+use log::error;
 
 use orbimage::Image;
 
@@ -77,7 +78,7 @@ impl Package {
             } else if line.starts_with("description=") {
                 package.descriptions.push(line[12..].to_string());
             } else {
-                println!("Unknown package info: {}", line);
+                error!("Unknown package info: {}", line);
             }
         }
 

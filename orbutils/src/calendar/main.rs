@@ -1,6 +1,7 @@
 extern crate orbtk;
 extern crate chrono;
 extern crate orbclient;
+extern crate redox_log;
 
 use orbtk::{Rect, Window, WindowBuilder, Grid, Label, Button, Style};
 use orbtk::traits::{Place, Text, Click};
@@ -10,6 +11,7 @@ use chrono::Duration;
 use std::ops::{Sub, Add};
 use std::sync::Arc;
 use std::sync::mpsc::{channel, Receiver};
+use redox_log::{OutputBuilder, RedoxLogger};
 
 static CALENDAR_THEME_CSS: &'static str = include_str!("theme.css");
 
@@ -119,11 +121,11 @@ impl Calendar {
             window_width,
             cell_height,
             cell_width,
-            cell_day_name_height: cell_day_name_height,
+            cell_day_name_height,
             date: TimeMachine::new(),
             grid_calendar: grid,
             label_date: label_date.clone(),
-            rx: rx,
+            rx,
         }
     }
 
@@ -162,7 +164,7 @@ impl Calendar {
                         .text(text)
                         .text_offset(text_offset as i32, (self.cell_width / 2 -8) as i32);
 
-                    if x.date() == Local::now().date() {
+                    if x.date_naive() == Local::now().date_naive() {
                         cell.with_class("today");
                     }
 
@@ -208,5 +210,16 @@ impl Calendar {
 }
 
 fn main(){
+    // Ignore possible errors while enabling logging
+    let _ = RedoxLogger::new()
+        .with_output(
+            OutputBuilder::stdout()
+                .with_filter(log::LevelFilter::Debug)
+                .with_ansi_escape_codes()
+                .build()
+        )
+        .with_process_name("calendar".into())
+        .enable();
+
     Calendar::new().exec();
 }

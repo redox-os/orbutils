@@ -1,0 +1,23 @@
+build:linux:
+  image: "redoxos/redoxer"
+  before_script:
+    - apt-get update
+    - apt-get install cmake libsdl2-dev libfreetype6-dev libexpat1-dev -y
+  script:
+    - cargo +nightly build --bin calendar
+    - cargo +nightly build --bin character_map
+    - cargo +nightly build --bin editor
+    - cargo +nightly build --bin file_manager
+    - cargo +nightly build --bin viewer
+
+test:linux:
+  image: "redoxos/redoxer"
+  before_script:
+    - apt-get update
+    - apt-get install cmake libsdl2-dev libfreetype6-dev libexpat1-dev -y
+  script:
+    - cargo +nightly test --bin calendar
+    - cargo +nightly test --bin character_map
+    - cargo +nightly test --bin editor
+    - cargo +nightly test --bin file_manager
+    - cargo +nightly test --bin viewer

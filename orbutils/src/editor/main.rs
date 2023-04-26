@@ -1,7 +1,7 @@
-//#![deny(warnings)]
-
 extern crate orbclient;
 extern crate orbtk;
+extern crate redox_log;
+extern crate log;
 
 use orbclient::WindowFlag;
 use orbtk::{Action, Button, Menu, Point, Rect, Separator, TextBox, Window};
@@ -16,6 +16,8 @@ use std::ops::DerefMut;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::Arc;
+use log::{debug, error, info};
+use redox_log::{OutputBuilder, RedoxLogger};
 
 pub struct Editor {
     path_option: Option<PathBuf>,
@@ -75,7 +77,7 @@ impl Editor {
         {
             let editor_cell = editor_cell.clone();
             open_action.on_click(move |_action: &Action, _point: Point| {
-                println!("Open");
+                debug!("Open");
 
                 let mut dialog = FileDialog::new();
                 dialog.title = "Open File".to_string();
@@ -88,7 +90,7 @@ impl Editor {
                 }
 
                 if let Some(path) = dialog.exec() {
-                    println!("Open {}", path.display());
+                    debug!("Open {}", path.display());
                     editor_cell.borrow_mut().open(&path);
                 }
             });
@@ -97,7 +99,7 @@ impl Editor {
         {
             let editor_cell = editor_cell.clone();
             reload_action.on_click(move |_action: &Action, _point: Point| {
-                println!("Reload");
+                debug!("Reload");
                 editor_cell.borrow_mut().load();
             });
         }
@@ -105,7 +107,7 @@ impl Editor {
         {
             let editor_cell = editor_cell.clone();
             save_action.on_click(move |_action: &Action, _point: Point| {
-                println!("Save");
+                debug!("Save");
                 editor_cell.borrow_mut().save();
             });
         }
@@ -113,12 +115,12 @@ impl Editor {
         {
             let editor_cell = editor_cell.clone();
             save_as_action.on_click(move |_action: &Action, _point: Point| {
-                println!("Save As");
+                debug!("Save As");
 
                 let mut window = {
                     let editor_dialog = editor_cell.clone();
                     editor_cell.borrow_mut().path_dialog("Save As", move |path| {
-                        println!("Save As {}", path);
+                        debug!("Save As {}", path);
                         editor_dialog.borrow_mut().save_as(&path);
                     })
                 };
@@ -130,7 +132,7 @@ impl Editor {
         {
             let editor_cell = editor_cell.clone();
             close_action.on_click(move |_action: &Action, _point: Point| {
-                println!("Close");
+                debug!("Close");
                 editor_cell.borrow_mut().close();
             });
         }
@@ -224,7 +226,7 @@ impl Editor {
 
     fn load(&mut self) {
         if let Some(ref path) = self.path_option {
-            println!("Load {}", path.display());
+            debug!("Load {}", path.display());
             match File::open(path) {
                 Ok(mut f) => {
                     let mut contents = String::new();
@@ -232,38 +234,34 @@ impl Editor {
                         Ok(_) => {
                             self.text_box.text.set(contents);
                         },
-                        Err(e) => {
-                            println!("Failed to read {}: {}", path.display(), e);
-                        }
+                        Err(e) => error!("Failed to read {}: {}", path.display(), e)
                     }
                 },
-                Err(e) => {
-                    println!("Failed to open {}: {}", path.display(), e);
-                }
+                Err(e) => error!("Failed to open {}: {}", path.display(), e)
             }
         } else {
-            println!("Path not set");
+            error!("Path not set");
         }
     }
 
     fn save(&mut self) {
         if let Some(ref path) = self.path_option {
-            println!("Save {}", path.display());
+            info!("Save {}", path.display());
             match File::create(path) {
                 Ok(mut file) => {
                     let text = self.text_box.text.borrow();
                     match file.write(&text.as_bytes()) {
                         Ok(_) => match file.set_len(text.len() as u64) {
-                            Ok(_) => println!("Successfully saved {}", path.display()),
-                            Err(err) => println!("Failed to truncate {}: {}", path.display(), err)
+                            Ok(_) => info!("Successfully saved {}", path.display()),
+                            Err(err) => error!("Failed to truncate {}: {}", path.display(), err)
                         },
-                        Err(err) => println!("Failed to write {}: {}", path.display(), err)
+                        Err(err) => error!("Failed to write {}: {}", path.display(), err)
                     }
                 },
-                Err(err) => println!("Failed to open {}: {}", path.display(), err)
+                Err(err) => error!("Failed to open {}: {}", path.display(), err)
             }
         } else {
-            println!("Path not set");
+            error!("Path not set");
         }
     }
 
@@ -290,6 +288,17 @@ impl Editor {
 }
 
 fn main(){
+    // Ignore possible errors while enabling logging
+    let _ = RedoxLogger::new()
+        .with_output(
+            OutputBuilder::stdout()
+                .with_filter(log::LevelFilter::Debug)
+                .with_ansi_escape_codes()
+                .build()
+        )
+        .with_process_name("editor".into())
+        .enable();
+
     let path_option = env::args().nth(1).map(PathBuf::from);
 
     let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");

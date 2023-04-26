@@ -12,6 +12,14 @@ name = "background"
 path = "src/background/main.rs"
 
 [[bin]]
+name = "launcher"
+path = "src/launcher/main.rs"
+
+[[bin]]
+name = "orblogin"
+path = "src/orblogin/main.rs"
+
+[[bin]]
 name = "character_map"
 path = "src/character_map/main.rs"
 
@@ -22,14 +30,6 @@ path = "src/editor/main.rs"
 [[bin]]
 name = "file_manager"
 path = "src/file_manager/main.rs"
-
-[[bin]]
-name = "launcher"
-path = "src/launcher/main.rs"
-
-[[bin]]
-name = "orblogin"
-path = "src/orblogin/main.rs"
 
 [[bin]]
 name = "viewer"
@@ -51,6 +51,7 @@ orbtk = "0.2.29"
 redox_users = "0.4"
 redox-log = "0.1"
 log = "0.4.14"
+dirs = "5.0.0"
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
 libc = "0.2.50"
