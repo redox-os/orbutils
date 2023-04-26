@@ -1,10 +1,11 @@
-//#![deny(warnings)]
-
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbtk;
 extern crate mime_guess;
 extern crate mime;
+extern crate dirs;
+extern crate redox_log;
+extern crate log;
 
 use std::{cmp, env, fs};
 use std::collections::BTreeMap;
@@ -15,6 +16,7 @@ use std::string::{String, ToString};
 use std::vec::Vec;
 use std::sync::mpsc::{channel, Sender, Receiver};
 use std::sync::Arc;
+use log::{debug, error, info};
 
 use mime::TopLevel as MimeTop;
 
@@ -23,6 +25,7 @@ use orbimage::Image;
 
 use orbtk::{Window, WindowBuilder, Point, Rect, Button, List, Entry, Label, Place, Resize, Text, Style, TextBox, Click, Enter};
 use orbtk::theme::Theme;
+use redox_log::{OutputBuilder, RedoxLogger};
 
 const ICON_SIZE: i32 = 32;
 
@@ -72,11 +75,11 @@ impl FileInfo {
             }
         };
         FileInfo {
-            name: name,
+            name,
             path: path.as_ref().to_owned(),
-            size: size,
-            size_str: size_str,
-            is_dir: is_dir,
+            size,
+            size_str,
+            is_dir,
         }
     }
 }
@@ -99,16 +102,14 @@ impl FileType {
                             icon: path,
                         });
                     } else {
-                        println!("{} not found in {}", icon, folder);
+                        error!("{} not found in {}", icon, folder);
                     }
                 },
-                Err(err) => {
-                    println!("failed to canonicalize {}: {}", UI_PATH, err);
-                }
+                Err(err) => error!("failed to canonicalize {}: {}", UI_PATH, err)
             }
         }
 
-        println!("{} not found", icon);
+        error!("{} not found", icon);
         match fs::canonicalize(UI_PATH) {
             Ok(mut path) => {
                 path.push("mimetypes/unknown.png");
@@ -118,7 +119,7 @@ impl FileType {
                 })
             },
             Err(err) => {
-                println!("failed to canonicalize {}: {}", UI_PATH, err);
+                error!("failed to canonicalize {}: {}", UI_PATH, err);
                 None
             }
         }
@@ -246,7 +247,7 @@ fn load_icon(path: &Path) -> Image {
             icon.resize(ICON_SIZE as u32, ICON_SIZE as u32, orbimage::ResizeType::Lanczos3).unwrap()
         },
         Err(err) => {
-            println!("Failed to load icon {}: {}", path.display(), err);
+            error!("Failed to load icon {}: {}", path.display(), err);
             Image::from_color(ICON_SIZE as u32, ICON_SIZE as u32, Color::rgba(0, 0, 0, 0))
         }
     }
@@ -599,7 +600,7 @@ impl FileManager {
                             let directory = match entry.file_type() {
                                 Ok(file_type) => file_type.is_dir(),
                                 Err(err) => {
-                                    println!("Failed to read file type: {}", err);
+                                    error!("Failed to read file type: {}", err);
                                     false
                                 }
                             };
@@ -611,20 +612,18 @@ impl FileManager {
                                     name.to_string()
                                 },
                                 None => {
-                                    println!("Failed to read file name");
+                                    error!("Failed to read file name");
                                     String::new()
                                 }
                             };
 
                             self.push_file(FileInfo::new(name, entry.path(), directory));
                         },
-                        Err(err) => println!("failed to read dir entry: {}", err)
+                        Err(err) => error!("failed to read dir entry: {}", err)
                     }
                 }
             },
-            Err(err) => {
-                println!("failed to readdir {}: {}", self.path.display(), err);
-            },
+            Err(err) => error!("failed to readdir {}: {}", self.path.display(), err)
         }
 
         self.columns[0].x = ICON_SIZE + 8;
@@ -642,7 +641,7 @@ impl FileManager {
     }
 
     fn exec(&mut self) {
-        println!("main path: {}", self.path.display());
+        debug!("main path: {}", self.path.display());
         self.update_path();
         self.redraw();
         self.window.draw_if_needed();
@@ -664,10 +663,10 @@ impl FileManager {
                         let path = self.path.join(name);
                         match fs::File::create(&path) {
                             Ok(_) => {
-                                println!("Created file {}", path.display());
+                                info!("Created file {}", path.display());
                             },
                             Err(err) => {
-                                println!("Failed to create file {}: {}", path.display(), err);
+                                error!("Failed to create file {}: {}", path.display(), err);
                             }
                         }
                         self.update_path();
@@ -676,12 +675,8 @@ impl FileManager {
                     FileManagerCommand::CreateFolder(name) => {
                         let path = self.path.join(name);
                         match fs::create_dir(&path) {
-                            Ok(_) => {
-                                println!("Created folder {}", path.display());
-                            },
-                            Err(err) => {
-                                println!("Failed to create folder {}: {}", path.display(), err);
-                            }
+                            Ok(_) => info!("Created folder {}", path.display()),
+                            Err(err) => error!("Failed to create folder {}: {}", path.display(), err)
                         }
                         self.update_path();
                         self.redraw();
@@ -719,9 +714,20 @@ impl FileManager {
 }
 
 fn main() {
+    // Ignore possible errors while enabling logging
+    let _ = RedoxLogger::new()
+        .with_output(
+            OutputBuilder::stdout()
+                .with_filter(log::LevelFilter::Debug)
+                .with_ansi_escape_codes()
+                .build()
+        )
+        .with_process_name("file_manager".into())
+        .enable();
+
     match env::args().nth(1) {
         Some(ref arg) => FileManager::new(arg).exec(),
-        None => if let Some(home) = env::home_dir() {
+        None => if let Some(home) = dirs::home_dir() {
             FileManager::new(home).exec()
         } else {
             FileManager::new(".").exec()

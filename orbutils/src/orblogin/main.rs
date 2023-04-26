@@ -1,16 +1,21 @@
-#![deny(warnings)]
+#![forbid(clippy::unwrap_used)]
+#![forbid(clippy::expect_used)]
 
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
 extern crate redox_users;
+extern crate log;
+extern crate redox_log;
 
-use std::{env, str};
+use std::{env, io, str};
 use std::process::Command;
+use log::{error, info};
 
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
 use orbimage::Image;
+use redox_log::{OutputBuilder, RedoxLogger};
 use redox_users::{All, AllUsers, Config};
 
 #[derive(Clone, Copy)]
@@ -78,9 +83,7 @@ fn find_scale(image: &Image, mode: BackgroundMode, display_width: u32, display_h
 fn normal_usernames() -> Vec<String> {
     let users = match AllUsers::authenticator(Config::default()) {
         Ok(ok) => ok,
-        Err(_) => {
-            return Vec::new();
-        }
+        Err(_) => return Vec::new()
     };
 
     let mut usernames = Vec::new();
@@ -94,13 +97,10 @@ fn normal_usernames() -> Vec<String> {
 }
 
 fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
-
     let sys_users = match AllUsers::authenticator(Config::default()) {
         Ok(users) => users,
         // Not maybe the best thing to do...
-        Err(_) => {
-            return None;
-        }
+        Err(_) => return None,
     };
 
     match sys_users.get_by_name(&username) {
@@ -118,20 +118,14 @@ fn login_command(username: &str, pass: &str, launcher_cmd: &str, launcher_args: 
     }
 }
 
-fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
-    let font = Font::find(Some("Sans"), None, None).expect("orblogin: no font found");
+fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Result<Option<Command>, String> {
+    let font = Font::find(Some("Sans"), None, None)?;
 
     let image_mode = BackgroundMode::from_str("zoom");
     let image_path = "/ui/login.png";
-    let image = match Image::from_path(image_path) {
-        Ok(image) => image,
-        Err(err) => {
-            println!("orblogin: error loading {}: {}", image_path, err);
-            Image::from_color(1, 1, Color::rgb(0x2d, 0x64, 0x8e))
-        }
-    };
+    let image = Image::from_path(image_path)?;
 
-    let (display_width, display_height) = orbclient::get_display_size().expect("orblogin: failed to get display size");
+    let (display_width, display_height) = orbclient::get_display_size()?;
     let s_u = (display_height / 1600) + 1;
     let s_i = s_u as i32;
     let s_f = s_i as f32;
@@ -141,7 +135,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
     let mut window = Window::new_flags(
         0, 0, display_width, display_height, "orblogin",
         &[WindowFlag::Borderless, WindowFlag::Unclosable]
-    ).unwrap();
+    ).ok_or("Could not create new window with flags")?;
 
     let (mut item, mut username) = if usernames.len() == 1 {
         (1, usernames[0].clone())
@@ -166,7 +160,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
             } else if width == image.width() && height == image.height() {
                 scaled_image = image.clone();
             } else {
-                scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3).unwrap();
+                scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3)?;
             }
 
             let (crop_x, crop_w) = if width > w  {
@@ -277,7 +271,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
                                 item = 1;
                             } else if item == 1 {
                                 if let Some(command) = login_command(&username, &password, launcher_cmd, launcher_args) {
-                                    return Some(command);
+                                    return Ok(Some(command));
                                 } else {
                                     item = 0;
                                     password.clear();
@@ -334,7 +328,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
                                 item = 1;
                             } else {
                                 if let Some(command) = login_command(&username, &password, launcher_cmd, launcher_args) {
-                                    return Some(command);
+                                    return Ok(Some(command));
                                 } else {
                                     item = 0;
                                     password.clear();
@@ -354,32 +348,44 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Option<Command>
                     window.set_size(screen_event.width, screen_event.height);
                     resize = Some((screen_event.width, screen_event.height));
                 },
-                EventOption::Quit(_) => return None,
+                EventOption::Quit(_) => return Ok(None),
                 _ => ()
             }
         }
     }
 }
 
-fn main() {
+fn main() -> io::Result<()> {
+    // Ignore possible errors while enabling logging
+    let _ = RedoxLogger::new()
+        .with_output(
+            OutputBuilder::stdout()
+                .with_filter(log::LevelFilter::Debug)
+                .with_ansi_escape_codes()
+                .build()
+        )
+        .with_process_name("orblogin".into())
+        .enable();
+
     let mut args = env::args().skip(1);
 
-    let launcher_cmd = args.next().expect("orblogin: no window manager command");
+    let launcher_cmd = args.next().ok_or(
+        io::Error::new(io::ErrorKind::Other, "Could not get 'launcher_cmd'"))?;
     let launcher_args: Vec<String> = args.collect();
 
     loop {
-        if let Some(mut command) = login_window(&launcher_cmd, &launcher_args) {
-            match command.spawn() {
-                Ok(mut child) => match child.wait() {
-                    Ok(_) => (),
-                    Err(err) => {
-                        println!("orblogin: failed to wait for '{}': {}", launcher_cmd, err);
-                    }
-                },
-                Err(err) => {
-                    println!("orblogin: failed to execute '{}': {}", launcher_cmd, err);
+        match login_window(&launcher_cmd, &launcher_args) {
+            Ok(Some(mut command)) => {
+                match command.spawn() {
+                    Ok(mut child) => match child.wait() {
+                        Ok(_) => (),
+                        Err(err) => error!("failed to wait for '{}': {}", launcher_cmd, err),
+                    },
+                    Err(err) => error!("failed to execute '{}': {}", launcher_cmd, err),
                 }
-            }
+            },
+            Ok(None) => info!("login completed without a command"),
+            Err(e) => error!("{}", e),
         }
     }
 }

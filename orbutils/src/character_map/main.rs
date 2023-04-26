@@ -1,7 +1,6 @@
-#![deny(warnings)]
-
 extern crate orbclient;
 extern crate orbfont;
+extern crate redox_log;
 
 use std::cmp::max;
 
@@ -9,8 +8,20 @@ use std::env;
 
 use orbclient::{Color, Renderer, Window, WindowFlag, EventOption};
 use orbfont::Font;
+use redox_log::{OutputBuilder, RedoxLogger};
 
 fn main() {
+    // Ignore possible errors while enabling logging
+    let _ = RedoxLogger::new()
+        .with_output(
+            OutputBuilder::stdout()
+                .with_filter(log::LevelFilter::Debug)
+                .with_ansi_escape_codes()
+                .build()
+        )
+        .with_process_name("character_map".into())
+        .enable();
+
     let (title, font_res) = match env::args().nth(1) {
         Some(arg) => (arg.clone(), Font::from_path(&arg)),
         None => ("Default Font".to_string(), Font::find(None, None, None)),
