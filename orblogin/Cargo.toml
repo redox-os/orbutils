@@ -10,12 +10,17 @@ build = "build.rs"
 name = "orblogin"
 path = "src/main.rs"
 
-[dependencies]
+# for available backends and renderers see https://slint-ui.com/releases/0.3.5/docs/rust/slint/index.html#backends
+
+[target.'cfg(target_os = "redox")'.dependencies]
 slint = { version = "0.3.5", default-features = false, features = ["compat-0-3-0", "renderer-winit-software"] }
+
+[target.'cfg(not(target_os = "redox"))'.dependencies]
+slint = { version = "0.3.5", default-features = false, features = ["compat-0-3-0", "backend-winit", "renderer-winit-software"] }
 redox_users = "0.4.0"
 
 [build-dependencies]
-slint-build =  {version = "0.3.5"}
+slint-build = { version = "0.3.5"}
 
 [features]
 default = []
