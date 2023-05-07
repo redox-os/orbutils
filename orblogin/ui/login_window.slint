@@ -26,55 +26,78 @@ export component LoginWindow inherits Window {
         height: root.height;
         source: @image-url("login.png");
     }
-     
-    horizontal_layout := HorizontalLayout {
-        alignment: center;
-        x: (root.width - self.width) / 2;
-        y: (root.height - self.height) / 2;
-        width: root.width / 2;
-        height: root.height / 2;
-        
-        VerticalBox {
-            alignment: center;
-            spacing: 10px;
-            
-            Text {
-                color: white;
-                text: "Welcome to Redox OS";
-                font-size: 28px;
-                horizontal-alignment: center;
+
+    // FocusScope has to be a parent due to slint's incomplete focus handling implementation,
+    // see https://github.com/slint-ui/slint/issues/798
+    // Probably will change in future versions.
+    FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                reset_form();
+                return accept;
             }
-            username :=  LoginInput {
-                placeholder-text: "Username";
-                input-type: InputType.text;
-                
-                accepted => {
+
+            if (event.text == Key.Tab) {
+                if (username.has-focus) {
                     password.focus();
+                    return accept;
+                }
+                if (password.has-focus) {
+                    username.focus();
+                    return accept;
                 }
             }
-            password := LoginInput {
-                input-type: InputType.password;
-                placeholder-text: "Password";
-                accepted => {
+            reject
+        }
+     
+        horizontal_layout := HorizontalLayout {
+            alignment: center;
+            x: (root.width - self.width) / 2;
+            y: (root.height - self.height) / 2;
+            width: root.width / 2;
+            height: root.height / 2;
+            
+            VerticalBox {
+                alignment: center;
+                spacing: 10px;
+                
+                Text {
+                    color: white;
+                    text: "Welcome to Redox OS";
+                    font-size: 28px;
+                    horizontal-alignment: center;
+                }
+                username :=  LoginInput {
+                    placeholder-text: "Username";
+                    input-type: InputType.text;
+                    
+                    accepted => {
+                        password.focus();
+                    }
+                }
+                password := LoginInput {
+                    input-type: InputType.password;
+                    placeholder-text: "Password";
+                    accepted => {
+                        do-authenticate();
+                    }
+                }
+                LoginButton {
+                    text: "Login";
+                    clicked => {
                     do-authenticate();
+                    }
                 }
-            }
-            LoginButton {
-                text: "Login";
-                clicked => {
-                   do-authenticate();
+                error_message := Text {
+                    color: 	#ED2839;
+                    font-size: 18px;
+                    font-weight: 800;
+                    horizontal-alignment: center;
+                    text: "Invalid username / password combination !";
+                    visible: false;
                 }
-            }
-            error_message := Text {
-                color: 	#ED2839;
-                font-size: 18px;
-                font-weight: 800;
-                horizontal-alignment: center;
-                text: "Invalid username / password combination !";
-                visible: false;
             }
         }
-    }
 
     function do_authenticate() {
         username.enabled = false;
@@ -98,6 +121,18 @@ export component LoginWindow inherits Window {
         username.enabled = true;
         password.enabled = true;
        }
-}
+    }
 
+    function reset_form() {
+        error-message.visible = false;
+        login-failed = false;
+
+        username.text = "";
+        password.text = "";
+        username.border-color = #1D1D1D;
+        password.border-color = #1D1D1D;
+
+        username.focus();
+    }
+}
 
