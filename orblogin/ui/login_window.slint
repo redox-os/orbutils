@@ -11,9 +11,13 @@ export component LoginWindow inherits Window {
     // called when the user clicks the login button or presses Enter
     callback authenticate(string, string) -> bool;
 
+    // Called when the user authenticates successfully.
+    // Hides LoginWindow. then launches the provided command as a new process.
+    callback exec_login_cmd();
+
     // Indicates that the username/password combo is wrong.
     // Display error message and change inputs border color to red.
-    property <bool> login_failed: false;
+    in-out property <bool> login_failed: false;
 
     background_img := Image {
         width: root.width;
