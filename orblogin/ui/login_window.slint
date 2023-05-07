@@ -19,6 +19,8 @@ export component LoginWindow inherits Window {
     // Display error message and change inputs border color to red.
     in-out property <bool> login_failed: false;
 
+    in-out property<string> username_input <=> username.text;
+
     background_img := Image {
         width: root.width;
         height: root.height;
