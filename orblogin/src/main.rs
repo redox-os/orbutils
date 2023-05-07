@@ -6,10 +6,26 @@ mod generated_code {
 }
 
 pub use generated_code::*;
+use redox_users::{All, AllUsers, Config};
 use slint::{invoke_from_event_loop, SharedString};
 use std::process::Command;
 use std::{env, str};
-use redox_users::{All, AllUsers, Config};
+
+fn normal_usernames() -> Vec<String> {
+    let users = match AllUsers::authenticator(Config::default()) {
+        Ok(ok) => ok,
+        Err(_) => return Vec::new(),
+    };
+
+    let mut usernames = Vec::new();
+    for user in users.iter() {
+        if user.uid >= 1000 {
+            usernames.push(user.user.clone());
+        }
+    }
+    usernames.sort();
+    usernames
+}
 
 fn login_command(username: &str, launcher_cmd: &str, launcher_args: &[String]) -> Option<Command> {
     let sys_users = match AllUsers::authenticator(Config::default()) {
@@ -62,6 +78,7 @@ fn main() {
         .next()
         .expect("orblogin: no window manager command provided!");
     let launcher_args: Vec<String> = args.collect();
+    let users = normal_usernames();
 
     let login_window = LoginWindow::new();
     login_window.on_authenticate(authenticate);
@@ -100,6 +117,14 @@ fn main() {
         })
         .expect("orblogin: upgrade_in_event_loop() returned Err!");
     });
+
+    // prefill the username input when there are only one unprivileged user
+    if users.len() == 1 {
+        let prefilled_username = users
+            .get(0)
+            .map_or_else(|| String::new(), |user| user.clone());
+        login_window.set_username_input(SharedString::from(prefilled_username));
+    }
 
     login_window.run();
 }
