@@ -109,8 +109,10 @@ export component LoginWindow inherits Window {
             username.border-color = Colors.gray;
             password.border-color = Colors.gray;
             error-message.visible = false;
-            username.text = "";
+            // Do not clear the username - callback will need it to spawn the launch cmd
+            //username.text = "";
             password.text = "";
+            exec_login_cmd();
         } else {
             login_failed = true;
             username.border-color = Colors.red;
