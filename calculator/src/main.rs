@@ -15,14 +15,14 @@ fn eval(input: &str) -> String {
 }
 
 pub fn main() {
-    let app = App::new();
+    let app = App::new().unwrap();
     app.global::<Theme>().set_embedded_helper(true);
 
     app.on_backspace(backspace);
     app.on_calculate(calculate);
     app.on_validate(validate);
 
-    app.run();
+    app.run().unwrap();
 }
 
 fn backspace(input: SharedString) -> SharedString {

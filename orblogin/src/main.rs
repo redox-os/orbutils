@@ -80,7 +80,7 @@ fn main() {
     let launcher_args: Vec<String> = args.collect();
     let users = normal_usernames();
 
-    let login_window = LoginWindow::new();
+    let login_window = LoginWindow::new().expect("Cannot create LoginWindow!");
     login_window.on_authenticate(authenticate);
 
     let login_window_weak = login_window.as_weak();
@@ -95,7 +95,7 @@ fn main() {
 
             if is_authenticated {
                 // dequeue this window from the rendering loop
-                login_window.hide();
+                login_window.hide().expect("Cannot hide LoginWindow!");
 
                 let username = String::from(login_window.get_username_input());
                 match login_command(&username, &launcher_cmd, &launcher_args) {
@@ -126,5 +126,5 @@ fn main() {
         login_window.set_username_input(SharedString::from(prefilled_username));
     }
 
-    login_window.run();
+    login_window.run().expect("Cannot start LoginWindow!");
 }
