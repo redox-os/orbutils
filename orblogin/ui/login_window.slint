@@ -3,8 +3,8 @@ import { LoginButton } from "./login_button.slint";
 import { LoginInput } from "./login_input.slint";
 
 export component LoginWindow inherits Window {
-    width: 1280px;
-    height: 920px;
+    in property<length> window_width <=> self.width;
+    in property<length> window_height <=> self.height;
     forward-focus: username;
     no-frame: true;
 
@@ -22,9 +22,10 @@ export component LoginWindow inherits Window {
     in-out property<string> username_input <=> username.text;
 
     background_img := Image {
-        width: root.width;
-        height: root.height;
+        width: window_width;
+        height: window_height;
         source: @image-url("login.png");
+        image-fit: fill;
     }
 
     // FocusScope has to be a parent due to slint's incomplete focus handling implementation,
