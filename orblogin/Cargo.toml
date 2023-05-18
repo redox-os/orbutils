@@ -13,7 +13,7 @@ path = "src/main.rs"
 # for available backends and renderers see https://slint-ui.com/releases/0.3.5/docs/rust/slint/index.html#backends
 
 [dependencies]
-slint = { git = "https://github.com/slint-ui/slint", features = ["compat-1-0", "renderer-winit-software"] }
+slint = { git = "https://github.com/slint-ui/slint", default-features = false, features = ["compat-1-0", "renderer-winit-software"] }
 redox_users = "0.4.0"
 
 [build-dependencies]
