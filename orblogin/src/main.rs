@@ -94,6 +94,11 @@ fn main() {
             let is_authenticated: bool = !login_window.get_login_failed();
 
             if is_authenticated {
+                // FIXME: currently orbclient has missing implementations in winit to hide the window.
+                // On Redox OS, the login window still shows after calling hide()
+                let slint_window = login_window.window();
+                slint_window.set_size(slint::WindowSize::Physical(slint::PhysicalSize {height: 0, width: 0}));
+
                 // dequeue this window from the rendering loop
                 login_window.hide().expect("Cannot hide LoginWindow!");
 
