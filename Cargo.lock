@@ -2533,7 +2533,9 @@ dependencies = [
 name = "orblogin"
 version = "0.2.0"
 dependencies = [
+ "log 0.4.17",
  "orbclient",
+ "redox-log",
  "redox_users",
  "slint",
  "slint-build 1.0.3",
