@@ -1,4 +1,5 @@
-//#![deny(warnings)]
+#![forbid(clippy::unwrap_used)]
+#![forbid(clippy::expect_used)]
 
 #[allow(clippy::all)]
 mod generated_code {
@@ -10,6 +11,7 @@ use redox_users::{All, AllUsers, Config};
 use slint::{invoke_from_event_loop, SharedString};
 use std::process::Command;
 use std::{env, str};
+use redox_log::{OutputBuilder, RedoxLogger};
 
 fn normal_usernames() -> Vec<String> {
     let users = match AllUsers::authenticator(Config::default()) {
@@ -93,15 +95,25 @@ fn fullscreen(login_window: &LoginWindow) {
 }
 
 fn main() {
-    let mut args = env::args().skip(1);
+     // Ignore possible errors while enabling logging
+     let _ = RedoxLogger::new()
+     .with_output(
+         OutputBuilder::stdout()
+             .with_filter(log::LevelFilter::Debug)
+             .with_ansi_escape_codes()
+             .build()
+     )
+     .with_process_name("orblogin".into())
+     .enable();
 
+    let mut args = env::args().skip(1);
     let launcher_cmd = args
         .next()
         .expect("orblogin: no window manager command provided!");
     let launcher_args: Vec<String> = args.collect();
     let users = normal_usernames();
 
-    let login_window = LoginWindow::new().expect("Cannot create LoginWindow!");
+    let login_window = LoginWindow::new().expect("orblogin: cannot create LoginWindow!");
     login_window.on_authenticate(authenticate);
 
     fullscreen(&login_window);
@@ -126,7 +138,7 @@ fn main() {
                 }));
 
                 // dequeue this window from the rendering loop
-                login_window.hide().expect("Cannot hide LoginWindow!");
+                login_window.hide().expect("orblogin: cannot hide LoginWindow!");
 
                 let username = String::from(login_window.get_username_input());
                 match login_command(&username, &launcher_cmd, &launcher_args) {
@@ -134,15 +146,15 @@ fn main() {
                         Ok(mut child) => match child.wait() {
                             Ok(_) => (),
                             Err(error) => {
-                                eprintln!("orblogin: failed to wait for '{launcher_cmd}' : {error}")
+                                error!("failed to wait for '{launcher_cmd}' : {error}")
                             }
                         },
                         Err(error) => {
-                            eprintln!("orblogin: failed to execute '{launcher_cmd}': {error}")
+                            error!("failed to execute '{launcher_cmd}': {error}")
                         }
                     },
                     // there is a valid user without login command
-                    None => println!("login completed without a command!"),
+                    None => info!("login completed without a command!"),
                 }
             }
         })
@@ -157,5 +169,5 @@ fn main() {
         login_window.set_username_input(SharedString::from(prefilled_username));
     }
 
-    login_window.run().expect("Cannot start LoginWindow!");
+    login_window.run().expect("orblogin: cannot start LoginWindow!");
 }
