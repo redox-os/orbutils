@@ -71,6 +71,27 @@ fn authenticate(username: SharedString, password: SharedString) -> bool {
     }
 }
 
+fn fullscreen(login_window: &LoginWindow) {
+    // workaround for missing full screen window feature from both slint and orbital
+    //set window size to display size, e.g. fullscreen window
+    let (display_width, display_height) =
+        orbclient::get_display_size().expect("Cannot query display size!");
+
+    let login_window_weak = login_window.as_weak();
+    let lww = login_window_weak.unwrap();
+    let window = lww.window();
+    window.set_size(slint::WindowSize::Physical(slint::PhysicalSize {
+        height: display_height,
+        width: display_width,
+    }));
+    window.set_position(slint::WindowPosition::Physical(slint::PhysicalPosition {
+        x: 0,
+        y: 0
+    }));
+    login_window.set_window_width(display_width as f32);
+    login_window.set_window_height(display_height as f32);
+}
+
 fn main() {
     let mut args = env::args().skip(1);
 
@@ -82,6 +103,8 @@ fn main() {
 
     let login_window = LoginWindow::new().expect("Cannot create LoginWindow!");
     login_window.on_authenticate(authenticate);
+
+    fullscreen(&login_window);
 
     let login_window_weak = login_window.as_weak();
     login_window.on_exec_login_cmd(move || {
@@ -97,7 +120,10 @@ fn main() {
                 // FIXME: currently orbclient has missing implementations in winit to hide the window.
                 // On Redox OS, the login window still shows after calling hide()
                 let slint_window = login_window.window();
-                slint_window.set_size(slint::WindowSize::Physical(slint::PhysicalSize {height: 0, width: 0}));
+                slint_window.set_size(slint::WindowSize::Physical(slint::PhysicalSize {
+                    height: 0,
+                    width: 0,
+                }));
 
                 // dequeue this window from the rendering loop
                 login_window.hide().expect("Cannot hide LoginWindow!");
