@@ -12,6 +12,7 @@ use slint::{invoke_from_event_loop, SharedString};
 use std::process::Command;
 use std::{env, str};
 use redox_log::{OutputBuilder, RedoxLogger};
+use log::{error, info};
 
 fn normal_usernames() -> Vec<String> {
     let users = match AllUsers::authenticator(Config::default()) {
