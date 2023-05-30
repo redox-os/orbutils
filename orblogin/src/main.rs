@@ -114,6 +114,8 @@ fn main() {
     let launcher_args: Vec<String> = args.collect();
     let users = normal_usernames();
 
+    env::set_var("SLINT_FULLSCREEN", "1");
+
     let login_window = LoginWindow::new().expect("orblogin: cannot create LoginWindow!");
     login_window.on_authenticate(authenticate);
 
