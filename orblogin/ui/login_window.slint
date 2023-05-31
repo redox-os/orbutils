@@ -2,11 +2,23 @@ import { Button, LineEdit, VerticalBox } from "std-widgets.slint";
 import { LoginButton } from "./login_button.slint";
 import { LoginInput } from "./login_input.slint";
 
+global LoginWindowTheme {
+    out property<length> v-spacing: 10px;
+    out property<length> welcome-text-size: 28px;
+    out property<brush> error-message-color: #ED2839;
+    out property<length> error-message-font-size: 18px;
+    out property<int> error-message-font-weight: 800;
+    out property<brush> error-border-color:  #ED2839;
+    out property<brush> input-disabled-border-color: Colors.gray;
+    out property<brush> input-default-border-color: #1D1D1D;
+}
+
 export component LoginWindow inherits Window {
-    in property<length> window_width <=> self.width;
-    in property<length> window_height <=> self.height;
+    in property<length> window_width <=> self.min_width;
+    in property<length> window_height <=> self.min_height;
     forward-focus: username;
     no-frame: true;
+    title: "orblogin";
 
     // called when the user clicks the login button or presses Enter
     callback authenticate(string, string) -> bool;
@@ -60,12 +72,12 @@ export component LoginWindow inherits Window {
             
             VerticalBox {
                 alignment: center;
-                spacing: 10px;
+                spacing: LoginWindowTheme.v-spacing;
                 
                 Text {
                     color: white;
                     text: "Welcome to Redox OS";
-                    font-size: 28px;
+                    font-size: LoginWindowTheme.welcome-text-size;
                     horizontal-alignment: center;
                 }
                 username :=  LoginInput {
@@ -90,9 +102,9 @@ export component LoginWindow inherits Window {
                     }
                 }
                 error_message := Text {
-                    color: 	#ED2839;
-                    font-size: 18px;
-                    font-weight: 800;
+                    color: 	LoginWindowTheme.error-message-color;
+                    font-size: LoginWindowTheme.error-message-font-size;
+                    font-weight: LoginWindowTheme.error-message-font-weight;
                     horizontal-alignment: center;
                     text: "Invalid username / password combination !";
                     visible: false;
@@ -107,8 +119,8 @@ export component LoginWindow inherits Window {
         if (authenticate(username.text, password.text)) {
             error-message.visible = false;
             login-failed = false;
-            username.border-color = Colors.gray;
-            password.border-color = Colors.gray;
+            username.border-color = LoginWindowTheme.input-disabled-border-color;
+            password.border-color = LoginWindowTheme.input-disabled-border-color;
             error-message.visible = false;
             // Do not clear the username - callback will need it to spawn the launch cmd
             //username.text = "";
@@ -116,8 +128,8 @@ export component LoginWindow inherits Window {
             exec_login_cmd();
         } else {
             login_failed = true;
-            username.border-color = Colors.red;
-            password.border-color = Colors.red;
+            username.border-color = LoginWindowTheme.error-border-color;
+            password.border-color = LoginWindowTheme.error-border-color;
             error-message.visible = true;
         }
        
@@ -132,8 +144,8 @@ export component LoginWindow inherits Window {
 
         username.text = "";
         password.text = "";
-        username.border-color = #1D1D1D;
-        password.border-color = #1D1D1D;
+        username.border-color = LoginWindowTheme.input-default-border-color;
+        password.border-color = LoginWindowTheme.input-default-border-color;
 
         username.focus();
     }
