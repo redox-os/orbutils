@@ -1,6 +1,28 @@
 // Single line text input field with Material Design Outline TextField look and feel.
 // Reimplementation from the std-widgets of LineEdit
 // to able to costumize its text and border color, see issue: https://github.com/slint-ui/slint/issues/1232
+
+global LoginInputTheme {
+    out property<length> height: 36px;
+    out property<length> min-width: 100px;
+    out property<brush> container-surface-brush: #282828;
+    out property<brush> container-border-brush: #1D1D1D;
+    out property<brush> container-focused-brush: white;
+    out property<brush> container-disabled-border-brush: gray;
+    out property<length> container-border-radius: 0px;
+    out property<length> container-border-width: 2px;
+    out property<length> container-focused-border-width: 2px;
+    out property<length> layout-padding: 4px;
+    out property<brush> placeholder-brush: lightgray;
+    out property<relative-font-size> placeholder-font-size: 16 * 0.0625rem;
+    out property<int> placeholder-font-weight: 200;
+    out property<brush> input-brush: white;
+    out property<brush> input-focused-brush: white;
+    out property<relative-font-size> input-font-size: 16 * 0.0625rem;
+    out property<int> input-font-weight: 600;
+    out property<length> input-padding: 2px;
+    out property<float> disabled-opacity: 0.38;
+}
 export component LoginInput {
     in property border-color <=> container.border-color;
     in property <length> font-size <=> input.font-size;
@@ -14,22 +36,22 @@ export component LoginInput {
     callback accepted(string);
     callback edited(string);
 
-    min-width: 100px;
-    height: 36px;
+    min-width: LoginInputTheme.min-width;
+    height: LoginInputTheme.height;
     forward-focus: input;
     
     container := Rectangle {
-        background: #282828;
+        background: LoginInputTheme.container-surface-brush;
         width: 100%;
         height: 100%;
-        border-radius: 0px;
-        border-width: 2px;
-        border-color: #1D1D1D;
+        border-radius: LoginInputTheme.container-border-radius;
+        border-width: LoginInputTheme.container-border-width;
+        border-color: LoginInputTheme.container-border-brush;
     }
 
     layout := HorizontalLayout {
-        padding-left: 4px;
-        padding-right: 4px;
+        padding-left: LoginInputTheme.layout-padding;
+        padding-right: LoginInputTheme.layout-padding;
 
         Rectangle {
             clip: true;
@@ -37,9 +59,9 @@ export component LoginInput {
             placeholder := Text {
                 width: 100%;
                 height: 100%;
-                color:  lightgray;
-                font-size: 16 * 0.0625rem;
-                font-weight: 200;
+                color:  LoginInputTheme.placeholder-brush;
+                font-size: LoginInputTheme.placeholder-font-size;
+                font-weight: LoginInputTheme.placeholder-font-weight;
                 visible: false;
                 vertical-alignment: center;
 
@@ -57,11 +79,11 @@ export component LoginInput {
                 x: min(0px, max(parent.width - self.width, self.computed_x));
                 width: max(parent.width, self.preferred-width);
                 height: 100%;
-                color: white;
+                color: LoginInputTheme.input-brush;
                 vertical-alignment: center;
-                font-size: 16 * 0.0625rem;
-                font-weight: 600;
-                padding: 2px;
+                font-size: LoginInputTheme.input-font-size;
+                font-weight: LoginInputTheme.input-font-weight;
+                padding: LoginInputTheme.input-padding;
 
                 accepted => { root.accepted(self.text); }
                 edited => { root.edited(self.text); }
@@ -78,15 +100,15 @@ export component LoginInput {
 
     states [
         disabled when !root.enabled : {
-            container.border-color: gray;
-            container.opacity: 0.38;
-            input.opacity: 0.38;
-            placeholder.opacity: 0.38;
+            container.border-color: LoginInputTheme.container-disabled-border-brush;
+            container.opacity: LoginInputTheme.disabled-opacity;
+            input.opacity: LoginInputTheme.disabled-opacity;
+            placeholder.opacity: LoginInputTheme.disabled-opacity;
         }
         focused when root.has-focus : {
-            container.border-width: 2px;
-            container.border-color: white;
-            input.color:white;
+            container.border-width: LoginInputTheme.container-focused-border-width;
+            container.border-color: LoginInputTheme.container-focused-brush;
+            input.color:LoginInputTheme.input-focused-brush;
         }
     ]
 }
