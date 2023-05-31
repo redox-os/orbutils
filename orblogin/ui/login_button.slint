@@ -1,19 +1,31 @@
 import { Button } from "std-widgets.slint";
 
+global LoginButtonTheme {
+    out property <length> border-radius: 0px;
+    out property <length> border-width: 2px;
+    out property <brush> border-brush: #1D1D1D;
+    out property <brush> surface: #274869;
+    out property <length> height: 36px;
+    out property <brush> text-surface: #eee;
+    out property <brush> text-surface-pressed: #fff;
+    out property <length> font-size: 16px;
+    out property <int> font-weight: 600;
+}
+
 export component LoginButton inherits Rectangle {
     in-out property text <=> txt.text;
     callback clicked <=> touch.clicked;
-    border-radius: 0px;
-    border-width: 2px;
-    border-color: #1D1D1D;
-    background: #274869;
-    height: 36px;
+    border-radius: LoginButtonTheme.border-radius;
+    border-width: LoginButtonTheme.border-width;
+    border-color: LoginButtonTheme.border-brush;
+    background: LoginButtonTheme.surface;
+    height: LoginButtonTheme.height;
     txt := Text {
         x: (parent.width - self.width)/2 + (touch.pressed ? 2px : 0);
         y: (parent.height - self.height)/2 + (touch.pressed ? 1px : 0);
-        color: touch.pressed ? #fff : #eee;
-        font-size: 16px;
-        font-weight: 600;
+        color: touch.pressed ? LoginButtonTheme.text-surface-pressed : LoginButtonTheme.text-surface;
+        font-size: LoginButtonTheme.font-size;
+        font-weight: LoginButtonTheme.font-weight;
     }
     touch := TouchArea { }
 } 
