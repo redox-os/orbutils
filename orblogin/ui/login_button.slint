@@ -12,14 +12,17 @@ global LoginButtonTheme {
     out property <int> font-weight: 600;
 }
 
-export component LoginButton inherits Rectangle {
+export component LoginButton {
     in-out property text <=> txt.text;
     callback clicked <=> touch.clicked;
-    border-radius: LoginButtonTheme.border-radius;
-    border-width: LoginButtonTheme.border-width;
-    border-color: LoginButtonTheme.border-brush;
-    background: LoginButtonTheme.surface;
     height: LoginButtonTheme.height;
+    
+    Rectangle {
+        background: LoginButtonTheme.surface;
+        border-color: LoginButtonTheme.border-brush;
+        border-radius: LoginButtonTheme.border-radius;
+        border-width: LoginButtonTheme.border-width;
+    }
     txt := Text {
         x: (parent.width - self.width)/2 + (touch.pressed ? 2px : 0);
         y: (parent.height - self.height)/2 + (touch.pressed ? 1px : 0);
