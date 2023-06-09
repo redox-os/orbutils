@@ -14,8 +14,8 @@ global LoginWindowTheme {
 }
 
 export component LoginWindow inherits Window {
-    in property<length> window_width <=> self.min_width;
-    in property<length> window_height <=> self.min_height;
+    in property<length> window-width <=> self.min_width;
+    in property<length> window-height <=> self.min_height;
     forward-focus: username;
     no-frame: true;
     title: "orblogin";
@@ -25,17 +25,17 @@ export component LoginWindow inherits Window {
 
     // Called when the user authenticates successfully.
     // Hides LoginWindow. then launches the provided command as a new process.
-    callback exec_login_cmd();
+    callback exec-login-cmd();
 
     // Indicates that the username/password combo is wrong.
     // Display error message and change inputs border color to red.
-    in-out property <bool> login_failed: false;
+    in-out property <bool> login-failed: false;
 
-    in-out property<string> username_input <=> username.text;
+    in-out property<string> username-input <=> username.text;
 
-    background_img := Image {
-        width: window_width;
-        height: window_height;
+    background-img := Image {
+        width: window-width;
+        height: window-height;
         source: @image-url("login.png");
         image-fit: fill;
     }
@@ -46,7 +46,7 @@ export component LoginWindow inherits Window {
     FocusScope {
         key-pressed(event) => {
             if (event.text == Key.Escape) {
-                reset_form();
+                reset-form();
                 return accept;
             }
 
@@ -63,7 +63,7 @@ export component LoginWindow inherits Window {
             reject
         }
      
-        horizontal_layout := HorizontalLayout {
+        horizontal-layout := HorizontalLayout {
             alignment: center;
             x: (root.width - self.width) / 2;
             y: (root.height - self.height) / 2;
@@ -101,7 +101,7 @@ export component LoginWindow inherits Window {
                     do-authenticate();
                     }
                 }
-                error_message := Text {
+                error-message := Text {
                     color: 	LoginWindowTheme.error-message-color;
                     font-size: LoginWindowTheme.error-message-font-size;
                     font-weight: LoginWindowTheme.error-message-font-weight;
@@ -112,7 +112,7 @@ export component LoginWindow inherits Window {
             }
         }
 
-    function do_authenticate() {
+    function do-authenticate() {
         username.enabled = false;
         password.enabled = false;
        
@@ -125,9 +125,9 @@ export component LoginWindow inherits Window {
             // Do not clear the username - callback will need it to spawn the launch cmd
             //username.text = "";
             password.text = "";
-            exec_login_cmd();
+            exec-login-cmd();
         } else {
-            login_failed = true;
+            login-failed = true;
             username.border-color = LoginWindowTheme.error-border-color;
             password.border-color = LoginWindowTheme.error-border-color;
             error-message.visible = true;
@@ -138,7 +138,7 @@ export component LoginWindow inherits Window {
        }
     }
 
-    function reset_form() {
+    function reset-form() {
         error-message.visible = false;
         login-failed = false;
 
