@@ -62,55 +62,50 @@ export component LoginWindow inherits Window {
             }
             reject
         }
-     
-        horizontal-layout := HorizontalLayout {
+            
+        VerticalBox {
             alignment: center;
             x: (root.width - self.width) / 2;
-            y: (root.height - self.height) / 2;
-            width: root.width / 2;
-            height: root.height / 2;
+            spacing: LoginWindowTheme.v-spacing;
+            width: root.width * 0.25;
             
-            VerticalBox {
-                alignment: center;
-                spacing: LoginWindowTheme.v-spacing;
+            Text {
+                color: white;
+                text: "Welcome to Redox OS";
+                font-size: LoginWindowTheme.welcome-text-size;
+                horizontal-alignment: center;
+            }
+            username :=  LoginInput {
+                placeholder-text: "Username";
+                input-type: InputType.text;
                 
-                Text {
-                    color: white;
-                    text: "Welcome to Redox OS";
-                    font-size: LoginWindowTheme.welcome-text-size;
-                    horizontal-alignment: center;
-                }
-                username :=  LoginInput {
-                    placeholder-text: "Username";
-                    input-type: InputType.text;
-                    
-                    accepted => {
-                        password.focus();
-                    }
-                }
-                password := LoginInput {
-                    input-type: InputType.password;
-                    placeholder-text: "Password";
-                    accepted => {
-                        do-authenticate();
-                    }
-                }
-                LoginButton {
-                    text: "Login";
-                    clicked => {
-                    do-authenticate();
-                    }
-                }
-                error-message := Text {
-                    color: 	LoginWindowTheme.error-message-color;
-                    font-size: LoginWindowTheme.error-message-font-size;
-                    font-weight: LoginWindowTheme.error-message-font-weight;
-                    horizontal-alignment: center;
-                    text: "Invalid username / password combination !";
-                    visible: false;
+                accepted => {
+                    password.focus();
                 }
             }
+            password := LoginInput {
+                input-type: InputType.password;
+                placeholder-text: "Password";
+                accepted => {
+                    do-authenticate();
+                }
+            }
+            LoginButton {
+                text: "Login";
+                clicked => {
+                do-authenticate();
+                }
+            }
+            error-message := Text {
+                color: 	LoginWindowTheme.error-message-color;
+                font-size: LoginWindowTheme.error-message-font-size;
+                font-weight: LoginWindowTheme.error-message-font-weight;
+                horizontal-alignment: center;
+                text: "Invalid username / password combination !";
+                visible: false;
+            }
         }
+    }
 
     function do-authenticate() {
         username.enabled = false;
@@ -135,7 +130,6 @@ export component LoginWindow inherits Window {
        
         username.enabled = true;
         password.enabled = true;
-       }
     }
 
     function reset-form() {
