@@ -16,19 +16,28 @@ export component LoginButton {
     in-out property text <=> txt.text;
     callback clicked <=> touch.clicked;
     height: LoginButtonTheme.height;
-    
-    Rectangle {
+
+    skin := Rectangle {
         background: LoginButtonTheme.surface;
         border-color: LoginButtonTheme.border-brush;
         border-radius: LoginButtonTheme.border-radius;
         border-width: LoginButtonTheme.border-width;
     }
     txt := Text {
-        x: (parent.width - self.width)/2 + (touch.pressed ? 2px : 0);
-        y: (parent.height - self.height)/2 + (touch.pressed ? 1px : 0);
-        color: touch.pressed ? LoginButtonTheme.text-surface-pressed : LoginButtonTheme.text-surface;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        color: LoginButtonTheme.text-surface;
         font-size: LoginButtonTheme.font-size;
         font-weight: LoginButtonTheme.font-weight;
     }
     touch := TouchArea { }
-} 
+
+    states [
+        pressed when touch.pressed : {
+            txt.color : LoginButtonTheme.text-surface-pressed;
+        }
+        hovered when touch.has-hover : {
+            skin.background : LoginButtonTheme.surface.brighter(0.2);
+        }
+    ]
+}
