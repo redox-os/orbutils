@@ -22,6 +22,7 @@ global LoginInputTheme {
     out property<int> input-font-weight: 600;
     out property<length> input-padding: 2px;
     out property<float> disabled-opacity: 0.38;
+    out property<brush> container-error-border-brush:  #ED2839;
 }
 export component LoginInput {
     in property border-color <=> container.border-color;
@@ -33,6 +34,8 @@ export component LoginInput {
     in property input-type <=> input.input-type;
     in property horizontal-alignment <=> input.horizontal-alignment;
     in property read-only <=> input.read-only;
+    // Indicates that the input has invalid credentials entered, reflect that visually
+    in property <bool> has-error;
     callback accepted(string);
     callback edited(string);
 
@@ -105,10 +108,13 @@ export component LoginInput {
             input.opacity: LoginInputTheme.disabled-opacity;
             placeholder.opacity: LoginInputTheme.disabled-opacity;
         }
-        focused when root.has-focus : {
+        focused when root.has-focus && !root.has-error: {
             container.border-width: LoginInputTheme.container-focused-border-width;
             container.border-color: LoginInputTheme.container-focused-brush;
             input.color:LoginInputTheme.input-focused-brush;
+        }
+        has-error when root.has-error: {
+            container.border-color: LoginInputTheme.container-error-border-brush;
         }
     ]
 }

@@ -8,7 +8,6 @@ global LoginWindowTheme {
     out property<brush> error-message-color: #ED2839;
     out property<length> error-message-font-size: 18px;
     out property<int> error-message-font-weight: 800;
-    out property<brush> error-border-color:  #ED2839;
     out property<brush> input-disabled-border-color: Colors.gray;
     out property<brush> input-default-border-color: #1D1D1D;
 }
@@ -114,17 +113,14 @@ export component LoginWindow inherits Window {
         if (authenticate(username.text, password.text)) {
             error-message.visible = false;
             login-failed = false;
-            username.border-color = LoginWindowTheme.input-disabled-border-color;
-            password.border-color = LoginWindowTheme.input-disabled-border-color;
-            error-message.visible = false;
             // Do not clear the username - callback will need it to spawn the launch cmd
             //username.text = "";
             password.text = "";
             exec-login-cmd();
         } else {
+            username.has-error = true;
+            password.has-error = true;
             login-failed = true;
-            username.border-color = LoginWindowTheme.error-border-color;
-            password.border-color = LoginWindowTheme.error-border-color;
             error-message.visible = true;
         }
        
@@ -135,11 +131,11 @@ export component LoginWindow inherits Window {
     function reset-form() {
         error-message.visible = false;
         login-failed = false;
+        username.has-error = false;
+        password.has-error = false;
 
         username.text = "";
         password.text = "";
-        username.border-color = LoginWindowTheme.input-default-border-color;
-        password.border-color = LoginWindowTheme.input-default-border-color;
 
         username.focus();
     }
