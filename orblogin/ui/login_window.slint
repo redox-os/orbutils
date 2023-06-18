@@ -30,6 +30,9 @@ export component LoginWindow inherits Window {
     // Display error message and change inputs border color to red.
     in-out property <bool> login-failed: false;
 
+    // Indicates that the login form should be reset to its initial state.
+    property <bool> reset-form: false;
+
     in-out property<string> username-input <=> username.text;
 
     background-img := Image {
@@ -45,7 +48,11 @@ export component LoginWindow inherits Window {
     FocusScope {
         key-pressed(event) => {
             if (event.text == Key.Escape) {
-                reset-form();
+                username.text = "";
+                password.text = "";
+                reset-form = true;
+                login-failed = false;
+                username.focus();
                 return accept;
             }
 
@@ -75,6 +82,8 @@ export component LoginWindow inherits Window {
                 horizontal-alignment: center;
             }
             username :=  LoginInput {
+                text: "";
+                enabled: true;
                 placeholder-text: "Username";
                 input-type: InputType.text;
                 
@@ -83,6 +92,8 @@ export component LoginWindow inherits Window {
                 }
             }
             password := LoginInput {
+                enabled: true;
+                text: "";
                 input-type: InputType.password;
                 placeholder-text: "Password";
                 accepted => {
@@ -92,7 +103,7 @@ export component LoginWindow inherits Window {
             LoginButton {
                 text: "Login";
                 clicked => {
-                do-authenticate();
+                    do-authenticate();
                 }
             }
             error-message := Text {
@@ -106,38 +117,31 @@ export component LoginWindow inherits Window {
         }
     }
 
+    states [
+        login-failed when login-failed && !reset-form: {
+            username.enabled: true;
+            username.has-error: true;
+            password.enabled: true;
+            password.has-error: true;
+            error-message.visible: true;
+        }
+        reset when !login-failed && reset-form: {
+            username.enabled: true;
+            username.has-error: false;
+            password.enabled: true;
+            password.has-error: false;
+            error-message.visible: false;
+        }
+    ]
+
     function do-authenticate() {
-        username.enabled = false;
-        password.enabled = false;
-       
         if (authenticate(username.text, password.text)) {
-            error-message.visible = false;
             login-failed = false;
-            // Do not clear the username - callback will need it to spawn the launch cmd
-            //username.text = "";
-            password.text = "";
             exec-login-cmd();
         } else {
-            username.has-error = true;
-            password.has-error = true;
             login-failed = true;
-            error-message.visible = true;
         }
-       
-        username.enabled = true;
-        password.enabled = true;
-    }
-
-    function reset-form() {
-        error-message.visible = false;
-        login-failed = false;
-        username.has-error = false;
-        password.has-error = false;
-
-        username.text = "";
-        password.text = "";
-
-        username.focus();
+        reset-form = false;
     }
 }
 
