@@ -1,43 +1,32 @@
 import { Button } from "std-widgets.slint";
-
-global LoginButtonTheme {
-    out property <length> border-radius: 0px;
-    out property <length> border-width: 2px;
-    out property <brush> border-brush: #1D1D1D;
-    out property <brush> surface: #274869;
-    out property <length> height: 36px;
-    out property <brush> text-surface: #eee;
-    out property <brush> text-surface-pressed: #fff;
-    out property <length> font-size: 16px;
-    out property <int> font-weight: 600;
-}
+import { LoginTheme } from "./theme.slint";
 
 export component LoginButton {
     in-out property text <=> txt.text;
     callback clicked <=> touch.clicked;
-    height: LoginButtonTheme.height;
+    height: LoginTheme.height-regular;
 
     skin := Rectangle {
-        background: LoginButtonTheme.surface;
-        border-color: LoginButtonTheme.border-brush;
-        border-radius: LoginButtonTheme.border-radius;
-        border-width: LoginButtonTheme.border-width;
+        background: LoginTheme.button-background;
+        border-color: LoginTheme.border-brush;
+        border-radius: LoginTheme.border-radius;
+        border-width: LoginTheme.border-width;
     }
     txt := Text {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        color: LoginButtonTheme.text-surface;
-        font-size: LoginButtonTheme.font-size;
-        font-weight: LoginButtonTheme.font-weight;
+        color: LoginTheme.button-foreground;
+        font-size: LoginTheme.font-size-regular;
+        font-weight: LoginTheme.font-weight-bolder;
     }
     touch := TouchArea { }
 
     states [
         pressed when touch.pressed : {
-            txt.color : LoginButtonTheme.text-surface-pressed;
+            txt.color : LoginTheme.button-foreground-pressed;
         }
         hovered when touch.has-hover : {
-            skin.background : LoginButtonTheme.surface.brighter(0.2);
+            skin.background : LoginTheme.button-background.brighter(0.2);
         }
     ]
 }

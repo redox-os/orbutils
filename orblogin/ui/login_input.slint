@@ -1,29 +1,8 @@
 // Single line text input field with Material Design Outline TextField look and feel.
 // Reimplementation from the std-widgets of LineEdit
 // to able to costumize its text and border color, see issue: https://github.com/slint-ui/slint/issues/1232
+import { LoginTheme } from "./theme.slint";
 
-global LoginInputTheme {
-    out property<length> height: 36px;
-    out property<length> min-width: 100px;
-    out property<brush> container-surface-brush: #282828;
-    out property<brush> container-border-brush: #1D1D1D;
-    out property<brush> container-focused-brush: white;
-    out property<brush> container-disabled-border-brush: gray;
-    out property<length> container-border-radius: 0px;
-    out property<length> container-border-width: 2px;
-    out property<length> container-focused-border-width: 2px;
-    out property<length> layout-padding: 4px;
-    out property<brush> placeholder-brush: lightgray;
-    out property<relative-font-size> placeholder-font-size: 16 * 0.0625rem;
-    out property<int> placeholder-font-weight: 200;
-    out property<brush> input-brush: white;
-    out property<brush> input-focused-brush: white;
-    out property<relative-font-size> input-font-size: 16 * 0.0625rem;
-    out property<int> input-font-weight: 600;
-    out property<length> input-padding: 2px;
-    out property<float> disabled-opacity: 0.38;
-    out property<brush> container-error-border-brush:  #ED2839;
-}
 export component LoginInput {
     in property border-color <=> container.border-color;
     in property <length> font-size <=> input.font-size;
@@ -39,22 +18,22 @@ export component LoginInput {
     callback accepted(string);
     callback edited(string);
 
-    min-width: LoginInputTheme.min-width;
-    height: LoginInputTheme.height;
+    min-width: LoginTheme.min-width-regular;
+    height: LoginTheme.height-regular;
     forward-focus: input;
     
     container := Rectangle {
-        background: LoginInputTheme.container-surface-brush;
+        background: LoginTheme.input-background;
         width: 100%;
         height: 100%;
-        border-radius: LoginInputTheme.container-border-radius;
-        border-width: LoginInputTheme.container-border-width;
-        border-color: LoginInputTheme.container-border-brush;
+        border-radius: LoginTheme.border-radius;
+        border-width: LoginTheme.border-width;
+        border-color: LoginTheme.border-brush;
     }
 
     layout := HorizontalLayout {
-        padding-left: LoginInputTheme.layout-padding;
-        padding-right: LoginInputTheme.layout-padding;
+        padding-left: LoginTheme.padding-regular;
+        padding-right: LoginTheme.padding-regular;
 
         Rectangle {
             clip: true;
@@ -62,9 +41,9 @@ export component LoginInput {
             placeholder := Text {
                 width: 100%;
                 height: 100%;
-                color:  LoginInputTheme.placeholder-brush;
-                font-size: LoginInputTheme.placeholder-font-size;
-                font-weight: LoginInputTheme.placeholder-font-weight;
+                color:  LoginTheme.input-placeholder-brush;
+                font-size: LoginTheme.font-size-regular-relative;
+                font-weight: LoginTheme.font-weight-thin;
                 visible: false;
                 vertical-alignment: center;
 
@@ -82,11 +61,11 @@ export component LoginInput {
                 x: min(0px, max(parent.width - self.width, self.computed_x));
                 width: max(parent.width, self.preferred-width);
                 height: 100%;
-                color: LoginInputTheme.input-brush;
+                color: LoginTheme.input-foreground;
                 vertical-alignment: center;
-                font-size: LoginInputTheme.input-font-size;
-                font-weight: LoginInputTheme.input-font-weight;
-                padding: LoginInputTheme.input-padding;
+                font-size: LoginTheme.font-size-regular-relative;
+                font-weight: LoginTheme.font-weight-bold;
+                padding: LoginTheme.padding-small;
 
                 accepted => { root.accepted(self.text); }
                 edited => { root.edited(self.text); }
@@ -103,18 +82,18 @@ export component LoginInput {
 
     states [
         disabled when !root.enabled : {
-            container.border-color: LoginInputTheme.container-disabled-border-brush;
-            container.opacity: LoginInputTheme.disabled-opacity;
-            input.opacity: LoginInputTheme.disabled-opacity;
-            placeholder.opacity: LoginInputTheme.disabled-opacity;
+            container.border-color: LoginTheme.disabled-border-brush;
+            container.opacity: LoginTheme.disabled-opacity;
+            input.opacity: LoginTheme.disabled-opacity;
+            placeholder.opacity: LoginTheme.disabled-opacity;
         }
         focused when root.has-focus && !root.has-error: {
-            container.border-width: LoginInputTheme.container-focused-border-width;
-            container.border-color: LoginInputTheme.container-focused-brush;
-            input.color:LoginInputTheme.input-focused-brush;
+            container.border-width: LoginTheme.border-width;
+            container.border-color: LoginTheme.input-foreground;
+            input.color:LoginTheme.input-foreground;
         }
         has-error when root.has-error: {
-            container.border-color: LoginInputTheme.container-error-border-brush;
+            container.border-color: LoginTheme.error-brush;
         }
     ]
 }
