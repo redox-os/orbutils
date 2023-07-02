@@ -159,6 +159,11 @@ fn main() {
                     // there is a valid user without login command
                     None => info!("login completed without a command!"),
                 }
+
+                // all child process are exited, reset and display the login form again
+                fullscreen(&login_window);
+                login_window.set_reset_form(true);
+                login_window.show().expect("orblogin: cannot show LoginWindow")
             }
         })
         .expect("orblogin: upgrade_in_event_loop() returned Err!");
