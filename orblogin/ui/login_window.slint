@@ -22,7 +22,7 @@ export component LoginWindow inherits Window {
     in-out property <bool> login-failed: false;
 
     // Indicates that the login form should be reset to its initial state.
-    property <bool> reset-form: false;
+    in-out property <bool> reset-form: false;
 
     in-out property<string> username-input <=> username.text;
 
