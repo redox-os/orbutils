@@ -10,17 +10,17 @@ build = "build.rs"
 name = "orblogin"
 path = "src/main.rs"
 
-# for available backends and renderers see https://slint-ui.com/releases/0.3.5/docs/rust/slint/index.html#backends
+# for available backends and renderers see https://slint.dev/releases/1.1.1/docs/rust/slint/#backends
 
 [dependencies]
-slint = { git = "https://github.com/slint-ui/slint", default-features = false, features = ["compat-1-0", "renderer-winit-software"] }
+slint = { version = "1.1.1", default-features = false, features = ["compat-1-0", "renderer-winit-software"] }
 redox_users = "0.4.0"
 orbclient = "0.3.42"
 redox-log = "0.1"
 log = "0.4.14"
 
 [build-dependencies]
-slint-build = { git = "https://github.com/slint-ui/slint" }
+slint-build = "1.1.1"
 
 [features]
 default = []
