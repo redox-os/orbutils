@@ -171,10 +171,15 @@ fn main() {
 
     // prefill the username input when there are only one unprivileged user
     if users.len() == 1 {
-        let prefilled_username = users
+        let _prefilled_username = users
             .get(0)
             .map_or_else(|| String::new(), |user| user.clone());
-        login_window.set_username_input(SharedString::from(prefilled_username));
+        //login_window.set_username_input(SharedString::from(prefilled_username));
+        // FIXME: workaround for cursor position not updating when the value is set by programmatically,
+        for c in "user".chars() {
+            login_window.window().dispatch_event(slint::platform::WindowEvent::KeyPressed { text: c.into() });
+        }
+        login_window.window().dispatch_event(slint::platform::WindowEvent::KeyReleased { text: "".into() });
     }
 
     login_window.run().expect("orblogin: cannot start LoginWindow!");
