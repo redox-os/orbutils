@@ -1,0 +1,32 @@
+import { Button } from "std-widgets.slint";
+import { LoginTheme } from "./theme.slint";
+
+export component LoginButton {
+    in-out property text <=> txt.text;
+    callback clicked <=> touch.clicked;
+    height: LoginTheme.height-regular;
+
+    skin := Rectangle {
+        background: LoginTheme.button-background;
+        border-color: LoginTheme.border-brush;
+        border-radius: LoginTheme.border-radius;
+        border-width: LoginTheme.border-width;
+    }
+    txt := Text {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        color: LoginTheme.button-foreground;
+        font-size: LoginTheme.font-size-regular;
+        font-weight: LoginTheme.font-weight-bolder;
+    }
+    touch := TouchArea { }
+
+    states [
+        pressed when touch.pressed : {
+            txt.color : LoginTheme.button-foreground-pressed;
+        }
+        hovered when touch.has-hover : {
+            skin.background : LoginTheme.button-background.brighter(0.2);
+        }
+    ]
+}

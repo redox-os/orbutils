@@ -1,5 +1,5 @@
 [package]
-name = "calculator"
+name = "orblogin"
 version = "0.2.0"
 license-file = "../LICENSE-MIT"
 authors = ["Redox OS Developers <info@redox-os.org>"]
@@ -7,16 +7,20 @@ edition = "2021"
 build = "build.rs"
 
 [[bin]]
-name = "calculator"
+name = "orblogin"
 path = "src/main.rs"
 
+# for available backends and renderers see https://slint.dev/releases/1.1.1/docs/rust/slint/#backends
+
 [dependencies]
-calculate = { git = "https://gitlab.redox-os.org/redox-os/calc.git" }
 slint = { version = "1.1.1", default-features = false, features = ["compat-1-0", "renderer-winit-software"] }
+redox_users = "0.4.0"
+orbclient = "0.3.42"
+redox-log = "0.1"
+log = "0.4.14"
 
 [build-dependencies]
 slint-build = "1.1.1"
-coop_widgets = { git = "https://codeberg.org/flovansl/co_sl" }
 
 [features]
 default = []

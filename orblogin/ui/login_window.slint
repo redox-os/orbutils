@@ -1,0 +1,150 @@
+import { Button, LineEdit, VerticalBox } from "std-widgets.slint";
+import { LoginButton } from "./login_button.slint";
+import { LoginInput } from "./login_input.slint";
+import { LoginTheme } from "./theme.slint";
+
+export component LoginWindow inherits Window {
+    in property<length> window-width <=> self.min_width;
+    in property<length> window-height <=> self.min_height;
+    forward-focus: username;
+    no-frame: true;
+    title: "orblogin";
+
+    // called when the user clicks the login button or presses Enter
+    callback authenticate(string, string) -> bool;
+
+    // Called when the user authenticates successfully.
+    // Hides LoginWindow. then launches the provided command as a new process.
+    callback exec-login-cmd();
+
+    // Indicates that the username/password combo is wrong.
+    // Display error message and change inputs border color to red.
+    in-out property <bool> login-failed: false;
+
+    // Indicates that the login form should be reset to its initial state.
+    in-out property <bool> reset-form: false;
+
+    in-out property<string> username-input <=> username.text;
+
+    background-img := Image {
+        width: window-width;
+        height: window-height;
+        source: @image-url("login.png");
+        image-fit: fill;
+    }
+
+    // FocusScope has to be a parent due to slint's incomplete focus handling implementation,
+    // see https://github.com/slint-ui/slint/issues/798
+    // Probably will change in future versions.
+    FocusScope {
+        key-pressed(event) => {
+            if (event.text == Key.Escape) {
+                username.text = "";
+                password.text = "";
+                reset-form = true;
+                login-failed = false;
+                username.focus();
+                return accept;
+            }
+
+            if (event.text == Key.Tab) {
+                if (username.has-focus) {
+                    password.focus();
+                    return accept;
+                }
+                if (password.has-focus) {
+                    username.focus();
+                    return accept;
+                }
+            }
+            reject
+        }
+        
+        HorizontalLayout {
+            alignment: center;
+
+            Rectangle {
+                preferred-width: root.width * 0.2;
+            }
+
+            VerticalBox {
+                alignment: center;
+                //x: (root.width - self.width) / 2;
+                spacing: LoginTheme.v-spacing;
+                //width: root.width * 0.25;
+                
+                Text {
+                    color: white;
+                    text: "Welcome to Redox OS";
+                    font-size: LoginTheme.font-size-bigger;
+                    horizontal-alignment: center;
+                }
+                username :=  LoginInput {
+                    text: "";
+                    enabled: true;
+                    placeholder-text: "Username";
+                    input-type: InputType.text;
+                    
+                    accepted => {
+                        password.focus();
+                    }
+                }
+                password := LoginInput {
+                    enabled: true;
+                    text: "";
+                    input-type: InputType.password;
+                    placeholder-text: "Password";
+                    accepted => {
+                        do-authenticate();
+                    }
+                }
+                LoginButton {
+                    text: "Login";
+                    clicked => {
+                        do-authenticate();
+                    }
+                }
+                error-message := Text {
+                    color: 	LoginTheme.error-brush;
+                    font-size: LoginTheme.font-size-big;
+                    font-weight: LoginTheme.font-weight-bolder;
+                    horizontal-alignment: center;
+                    text: "Invalid username / password combination !";
+                    visible: false;
+                }
+            }
+
+            Rectangle {
+                preferred-width: root.width * 0.2;
+            }
+        }  
+    }
+
+    states [
+        login-failed when login-failed && !reset-form: {
+            username.enabled: true;
+            username.has-error: true;
+            password.enabled: true;
+            password.has-error: true;
+            error-message.visible: true;
+        }
+        reset when !login-failed && reset-form: {
+            username.enabled: true;
+            username.has-error: false;
+            password.enabled: true;
+            password.has-error: false;
+            error-message.visible: false;
+        }
+    ]
+
+    function do-authenticate() {
+        if (authenticate(username.text, password.text)) {
+            login-failed = false;
+            exec-login-cmd();
+        } else {
+            login-failed = true;
+        }
+        reset-form = false;
+    }
+}
+
