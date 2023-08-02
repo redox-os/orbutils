@@ -44,7 +44,7 @@ calculate = { git = "https://gitlab.redox-os.org/redox-os/calc.git" }
 chrono = "0.4.6"
 mime_guess = "1.8.6"
 mime = "0.2.6"
-orbclient = "0.3.42"
+orbclient = "0.3.46"
 orbfont = "0.1.8"
 orbimage = "0.1.17"
 orbtk = "0.2.29"

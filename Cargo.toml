@@ -3,6 +3,3 @@ members = [
     "orbutils",
     "calculator"
 ]
-
-[patch.crates-io]
-orbclient = { git = "https://gitlab.redox-os.org/4lDO2/orbclient.git", branch = "map_shared" }
