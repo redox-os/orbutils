@@ -6,6 +6,7 @@ import { LoginTheme } from "./theme.slint";
 export component LoginWindow inherits Window {
     in property<length> window-width <=> self.min_width;
     in property<length> window-height <=> self.min_height;
+
     forward-focus: username;
     no-frame: true;
     title: "orblogin";
@@ -59,7 +60,7 @@ export component LoginWindow inherits Window {
             }
             reject
         }
-        
+
         HorizontalLayout {
             alignment: center;
 
@@ -67,12 +68,14 @@ export component LoginWindow inherits Window {
                 preferred-width: root.width * 0.2;
             }
 
-            VerticalBox {
+            layout := VerticalBox {
                 alignment: center;
                 //x: (root.width - self.width) / 2;
                 spacing: LoginTheme.v-spacing;
                 //width: root.width * 0.25;
-                
+                padding-top: self.padding-bottom;
+                padding-bottom: LoginTheme.padding-regular + self.spacing + error-message.height;
+
                 Text {
                     color: white;
                     text: "Welcome to Redox OS";
@@ -84,7 +87,7 @@ export component LoginWindow inherits Window {
                     enabled: true;
                     placeholder-text: "Username";
                     input-type: InputType.text;
-                    
+
                     accepted => {
                         password.focus();
                     }
@@ -98,26 +101,31 @@ export component LoginWindow inherits Window {
                         do-authenticate();
                     }
                 }
-                LoginButton {
+                login-button := LoginButton {
                     text: "Login";
                     clicked => {
                         do-authenticate();
                     }
-                }
-                error-message := Text {
-                    color: 	LoginTheme.error-brush;
-                    font-size: LoginTheme.font-size-big;
-                    font-weight: LoginTheme.font-weight-bolder;
-                    horizontal-alignment: center;
-                    text: "Invalid username / password combination !";
-                    visible: false;
                 }
             }
 
             Rectangle {
                 preferred-width: root.width * 0.2;
             }
-        }  
+        }
+
+        error-message := Text {
+            x: login-button.absolute-position.x;
+            y: login-button.absolute-position.y + login-button.height + layout.spacing;
+            width: layout.width;
+            color: 	LoginTheme.error-brush;
+            font-size: LoginTheme.font-size-big;
+            font-weight: LoginTheme.font-weight-bolder;
+            horizontal-alignment: center;
+            text: "Invalid username / password combination!";
+            visible: false;
+            overflow: elide;
+        }
     }
 
     states [

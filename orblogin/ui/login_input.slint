@@ -15,65 +15,64 @@ export component LoginInput {
     in property read-only <=> input.read-only;
     // Indicates that the input has invalid credentials entered, reflect that visually
     in property <bool> has-error;
+
     callback accepted(string);
     callback edited(string);
 
-    min-width: LoginTheme.min-width-regular;
-    height: LoginTheme.height-regular;
+    min-width: max(LoginTheme.min-width-regular, layout.min-width);
+    height: max(LoginTheme.height-regular, layout.min-height);
     forward-focus: input;
-    
+
     container := Rectangle {
         background: LoginTheme.input-background;
-        width: 100%;
-        height: 100%;
         border-radius: LoginTheme.border-radius;
         border-width: LoginTheme.border-width;
         border-color: LoginTheme.border-brush;
-    }
 
-    layout := HorizontalLayout {
-        padding-left: LoginTheme.padding-regular;
-        padding-right: LoginTheme.padding-regular;
+        layout := HorizontalLayout {
+            padding-left: LoginTheme.padding-regular;
+            padding-right: LoginTheme.padding-regular;
 
-        Rectangle {
-            clip: true;
+            Rectangle {
+                clip: true;
 
-            placeholder := Text {
-                width: 100%;
-                height: 100%;
-                color:  LoginTheme.input-placeholder-brush;
-                font-size: LoginTheme.font-size-regular-relative;
-                font-weight: LoginTheme.font-weight-thin;
-                visible: false;
-                vertical-alignment: center;
+                placeholder := Text {
+                    width: 100%;
+                    height: 100%;
+                    color:  LoginTheme.input-placeholder-brush;
+                    font-size: LoginTheme.font-size-regular-relative;
+                    font-weight: LoginTheme.font-weight-thin;
+                    visible: false;
+                    vertical-alignment: center;
 
-                states [
-                    empty when input.text == "" : {
-                        visible: true;
-                    }
-                ]
-            }
+                    states [
+                        empty when input.text == "" : {
+                            visible: true;
+                        }
+                    ]
+                }
 
-            input := TextInput {
-                property <length> computed_x;
-                property <length> padding-outer: layout.padding-left + layout.padding-right;
+                input := TextInput {
+                    property <length> computed_x;
+                    property <length> padding-outer: layout.padding-left + layout.padding-right;
 
-                x: min(0px, max(parent.width - self.width, self.computed_x));
-                width: max(parent.width, self.preferred-width);
-                height: 100%;
-                color: LoginTheme.input-foreground;
-                vertical-alignment: center;
-                font-size: LoginTheme.font-size-regular-relative;
-                font-weight: LoginTheme.font-weight-bold;
-                padding: LoginTheme.padding-small;
+                    x: min(0px, max(parent.width - self.width, self.computed_x));
+                    width: max(parent.width, self.preferred-width);
+                    height: 100%;
+                    color: LoginTheme.input-foreground;
+                    vertical-alignment: center;
+                    font-size: LoginTheme.font-size-regular-relative;
+                    font-weight: LoginTheme.font-weight-bold;
+                    padding: LoginTheme.padding-small;
 
-                accepted => { root.accepted(self.text); }
-                edited => { root.edited(self.text); }
-                cursor-position-changed(cpos) => {
-                    if (cpos.x + self.computed_x < self.padding-outer) {
-                        self.computed_x = - cpos.x + self.padding-outer;
-                    } else if (cpos.x + self.computed_x > parent.width - self.padding-outer) {
-                        self.computed_x = parent.width - cpos.x - self.padding-outer;
+                    accepted => { root.accepted(self.text); }
+                    edited => { root.edited(self.text); }
+                    cursor-position-changed(cpos) => {
+                        if (cpos.x + self.computed_x < self.padding-outer) {
+                            self.computed_x = - cpos.x + self.padding-outer;
+                        } else if (cpos.x + self.computed_x > parent.width - self.padding-outer) {
+                            self.computed_x = parent.width - cpos.x - self.padding-outer;
+                        }
                     }
                 }
             }
