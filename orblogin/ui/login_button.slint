@@ -4,7 +4,9 @@ import { LoginTheme } from "./theme.slint";
 export component LoginButton {
     in-out property text <=> txt.text;
     callback clicked <=> touch.clicked;
-    height: LoginTheme.height-regular;
+
+    min-width: max(LoginTheme.min-width-regular, layout.min-width);
+    min-height: max(LoginTheme.height-regular, layout.min-height);
 
     skin := Rectangle {
         background: LoginTheme.button-background;
@@ -12,13 +14,19 @@ export component LoginButton {
         border-radius: LoginTheme.border-radius;
         border-width: LoginTheme.border-width;
     }
-    txt := Text {
-        x: (parent.width - self.width) / 2;
-        y: (parent.height - self.height) / 2;
-        color: LoginTheme.button-foreground;
-        font-size: LoginTheme.font-size-regular;
-        font-weight: LoginTheme.font-weight-bolder;
+
+    layout := HorizontalLayout {
+        padding: 8px;
+
+        txt := Text {
+            color: LoginTheme.button-foreground;
+            font-size: LoginTheme.font-size-regular;
+            font-weight: LoginTheme.font-weight-bolder;
+            horizontal-alignment: center;
+        }
+
     }
+
     touch := TouchArea { }
 
     states [
