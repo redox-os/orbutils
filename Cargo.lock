@@ -3560,8 +3560,7 @@ dependencies = [
 [[package]]
 name = "softbuffer"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2b953f6ba7285f0af131eb748aabd8ddaf53e0b81dda3ba5d803b0847d6559f"
+source = "git+https://github.com/rust-windowing/softbuffer?branch=redox-0.2#af585358e396a6398102f63c889bce670d20a587"
 dependencies = [
  "bytemuck",
  "cfg_aliases",

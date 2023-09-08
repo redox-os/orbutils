@@ -21,6 +21,3 @@ coop_widgets = { git = "https://codeberg.org/flovansl/co_sl" }
 [features]
 default = []
 slint-default = ["slint/default"]
-
-[patch.crates-io]
-softbuffer = { git = "https://github.com/rust-windowing/softbuffer" }
