@@ -403,8 +403,8 @@ impl Bar {
 fn bar_main(width: u32, height: u32) -> io::Result<()> {
     let bar = Rc::new(RefCell::new(Bar::new(width, height)));
 
-    match Command::new("/ui/bin/background").spawn() {
-        Ok(child) => bar.borrow_mut().children.push(("/ui/bin/background".to_string(), child)),
+    match Command::new("background").spawn() {
+        Ok(child) => bar.borrow_mut().children.push(("background".to_string(), child)),
         Err(err) => error!("failed to launch background: {}", err)
     }
 
