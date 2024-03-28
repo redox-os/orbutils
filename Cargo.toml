@@ -6,4 +6,4 @@ members = [
 resolver = "2"
 
 [patch.crates-io]
-copypasta = { path = "/home/me/Projects/copypasta" }
+softbuffer = { git = "https://github.com/rust-windowing/softbuffer", branch = "redox-0.2" }
