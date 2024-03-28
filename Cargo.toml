@@ -3,6 +3,7 @@ members = [
     "orbutils",
     "calculator"
 ]
+resolver = "2"
 
 [patch.crates-io]
-softbuffer = { git = "https://github.com/rust-windowing/softbuffer", branch = "redox-0.2" }
+copypasta = { path = "/home/me/Projects/copypasta" }
