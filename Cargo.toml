@@ -3,6 +3,8 @@ members = [
     "orbutils",
     "calculator"
 ]
+resolver = "2"
 
 [patch.crates-io]
-softbuffer = { git = "https://github.com/rust-windowing/softbuffer", branch = "redox-0.2" }
+softbuffer = { git = "https://gitlab.redox-os.org/redox-os/softbuffer", branch = "redox-0.2" }
+winit = { git = "https://gitlab.redox-os.org/redox-os/winit", branch = "redox-0.28.6" }

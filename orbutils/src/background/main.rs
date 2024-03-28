@@ -3,24 +3,20 @@ extern crate orbimage;
 extern crate redox_log;
 extern crate log;
 extern crate event;
-extern crate syscall;
+extern crate libredox;
 extern crate dirs;
 
 use std::{
-    env,
-    fs::File,
-    io,
-    os::unix::io::{AsRawFd, FromRawFd, RawFd},
-    rc::Rc,
+    collections::HashMap, env, fs::File, os::unix::io::{AsRawFd, FromRawFd, RawFd}, rc::Rc
 };
+use libredox::flag;
 use log::error;
 
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbimage::Image;
 use redox_log::{OutputBuilder, RedoxLogger};
 
-use event::EventQueue;
-use syscall::flag::EventFlags;
+use event::RawEventQueue;
 
 struct DisplayRect {
     pub x: i32,
@@ -113,13 +109,13 @@ fn find_background() -> String {
 }
 
 fn get_full_url(path: &str) -> Result<String, String> {
-    let file = match syscall::open(path, syscall::O_CLOEXEC | syscall::O_STAT) {
+    let file = match libredox::call::open(path, flag::O_CLOEXEC | flag::O_PATH, 0) {
         Ok(ok) => unsafe { File::from_raw_fd(ok as RawFd) },
         Err(err) => return Err(format!("{}", err)),
     };
 
     let mut buf: [u8; 4096] = [0; 4096];
-    let count = syscall::fpath(file.as_raw_fd() as usize, &mut buf)
+    let count = libredox::call::fpath(file.as_raw_fd() as usize, &mut buf)
         .map_err(|err| format!("{}", err))?;
 
     String::from_utf8(Vec::from(&buf[..count]))
@@ -212,7 +208,9 @@ fn main() {
 
     match Image::from_path(&path).map(Rc::new) {
         Ok(image) => {
-            let mut event_queue = EventQueue::<()>::new().expect("background: failed to create event queue");
+            let event_queue = RawEventQueue::new().expect("background: failed to create event queue");
+
+            let mut handlers = HashMap::<usize, Box<dyn FnMut()>>::new();
 
             for display in get_display_rects().expect("background: failed to get display rects") {
                 let mut window = Window::new_flags(
@@ -223,7 +221,12 @@ fn main() {
                 let image = image.clone();
                 let mut scaled_image = (*image).clone();
                 let mut resize = Some((display.width, display.height));
-                event_queue.add(window.as_raw_fd(), move |_event| -> io::Result<Option<()>> {
+
+                event_queue.subscribe(window.as_raw_fd() as usize, window.as_raw_fd() as usize, event::EventFlags::READ)
+                    .expect("background: failed to add event");
+
+                let window_raw_fd = window.as_raw_fd();
+                let mut handler: Box<dyn FnMut()> = Box::new(move || {
                     for event in window.events() {
                         match event.to_option() {
                             EventOption::Resize(resize_event) => {
@@ -274,17 +277,17 @@ fn main() {
 
                         window.sync();
                     }
-
-                    Ok(None)
-                }).expect("background: failed to poll window events");
+                });
+                handler();
+                handlers.insert(window_raw_fd as usize, handler);
             }
 
-            event_queue.trigger_all(event::Event {
-                fd: 0,
-                flags: EventFlags::empty(),
-            }).expect("background: failed to trigger events");
-
-            event_queue.run().expect("background: failed to run event loop");
+            for event in event_queue.map(|e| e.expect("background: failed to get next event")) {
+                let Some(handler) = handlers.get_mut(&event.fd) else {
+                    continue;
+                };
+                (*handler)();
+            }
         },
         Err(err) => {
             error!("error loading {}: {}", path, err);
