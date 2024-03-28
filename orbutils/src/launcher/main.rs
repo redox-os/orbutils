@@ -2,29 +2,27 @@ extern crate event;
 extern crate orbclient;
 extern crate orbimage;
 extern crate orbfont;
-extern crate syscall;
 extern crate redox_log;
+extern crate libredox;
 extern crate log;
 
+use event::{user_data, EventQueue};
+use libredox::data::TimeSpec;
+use libredox::flag;
 use redox_log::{OutputBuilder, RedoxLogger};
 use log::{debug, error, info};
 use std::{env, io, mem};
-use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{ErrorKind, Read, Write};
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use std::process::{Child, Command};
-use std::rc::Rc;
 use std::sync::atomic::{AtomicIsize, Ordering};
 
-use event::EventQueue;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_ESC};
 use orbimage::Image;
 use orbfont::Font;
-use syscall::data::TimeSpec;
-use syscall::flag::{CLOCK_MONOTONIC, CLOCK_REALTIME, EventFlags};
 
 use package::Package;
 use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
@@ -71,8 +69,8 @@ fn wait(status: &mut i32) -> io::Result<usize> {
 }
 
 #[cfg(target_os = "redox")]
-fn wait(status: &mut usize) -> io::Result<usize> {
-    syscall::waitpid(0, status, syscall::WNOHANG)
+fn wait(status: &mut i32) -> io::Result<usize> {
+    libredox::call::waitpid(0, status, libc::WNOHANG)
         .map_err(|e| io::Error::new(ErrorKind::Other,
                                         format!("Error in waitpid(): {}", e.to_string())))
 }
@@ -239,8 +237,7 @@ impl Bar {
     }
 
     fn update_time(&mut self) {
-        let mut time = TimeSpec::default();
-        syscall::clock_gettime(CLOCK_REALTIME, &mut time).expect("launcher: failed to read time");
+        let time = libredox::call::clock_gettime(flag::CLOCK_REALTIME).expect("launcher: failed to read time");
 
         let ts = time.tv_sec;
         let s = ts%86400;
@@ -401,210 +398,218 @@ impl Bar {
 }
 
 fn bar_main(width: u32, height: u32) -> io::Result<()> {
-    let bar = Rc::new(RefCell::new(Bar::new(width, height)));
+    let mut bar = Bar::new(width, height);
 
     match Command::new("background").spawn() {
-        Ok(child) => bar.borrow_mut().children.push(("background".to_string(), child)),
+        Ok(child) => bar.children.push(("background".to_string(), child)),
         Err(err) => error!("failed to launch background: {}", err)
     }
 
-    let mut event_queue = EventQueue::<()>::new().expect("launcher: failed to create event queue");
-
-    let mut time_file = File::open(&format!("time:{}", CLOCK_MONOTONIC))?;
-    let bar_time = bar.clone();
-    event_queue.add(time_file.as_raw_fd(), move |_| -> io::Result<Option<()>> {
-        let mut time = TimeSpec::default();
-        if time_file.read(&mut time)? >= mem::size_of::<TimeSpec>() {
-            let mut bar = bar_time.borrow_mut();
-
-            let mut i = 0;
-            while i < bar.children.len() {
-                let remove = match bar.children[i].1.try_wait() {
-                    Ok(None) => false,
-                    Ok(Some(status)) => {
-                        info!("{} ({}) exited with {}", bar.children[i].0, bar.children[i].1.id(), status);
-                        true
-                    },
-                    Err(err) => {
-                        error!("failed to wait for {} ({}): {}", bar.children[i].0, bar.children[i].1.id(), err);
-                        true
-                    }
-                };
-                if remove {
-                    bar.children.remove(i);
-                } else {
-                    i += 1;
-                }
-            }
-
-            loop {
-                let mut status = 0;
-                let pid = wait(&mut status)?;
-                if pid == 0 {
-                    break;
-                }
-            }
-
-            bar.update_time();
-            bar.draw();
-
-            time.tv_sec += 1;
-            time.tv_nsec = 0;
-            time_file.write(&time)?;
+    user_data! {
+        enum Event {
+            Time,
+            Window,
         }
+    }
+    let event_queue = EventQueue::<Event>::new().expect("launcher: failed to create event queue");
 
-        Ok(None)
-    })?;
+    let mut time_file = File::open(&format!("time:{}", flag::CLOCK_MONOTONIC))?;
 
-    let bar_window = bar.clone();
+    event_queue.subscribe(time_file.as_raw_fd() as usize, Event::Time, event::EventFlags::READ)
+        .expect("launcher: failed to subscribe to timer");
+    event_queue.subscribe(bar.window.as_raw_fd() as usize, Event::Window, event::EventFlags::READ)
+        .expect("launcher: failed to subscribe to timer");
+
     let mut mouse_x = -1;
     let mut mouse_y = -1;
     let mut mouse_left = false;
     let mut last_mouse_left = false;
-    event_queue.add(bar.borrow().window.as_raw_fd(), move |_event| -> io::Result<Option<()>> {
-        let mut bar = bar_window.borrow_mut();
 
-        for event in bar.window.events() {
-            //TODO: remove hack for super event
-            if event.code >= 0x1000_0000 {
-                let mut super_event = event;
-                super_event.code -= 0x1000_0000;
+    let all_events = core::array::IntoIter::new([Event::Time, Event::Window]);
 
-                //TODO: configure super keybindings
-                let event_option = super_event.to_option();
-                debug!("launcher: super {:?}", event_option);
-                match event_option {
-                    EventOption::Key(key_event) => match key_event.scancode {
-                        orbclient::K_B => if key_event.pressed {
-                            bar.spawn("netsurf-fb".to_string());
-                        },
-                        orbclient::K_F => if key_event.pressed {
-                            bar.spawn("file_manager".to_string());
-                        },
-                        orbclient::K_T => if key_event.pressed {
-                            bar.spawn("orbterm".to_string());
-                        },
-                        _ => (),
-                    }
-                    _ => (),
+    'events: for event in all_events.chain(event_queue.map(|e| e.expect("launcher: failed to get next event").user_data)) {
+        match event {
+            Event::Time => {
+                let mut time_buf = [0_u8; core::mem::size_of::<TimeSpec>()];
+                if time_file.read(&mut time_buf)? < mem::size_of::<TimeSpec>() {
+                    continue;
                 }
 
-                continue;
+                let mut i = 0;
+                while i < bar.children.len() {
+                    let remove = match bar.children[i].1.try_wait() {
+                        Ok(None) => false,
+                        Ok(Some(status)) => {
+                            info!("{} ({}) exited with {}", bar.children[i].0, bar.children[i].1.id(), status);
+                            true
+                        },
+                        Err(err) => {
+                            error!("failed to wait for {} ({}): {}", bar.children[i].0, bar.children[i].1.id(), err);
+                            true
+                        }
+                    };
+                    if remove {
+                        bar.children.remove(i);
+                    } else {
+                        i += 1;
+                    }
+                }
+
+                loop {
+                    let mut status = 0;
+                    let pid = wait(&mut status)?;
+                    if pid == 0 {
+                        break;
+                    }
+                }
+
+                bar.update_time();
+                bar.draw();
+
+                match libredox::data::timespec_from_mut_bytes(&mut time_buf) {
+                    time => {
+                        time.tv_sec += 1;
+                        time.tv_nsec = 0;
+                    }
+                }
+                time_file.write(&time_buf)?;
             }
+            Event::Window => {
+                for event in bar.window.events() {
+                    //TODO: remove hack for super event
+                    if event.code >= 0x1000_0000 {
+                        let mut super_event = event;
+                        super_event.code -= 0x1000_0000;
 
-            let redraw = match event.to_option() {
-                EventOption::Mouse(mouse_event) => {
-                    mouse_x = mouse_event.x;
-                    mouse_y = mouse_event.y;
-                    true
-                },
-                EventOption::Button(button_event) => {
-                    mouse_left = button_event.left;
-                    true
-                },
-                EventOption::Screen(screen_event) => {
-                    bar.width = screen_event.width;
-                    bar.height = screen_event.height;
-                    bar.window.set_pos(0, screen_event.height as i32 - icon_size());
-                    bar.window.set_size(screen_event.width, icon_size() as u32);
-                    bar.selected = -2; // Force bar redraw
-                    bar.selected_window.set_pos(0, screen_event.height as i32);
-                    bar.selected_window.set_size(screen_event.width, (font_size() + 8) as u32);
-                    true
-                },
-                EventOption::Hover(hover_event) => if hover_event.entered {
-                    false
-                } else {
-                    mouse_x = -1;
-                    mouse_y = -1;
-                    true
-                },
-                EventOption::Quit(_) => return Ok(Some(())),
-                _ => false
-            };
-
-            if redraw {
-                let mut now_selected = -1;
-
-                {
-                    let mut x = 0;
-                    let y = 0;
-                    let mut i = 0;
-
-                    {
-                        if mouse_y >= y && mouse_x >= x &&
-                           mouse_x < x + bar.start.width() as i32 {
-                               now_selected = i;
+                        //TODO: configure super keybindings
+                        let event_option = super_event.to_option();
+                        debug!("launcher: super {:?}", event_option);
+                        match event_option {
+                            EventOption::Key(key_event) => match key_event.scancode {
+                                orbclient::K_B => if key_event.pressed {
+                                    bar.spawn("netsurf-fb".to_string());
+                                },
+                                orbclient::K_F => if key_event.pressed {
+                                    bar.spawn("file_manager".to_string());
+                                },
+                                orbclient::K_T => if key_event.pressed {
+                                    bar.spawn("orbterm".to_string());
+                                },
+                                _ => (),
+                            }
+                            _ => (),
                         }
-                        x += bar.start.width() as i32;
-                        i += 1;
+
+                        continue;
                     }
 
-                    for package in bar.packages.iter() {
-                        if mouse_y >= y && mouse_x >= x &&
-                           mouse_x < x + package.icon.width() as i32 {
-                            now_selected = i;
-                        }
-                        x += package.icon.width() as i32;
-                        i += 1;
-                    }
-                }
+                    let redraw = match event.to_option() {
+                        EventOption::Mouse(mouse_event) => {
+                            mouse_x = mouse_event.x;
+                            mouse_y = mouse_event.y;
+                            true
+                        },
+                        EventOption::Button(button_event) => {
+                            mouse_left = button_event.left;
+                            true
+                        },
+                        EventOption::Screen(screen_event) => {
+                            bar.width = screen_event.width;
+                            bar.height = screen_event.height;
+                            bar.window.set_pos(0, screen_event.height as i32 - icon_size());
+                            bar.window.set_size(screen_event.width, icon_size() as u32);
+                            bar.selected = -2; // Force bar redraw
+                            bar.selected_window.set_pos(0, screen_event.height as i32);
+                            bar.selected_window.set_size(screen_event.width, (font_size() + 8) as u32);
+                            true
+                        },
+                        EventOption::Hover(hover_event) => if hover_event.entered {
+                            false
+                        } else {
+                            mouse_x = -1;
+                            mouse_y = -1;
+                            true
+                        },
+                        EventOption::Quit(_) => break 'events,
+                        _ => false
+                    };
 
-                if now_selected != bar.selected {
-                    bar.selected = now_selected;
-                    let sw_y = bar.height as i32;
-                    bar.selected_window.set_pos(0, sw_y);
-                    bar.draw();
-                }
+                    if redraw {
+                        let mut now_selected = -1;
 
-                if ! mouse_left && last_mouse_left {
-                    let mut i = 0;
+                        {
+                            let mut x = 0;
+                            let y = 0;
+                            let mut i = 0;
 
-                    if i == bar.selected {
-                        let mut category_opt = None;
-                        while let Some(binary) = bar.start_window(category_opt.as_ref()) {
-                            if binary.starts_with("category=") {
-                                let category = &binary[9..];
-                                category_opt = Some(category.to_string());
-                            } else if binary == "exit" {
-                                if category_opt.is_some() {
-                                    category_opt = None;
-                                } else {
-                                    return Ok(Some(()));
+                            {
+                                if mouse_y >= y && mouse_x >= x &&
+                                   mouse_x < x + bar.start.width() as i32 {
+                                       now_selected = i;
                                 }
-                            } else {
-                                bar.spawn(binary);
-                                break;
+                                x += bar.start.width() as i32;
+                                i += 1;
+                            }
+
+                            for package in bar.packages.iter() {
+                                if mouse_y >= y && mouse_x >= x &&
+                                   mouse_x < x + package.icon.width() as i32 {
+                                    now_selected = i;
+                                }
+                                x += package.icon.width() as i32;
+                                i += 1;
                             }
                         }
-                    }
-                    i += 1;
 
-                    for package_i in 0..bar.packages.len() {
-                        if i == bar.selected {
-                            let binary = bar.packages[package_i].binary.clone();
-                            bar.spawn(binary);
+                        if now_selected != bar.selected {
+                            bar.selected = now_selected;
+                            let sw_y = bar.height as i32;
+                            bar.selected_window.set_pos(0, sw_y);
+                            bar.draw();
                         }
-                        i += 1;
+
+                        if ! mouse_left && last_mouse_left {
+                            let mut i = 0;
+
+                            if i == bar.selected {
+                                let mut category_opt = None;
+                                while let Some(binary) = bar.start_window(category_opt.as_ref()) {
+                                    if binary.starts_with("category=") {
+                                        let category = &binary[9..];
+                                        category_opt = Some(category.to_string());
+                                    } else if binary == "exit" {
+                                        if category_opt.is_some() {
+                                            category_opt = None;
+                                        } else {
+                                            break 'events;
+                                        }
+                                    } else {
+                                        bar.spawn(binary);
+                                        break;
+                                    }
+                                }
+                            }
+                            i += 1;
+
+                            for package_i in 0..bar.packages.len() {
+                                if i == bar.selected {
+                                    let binary = bar.packages[package_i].binary.clone();
+                                    bar.spawn(binary);
+                                }
+                                i += 1;
+                            }
+                        }
+
+                        last_mouse_left = mouse_left;
                     }
                 }
-
-                last_mouse_left = mouse_left;
             }
         }
 
-        Ok(None)
-    })?;
+    }
 
-    event_queue.trigger_all(event::Event {
-        fd: 0,
-        flags: EventFlags::empty(),
-    })?;
-
-    event_queue.run()?;
-
-    debug!("Launcher exiting, killing {} children", bar.borrow_mut().children.len());
-    for (binary, child) in bar.borrow_mut().children.iter_mut() {
+    debug!("Launcher exiting, killing {} children", bar.children.len());
+    for (binary, child) in bar.children.iter_mut() {
         let pid = child.id();
         match child.kill() {
             Ok(()) => debug!("Successfully killed child: {}", pid),
