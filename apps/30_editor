@@ -1,0 +1,17 @@
+name=Editor
+binary=/usr/bin/editor
+icon=/ui/icons/apps/accessories-text-editor.png
+accept=*.asm
+accept=*.conf
+accept=*.html
+accept=*.ion
+accept=*.list
+accept=*.lua
+accept=*.md
+accept=*.rc
+accept=*.rs
+accept=*.sh
+accept=*.toml
+accept=*.txt
+author=Jeremy Soller
+description=Editor for Redox

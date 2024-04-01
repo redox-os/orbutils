@@ -1,0 +1,5 @@
+name=Calendar
+binary=/usr/bin/calendar
+icon=/ui/icons/apps/calendar.png
+author=Bojan Kogoj
+description=Calendar for Redox

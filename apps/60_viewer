@@ -1,0 +1,9 @@
+name=Viewer
+binary=/usr/bin/viewer
+icon=/ui/icons/apps/multimedia-photo-viewer.png
+accept=*.bmp
+accept=*.jpg
+accept=*.jpeg
+accept=*.png
+author=Jeremy Soller
+description=Image Viewer for Redox
