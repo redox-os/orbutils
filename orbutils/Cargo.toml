@@ -19,9 +19,10 @@ path = "src/launcher/main.rs"
 name = "orblogin"
 path = "src/orblogin/main.rs"
 
-[[bin]]
-name = "character_map"
-path = "src/character_map/main.rs"
+# Deprecated
+#[[bin]]
+#name = "character_map"
+#path = "src/character_map/main.rs"
 
 # Deprecated in favor of cosmic-edit
 #[[bin]]
