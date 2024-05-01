@@ -23,13 +23,15 @@ path = "src/orblogin/main.rs"
 name = "character_map"
 path = "src/character_map/main.rs"
 
-[[bin]]
-name = "editor"
-path = "src/editor/main.rs"
+# Deprecated in favor of cosmic-edit
+#[[bin]]
+#name = "editor"
+#path = "src/editor/main.rs"
 
-[[bin]]
-name = "file_manager"
-path = "src/file_manager/main.rs"
+# Deprecated in favor of cosmic-files
+#[[bin]]
+#name = "file_manager"
+#path = "src/file_manager/main.rs"
 
 [[bin]]
 name = "viewer"
