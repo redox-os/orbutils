@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "orbutils",
-    "calculator"
+    "calculator",
+    "launcher",
 ]
 resolver = "2"
 

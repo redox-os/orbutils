@@ -1,6 +1,6 @@
+use log::error;
 use std::fs::File;
 use std::io::Read;
-use log::error;
 
 use orbimage::Image;
 
