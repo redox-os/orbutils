@@ -583,7 +583,7 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
                                 }
                                 orbclient::K_T => {
                                     if key_event.pressed {
-                                        bar.spawn("orbterm".to_string());
+                                        bar.spawn("cosmic-term".to_string());
                                     }
                                 }
                                 _ => (),
