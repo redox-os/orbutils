@@ -54,7 +54,7 @@ fn draw_image(window: &mut Window, image: &Image) {
 fn main() {
     let path = match env::args().nth(1) {
         Some(arg) => arg,
-        None => "/ui/background.png".to_string(),
+        None => "/ui/background.jpg".to_string(),
     };
 
     match Image::from_path(&path) {
