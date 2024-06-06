@@ -105,7 +105,7 @@ fn find_background() -> String {
         _ => (),
     }
 
-    "/ui/background.png".to_string()
+    "/ui/background.jpg".to_string()
 }
 
 fn get_full_url(path: &str) -> Result<String, String> {
