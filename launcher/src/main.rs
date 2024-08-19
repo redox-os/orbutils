@@ -476,7 +476,7 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
     }
     let event_queue = EventQueue::<Event>::new().expect("launcher: failed to create event queue");
 
-    let mut time_file = File::open(&format!("time:{}", flag::CLOCK_MONOTONIC))?;
+    let mut time_file = File::open(&format!("/scheme/time/{}", flag::CLOCK_MONOTONIC))?;
 
     event_queue
         .subscribe(
