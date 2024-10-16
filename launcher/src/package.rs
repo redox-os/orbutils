@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::Read;
@@ -92,7 +93,7 @@ pub struct Package {
     /// The name of the package
     pub name: String,
     /// The categories for the package
-    pub categories: Vec<String>,
+    pub categories: BTreeSet<String>,
     /// The exec string for the package, parsed by shlex
     pub exec: String,
     /// The icon for the package
@@ -112,7 +113,7 @@ impl Package {
         Package {
             id: String::new(),
             name: String::new(),
-            categories: Vec::new(),
+            categories: BTreeSet::new(),
             exec: String::new(),
             icon: Icon::empty(false),
             icon_small: Icon::empty(true),
@@ -145,7 +146,7 @@ impl Package {
             } else if line.starts_with("category=") {
                 let category = &line[9..];
                 if !category.is_empty() {
-                    package.categories.push(category.into());
+                    package.categories.insert(category.into());
                 }
             } else if line.starts_with("binary=") {
                 match shlex::try_quote(&line[7..]) {
@@ -203,7 +204,7 @@ impl Package {
             for category in categories.split_terminator(';') {
                 if main_categories.contains(&category) {
                     // Some categories are renamed here
-                    package.categories.push(
+                    package.categories.insert(
                         match category {
                             "AudioVideo" | "Audio" | "Video" => "Multimedia",
                             "Game" => "Games",
