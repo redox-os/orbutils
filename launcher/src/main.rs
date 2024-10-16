@@ -1,4 +1,5 @@
 extern crate event;
+extern crate freedesktop_entry_parser;
 extern crate libredox;
 extern crate log;
 extern crate orbclient;
@@ -24,7 +25,7 @@ use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_ESC};
 use orbfont::Font;
 use orbimage::Image;
 
-use package::Package;
+use package::{IconSource, Package};
 use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
 
 mod package;
@@ -54,6 +55,44 @@ static UI_PATH: &'static str = "/ui";
 #[cfg(not(target_os = "redox"))]
 static UI_PATH: &'static str = "ui";
 
+fn exec_to_command(exec: &str, path_opt: Option<&str>) -> Option<Command> {
+    let args_vec: Vec<String> = shlex::split(exec)?;
+    let mut args = args_vec.iter();
+    let mut command = Command::new(args.next()?);
+    for arg in args {
+        if arg.starts_with('%') {
+            match arg.as_str() {
+                "%f" | "%F" | "%u" | "%U" => {
+                    if let Some(path) = &path_opt {
+                        command.arg(path);
+                    }
+                }
+                _ => {
+                    log::warn!("unsupported Exec code {:?} in {:?}", arg, exec);
+                    return None;
+                }
+            }
+        } else {
+            command.arg(arg);
+        }
+    }
+    Some(command)
+}
+
+fn spawn_exec(exec: &str, path_opt: Option<&str>) {
+    match exec_to_command(exec, path_opt) {
+        Some(mut command) => match command.spawn() {
+            Ok(_) => {}
+            Err(err) => {
+                error!("failed to launch {}: {}", exec, err);
+            }
+        },
+        None => {
+            error!("failed to parse {}", exec);
+        }
+    }
+}
+
 #[cfg(not(target_os = "redox"))]
 fn wait(status: &mut i32) -> io::Result<usize> {
     extern crate libc;
@@ -80,73 +119,116 @@ fn wait(status: &mut i32) -> io::Result<usize> {
     })
 }
 
-fn load_icon(path: &str) -> Image {
-    let icon = Image::from_path(path).unwrap_or(Image::default());
-    if icon.width() == icon_size() as u32 && icon.height() == icon_size() as u32 {
+fn size_icon(icon: Image, small: bool) -> Image {
+    let size = if small {
+        icon_small_size()
+    } else {
+        icon_size()
+    } as u32;
+    if icon.width() == size && icon.height() == size {
         icon
     } else {
-        icon.resize(
-            icon_size() as u32,
-            icon_size() as u32,
-            orbimage::ResizeType::Lanczos3,
-        )
-        .unwrap()
+        icon.resize(size, size, orbimage::ResizeType::Lanczos3)
+            .unwrap()
     }
 }
 
-fn load_icon_small(path: &str) -> Image {
+fn load_icon<P: AsRef<Path>>(path: P) -> Image {
     let icon = Image::from_path(path).unwrap_or(Image::default());
-    if icon.width() == icon_small_size() as u32 && icon.height() == icon_small_size() as u32 {
-        icon
-    } else {
-        icon.resize(
-            icon_small_size() as u32,
-            icon_small_size() as u32,
-            orbimage::ResizeType::Lanczos3,
-        )
-        .unwrap()
+    size_icon(icon, false)
+}
+
+fn load_icon_small<P: AsRef<Path>>(path: P) -> Image {
+    let icon = Image::from_path(path).unwrap_or(Image::default());
+    size_icon(icon, true)
+}
+
+lazy_static::lazy_static! {
+    static ref USVG_OPTIONS: resvg::usvg::Options<'static> = {
+        let mut opt = resvg::usvg::Options::default();
+        opt.fontdb_mut().load_system_fonts();
+        opt
+    };
+}
+
+fn load_icon_svg<P: AsRef<Path>>(path: P, small: bool) -> Option<Image> {
+    let tree = {
+        let svg_data = std::fs::read(path).ok()?;
+        resvg::usvg::Tree::from_data(&svg_data, &USVG_OPTIONS).ok()?
+    };
+
+    let pixmap_size = tree.size().to_int_size();
+    let mut pixmap = resvg::tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height())?;
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::default(),
+        &mut pixmap.as_mut(),
+    );
+
+    let width = pixmap.width();
+    let height = pixmap.height();
+    let mut data = Vec::with_capacity(width as usize * height as usize);
+    for rgba in pixmap.take().chunks_exact(4) {
+        data.push(Color::rgba(rgba[0], rgba[1], rgba[2], rgba[3]));
     }
+
+    let icon = Image::from_data(width, height, data.into()).ok()?;
+    Some(size_icon(icon, small))
 }
 
 fn get_packages() -> Vec<Package> {
-    let read_dir = Path::new(&format!("{}/apps/", UI_PATH))
-        .read_dir()
-        .expect("failed to read apps directory");
+    let mut packages: Vec<Package> = Vec::new();
 
-    let mut entries = vec![];
-    for dir in read_dir {
-        let dir = match dir {
-            Ok(x) => x,
-            Err(_) => continue,
-        };
-        let file_name = dir.file_name().to_string_lossy().into_owned();
-        if dir.file_type().expect("failed to get file_type").is_file() {
-            entries.push(file_name);
+    if let Ok(read_dir) = Path::new(&format!("{}/apps/", UI_PATH)).read_dir() {
+        for entry_res in read_dir {
+            let entry = match entry_res {
+                Ok(x) => x,
+                Err(_) => continue,
+            };
+            if entry
+                .file_type()
+                .expect("failed to get file_type")
+                .is_file()
+            {
+                packages.push(Package::from_path(&entry.path().display().to_string()));
+            }
         }
     }
 
-    entries.sort();
-
-    let mut packages: Vec<Package> = Vec::new();
-    for entry in entries.iter() {
-        packages.push(Package::from_path(&format!("{}/apps/{}", UI_PATH, entry)));
+    if let Ok(xdg_dirs) = xdg::BaseDirectories::new() {
+        for path in xdg_dirs.find_data_files("applications") {
+            if let Ok(read_dir) = path.read_dir() {
+                for dir_entry_res in read_dir {
+                    let Ok(dir_entry) = dir_entry_res else {
+                        continue;
+                    };
+                    let Ok(id) = dir_entry.file_name().into_string() else {
+                        continue;
+                    };
+                    if let Some(package) = Package::from_desktop_entry(id, &dir_entry.path()) {
+                        packages.push(package);
+                    }
+                }
+            }
+        }
     }
 
+    packages.sort_by(|a, b| a.name.cmp(&b.name));
     packages
 }
 
-fn draw_chooser(window: &mut Window, font: &Font, packages: &Vec<Package>, selected: i32) {
+fn draw_chooser(window: &mut Window, font: &Font, packages: &mut Vec<Package>, selected: i32) {
     let w = window.width();
 
     window.set(BAR_COLOR);
 
     let mut y = 0;
-    for (i, package) in packages.iter().enumerate() {
+    for (i, package) in packages.iter_mut().enumerate() {
         if i as i32 == selected {
             window.rect(0, y, w, icon_small_size() as u32, BAR_HIGHLIGHT_COLOR);
         }
 
-        package.icon_small.draw(window, 0, y);
+        package.icon_small.image().draw(window, 0, y);
 
         font.render(&package.name, font_size() as f32).draw(
             window,
@@ -188,21 +270,27 @@ impl Bar {
         let mut root_packages = Vec::new();
         let mut category_packages = BTreeMap::<String, Vec<Package>>::new();
         for package in all_packages {
-            if package.category.is_empty() {
+            if package.categories.is_empty() {
                 // Packages without a category go on the bar
                 root_packages.push(package);
             } else {
                 // Packages with a category are collected
-                match category_packages.get_mut(&package.category) {
-                    Some(packages) => {
-                        packages.push(package);
-                    }
-                    None => {
-                        category_packages.insert(package.category.clone(), vec![package]);
+                //TODO: since this clones the package, use an Arc to prevent icon reloads?
+                for category in package.categories.iter() {
+                    match category_packages.get_mut(category) {
+                        Some(packages) => {
+                            packages.push(package.clone());
+                        }
+                        None => {
+                            category_packages.insert(category.clone(), vec![package.clone()]);
+                        }
                     }
                 }
             }
         }
+
+        // Sort root packages by ID
+        root_packages.sort_by(|a, b| a.id.cmp(&b.id));
 
         let mut start_packages = Vec::new();
 
@@ -211,32 +299,30 @@ impl Bar {
                 let mut package = Package::new();
                 package.name = category.to_string();
                 let icon = format!("{}/icons/mimetypes/inode-directory.png", UI_PATH);
-                package.icon = load_icon(&icon);
-                package.icon_small = load_icon_small(&icon);
-                package.binary = format!("category={}", category);
+                package.icon.source = IconSource::Path(icon.clone().into());
+                package.icon_small.source = IconSource::Path(icon.into());
+                package.exec = format!("category={}", category);
                 package
             });
 
-            packages.insert(0, {
+            packages.push({
                 let mut package = Package::new();
                 package.name = "Go back".to_string();
                 let icon = format!("{}/icons/mimetypes/inode-directory.png", UI_PATH);
-                package.icon = load_icon(&icon);
-                package.icon_small = load_icon_small(&icon);
-                package.binary = "exit".to_string();
+                package.icon.source = IconSource::Path(icon.clone().into());
+                package.icon_small.source = IconSource::Path(icon.into());
+                package.exec = "exit".to_string();
                 package
             });
         }
-
-        start_packages.extend_from_slice(&root_packages);
 
         start_packages.push({
             let mut package = Package::new();
             package.name = "Logout".to_string();
             let icon = format!("{}/icons/actions/system-log-out.png", UI_PATH);
-            package.icon = load_icon(&icon);
-            package.icon_small = load_icon_small(&icon);
-            package.binary = "exit".to_string();
+            package.icon.source = IconSource::Path(icon.clone().into());
+            package.icon_small.source = IconSource::Path(icon.into());
+            package.exec = "exit".to_string();
             package
         });
 
@@ -315,13 +401,14 @@ impl Bar {
             i += 1;
         }
 
-        for package in self.packages.iter() {
+        for package in self.packages.iter_mut() {
             if i == self.selected {
+                let image = package.icon.image();
                 self.window.rect(
                     x as i32,
                     y as i32,
-                    package.icon.width() as u32,
-                    package.icon.height() as u32,
+                    image.width() as u32,
+                    image.height() as u32,
                     BAR_HIGHLIGHT_COLOR,
                 );
 
@@ -337,11 +424,12 @@ impl Bar {
                 self.selected_window.set_pos(0, sw_y);
             }
 
-            package.icon.draw(&mut self.window, x as i32, y as i32);
+            let image = package.icon.image();
+            image.draw(&mut self.window, x as i32, y as i32);
 
             let mut count = 0;
-            for (binary, _) in self.children.iter() {
-                if binary == &package.binary {
+            for (exec, _) in self.children.iter() {
+                if exec == &package.exec {
                     count += 1;
                 }
             }
@@ -349,13 +437,13 @@ impl Bar {
                 self.window.rect(
                     x as i32 + 4,
                     y as i32,
-                    package.icon.width() - 8,
+                    image.width() - 8,
                     2,
                     TEXT_HIGHLIGHT_COLOR,
                 );
             }
 
-            x += package.icon.width() as i32;
+            x += image.width() as i32;
             i += 1;
         }
 
@@ -367,10 +455,10 @@ impl Bar {
         self.window.sync();
     }
 
-    fn start_window(&self, category_opt: Option<&String>) -> Option<String> {
+    fn start_window(&mut self, category_opt: Option<&String>) -> Option<String> {
         let packages = match category_opt {
-            Some(category) => self.category_packages.get(category)?,
-            None => &self.start_packages,
+            Some(category) => self.category_packages.get_mut(category)?,
+            None => &mut self.start_packages,
         };
 
         let start_h = packages.len() as u32 * icon_small_size() as u32;
@@ -435,7 +523,7 @@ impl Bar {
                         let mut y = 0;
                         for package_i in 0..packages.len() {
                             if mouse_y >= y && mouse_y < y + icon_small_size() {
-                                return Some(packages[package_i].binary.to_string());
+                                return Some(packages[package_i].exec.to_string());
                             }
                             y += icon_small_size();
                         }
@@ -448,14 +536,17 @@ impl Bar {
         None
     }
 
-    fn spawn(&mut self, binary: String) {
-        match Command::new(&binary).spawn() {
-            Ok(child) => {
-                self.children.push((binary, child));
-                //TODO: should redraw be done here?
-                self.draw();
-            }
-            Err(err) => error!("failed to spawn {}: {}", binary, err),
+    fn spawn(&mut self, exec: String) {
+        match exec_to_command(&exec, None) {
+            Some(mut command) => match command.spawn() {
+                Ok(child) => {
+                    self.children.push((exec, child));
+                    //TODO: should redraw be done here?
+                    self.draw();
+                }
+                Err(err) => error!("failed to spawn {}: {}", exec, err),
+            },
+            None => error!("failed to parse {}", exec),
         }
     }
 }
@@ -648,14 +739,15 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
                                 i += 1;
                             }
 
-                            for package in bar.packages.iter() {
+                            for package in bar.packages.iter_mut() {
+                                let image = package.icon.image();
                                 if mouse_y >= y
                                     && mouse_x >= x
-                                    && mouse_x < x + package.icon.width() as i32
+                                    && mouse_x < x + image.width() as i32
                                 {
                                     now_selected = i;
                                 }
-                                x += package.icon.width() as i32;
+                                x += image.width() as i32;
                                 i += 1;
                             }
                         }
@@ -672,18 +764,18 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
 
                             if i == bar.selected {
                                 let mut category_opt = None;
-                                while let Some(binary) = bar.start_window(category_opt.as_ref()) {
-                                    if binary.starts_with("category=") {
-                                        let category = &binary[9..];
+                                while let Some(exec) = bar.start_window(category_opt.as_ref()) {
+                                    if exec.starts_with("category=") {
+                                        let category = &exec[9..];
                                         category_opt = Some(category.to_string());
-                                    } else if binary == "exit" {
+                                    } else if exec == "exit" {
                                         if category_opt.is_some() {
                                             category_opt = None;
                                         } else {
                                             break 'events;
                                         }
                                     } else {
-                                        bar.spawn(binary);
+                                        bar.spawn(exec);
                                         break;
                                     }
                                 }
@@ -692,8 +784,8 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
 
                             for package_i in 0..bar.packages.len() {
                                 if i == bar.selected {
-                                    let binary = bar.packages[package_i].binary.clone();
-                                    bar.spawn(binary);
+                                    let exec = bar.packages[package_i].exec.clone();
+                                    bar.spawn(exec);
                                 }
                                 i += 1;
                             }
@@ -707,15 +799,15 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
     }
 
     debug!("Launcher exiting, killing {} children", bar.children.len());
-    for (binary, child) in bar.children.iter_mut() {
+    for (exec, child) in bar.children.iter_mut() {
         let pid = child.id();
         match child.kill() {
             Ok(()) => debug!("Successfully killed child: {}", pid),
-            Err(err) => error!("failed to kill {} ({}): {}", binary, pid, err),
+            Err(err) => error!("failed to kill {} ({}): {}", exec, pid, err),
         }
         match child.wait() {
-            Ok(status) => info!("{} ({}) exited with {}", binary, pid, status),
-            Err(err) => error!("failed to wait for {} ({}): {}", binary, pid, err),
+            Ok(status) => info!("{} ({}) exited with {}", exec, pid, status),
+            Err(err) => error!("failed to wait for {} ({}): {}", exec, pid, err),
         }
     }
 
@@ -758,7 +850,7 @@ fn chooser_main(paths: env::Args) {
             let mut mouse_left = false;
             let mut last_mouse_left = false;
 
-            draw_chooser(&mut window, &font, &packages, selected);
+            draw_chooser(&mut window, &font, &mut packages, selected);
             'choosing: loop {
                 for event in window.events() {
                     let redraw = match event.to_option() {
@@ -787,18 +879,14 @@ fn chooser_main(paths: env::Args) {
 
                         if now_selected != selected {
                             selected = now_selected;
-                            draw_chooser(&mut window, &font, &packages, selected);
+                            draw_chooser(&mut window, &font, &mut packages, selected);
                         }
 
                         if !mouse_left && last_mouse_left {
                             let mut y = 0;
                             for package in packages.iter() {
                                 if mouse_y >= y && mouse_y < y + icon_small_size() {
-                                    if let Err(err) =
-                                        Command::new(&package.binary).arg(path).spawn()
-                                    {
-                                        error!("failed to launch {}: {}", package.binary, err);
-                                    }
+                                    spawn_exec(&package.exec, Some(&path));
                                     break 'choosing;
                                 }
                                 y += icon_small_size();
@@ -810,9 +898,7 @@ fn chooser_main(paths: env::Args) {
                 }
             }
         } else if let Some(package) = packages.get(0) {
-            if let Err(err) = Command::new(&package.binary).arg(&path).spawn() {
-                error!("failed to launch '{}': {}", package.binary, err);
-            }
+            spawn_exec(&package.exec, Some(&path));
         } else {
             error!("no application found for '{}'", path);
         }

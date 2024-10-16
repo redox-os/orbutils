@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+freedesktop_entry_parser = "1"
+freedesktop-icons = "0.2"
+lazy_static = "1"
 libc = "0.2"
 libredox = { version = "0.1.3", default-features = false, features = ["std", "call"] }
 log = "0.4.14"
@@ -12,6 +15,9 @@ orbfont = "0.1"
 orbimage = "0.1"
 redox-log = "0.1"
 redox_event = "0.4.1"
+resvg = "0.44"
+shlex = "1"
+xdg = "2"
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic.git"
