@@ -18,7 +18,3 @@ redox_event = "0.4.1"
 resvg = "0.44"
 shlex = "1"
 xdg = "2"
-
-[dependencies.libcosmic]
-git = "https://github.com/pop-os/libcosmic.git"
-features = ["winit"]
