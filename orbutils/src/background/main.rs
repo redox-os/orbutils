@@ -152,7 +152,7 @@ fn get_display_rects() -> Result<Vec<DisplayRect>, String> {
         let start_screen_i = parts.next().unwrap_or("").parse::<usize>().unwrap_or(0);
         //TODO: determine maximum number of screens
         for screen_i in start_screen_i + 1..1024 {
-            let url = match get_full_url(&format!("{}:{}.{}", scheme_name, vt_i, screen_i)) {
+            let url = match get_full_url(&format!("/scheme/{}/{}.{}", scheme_name, vt_i, screen_i)) {
                 Ok(ok) => ok,
                 //TODO: only check for ENOENT?
                 Err(_err) => break,
