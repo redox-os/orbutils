@@ -198,20 +198,13 @@ fn main() {
 
     let mut args = env::args().skip(1);
 
-    let path = match args.next() {
+    let path = &match args.next() {
         Some(arg) => arg,
         None => find_background(),
     };
 
     let mode = BackgroundMode::from_str(&args.next().unwrap_or_default());
 
-    let image = &match Image::from_path(&path) {
-        Ok(image) => image,
-        Err(err) => {
-            error!("error loading {}: {}", path, err);
-            return;
-        }
-    };
     let event_queue = RawEventQueue::new().expect("background: failed to create event queue");
 
     let mut handlers = HashMap::<usize, Box<dyn FnMut()>>::new();
@@ -232,7 +225,6 @@ fn main() {
         )
         .unwrap();
 
-        let mut scaled_image = image.clone();
         let mut resize = Some((display.width, display.height));
 
         event_queue
@@ -259,17 +251,23 @@ fn main() {
             }
 
             if let Some((w, h)) = resize.take() {
+                let image = match Image::from_path(&path) {
+                    Ok(image) => image,
+                    Err(err) => {
+                        error!("error loading {}: {}", path, err);
+                        return;
+                    }
+                };
+
                 let (width, height) = find_scale(&image, mode, w, h);
 
-                if width == scaled_image.width() && height == scaled_image.height() {
-                    // Do not resize scaled image
-                } else if width == image.width() && height == image.height() {
-                    scaled_image = image.clone();
+                let scaled_image = if width == image.width() && height == image.height() {
+                    image
                 } else {
-                    scaled_image = image
+                    image
                         .resize(width, height, orbimage::ResizeType::Lanczos3)
-                        .unwrap();
-                }
+                        .unwrap()
+                };
 
                 let (crop_x, crop_w) = if width > w {
                     ((width - w) / 2, w)
