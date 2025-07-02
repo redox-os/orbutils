@@ -45,8 +45,8 @@ fn draw_image(window: &mut Window, image: &Image) {
     }
     */
 
-    let x = (window.width() - image.width())/2;
-    let y = (window.height() - image.height())/2;
+    let x = (window.width() - image.width()) / 2;
+    let y = (window.height() - image.height()) / 2;
     image.draw(window, x as i32, y as i32);
     window.sync();
 }
@@ -59,15 +59,21 @@ fn main() {
 
     match Image::from_path(&path) {
         Ok(image) => {
-            let (display_width, display_height) = orbclient::get_display_size().expect("viewer: failed to get display size");
+            let (display_width, display_height) =
+                orbclient::get_display_size().expect("viewer: failed to get display size");
 
-            let (width, height, scale) = find_scale(&image, display_width * 4/5, display_height * 4/5);
+            let (width, height, scale) =
+                find_scale(&image, display_width * 4 / 5, display_height * 4 / 5);
 
             let mut window = Window::new_flags(
-                -1, -1, max(320, width), max(240, height),
+                -1,
+                -1,
+                max(320, width),
+                max(240, height),
                 &format!("{} - {:.1}% - Viewer", path, scale * 100.0),
-                &[WindowFlag::Resizable]
-            ).unwrap();
+                &[WindowFlag::Resizable],
+            )
+            .unwrap();
 
             let mut scaled_image = image.clone();
             let mut resize = Some((window.width(), window.height()));
@@ -80,7 +86,9 @@ fn main() {
                     } else if width == image.width() && height == image.height() {
                         scaled_image = image.clone();
                     } else {
-                        scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3).unwrap();
+                        scaled_image = image
+                            .resize(width, height, orbimage::ResizeType::Lanczos3)
+                            .unwrap();
                     }
 
                     window.set_title(&format!("{} - {:.1}% - Viewer", path, scale * 100.0));
@@ -92,18 +100,24 @@ fn main() {
                     match event.to_option() {
                         EventOption::Resize(resize_event) => {
                             resize = Some((resize_event.width, resize_event.height));
-                        },
+                        }
                         EventOption::Quit(_) => return,
-                        _ => ()
+                        _ => (),
                     }
                 }
             }
-        },
+        }
         Err(err) => {
             let msg = err.to_string();
 
-            let mut window = Window::new(-1, -1, max(320, msg.len() as u32 * 8), 32,
-                                         &format!("{} - Viewer", path)).unwrap();
+            let mut window = Window::new(
+                -1,
+                -1,
+                max(320, msg.len() as u32 * 8),
+                32,
+                &format!("{} - Viewer", path),
+            )
+            .unwrap();
 
             window.set(Color::rgb(255, 255, 255));
 
