@@ -8,7 +8,7 @@ fn main() {
 }
 
 #[cfg(feature = "slint-default")]
-fn main() { 
+fn main() {
     coop_widgets::generate_import().unwrap();
     slint_build::compile("ui/app.slint").unwrap();
 }
