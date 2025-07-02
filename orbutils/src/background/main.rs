@@ -206,105 +206,104 @@ fn main() {
 
     let mode = BackgroundMode::from_str(&args.next().unwrap_or_default());
 
-    match Image::from_path(&path).map(Rc::new) {
-        Ok(image) => {
-            let event_queue =
-                RawEventQueue::new().expect("background: failed to create event queue");
-
-            let mut handlers = HashMap::<usize, Box<dyn FnMut()>>::new();
-
-            for display in get_display_rects().expect("background: failed to get display rects") {
-                let mut window = Window::new_flags(
-                    display.x,
-                    display.y,
-                    display.width,
-                    display.height,
-                    "",
-                    &[
-                        WindowFlag::Async,
-                        WindowFlag::Back,
-                        WindowFlag::Borderless,
-                        WindowFlag::Unclosable,
-                    ],
-                )
-                .unwrap();
-
-                let image = image.clone();
-                let mut scaled_image = (*image).clone();
-                let mut resize = Some((display.width, display.height));
-
-                event_queue
-                    .subscribe(
-                        window.as_raw_fd() as usize,
-                        window.as_raw_fd() as usize,
-                        event::EventFlags::READ,
-                    )
-                    .expect("background: failed to add event");
-
-                let window_raw_fd = window.as_raw_fd();
-                let mut handler: Box<dyn FnMut()> = Box::new(move || {
-                    for event in window.events() {
-                        match event.to_option() {
-                            EventOption::Resize(resize_event) => {
-                                resize = Some((resize_event.width, resize_event.height));
-                            }
-                            EventOption::Screen(screen_event) => {
-                                window.set_size(screen_event.width, screen_event.height);
-                                resize = Some((screen_event.width, screen_event.height));
-                            }
-                            _ => (),
-                        }
-                    }
-
-                    if let Some((w, h)) = resize.take() {
-                        let (width, height) = find_scale(&image, mode, w, h);
-
-                        if width == scaled_image.width() && height == scaled_image.height() {
-                            // Do not resize scaled image
-                        } else if width == image.width() && height == image.height() {
-                            scaled_image = (*image).clone();
-                        } else {
-                            scaled_image = image
-                                .resize(width, height, orbimage::ResizeType::Lanczos3)
-                                .unwrap();
-                        }
-
-                        let (crop_x, crop_w) = if width > w {
-                            ((width - w) / 2, w)
-                        } else {
-                            (0, width)
-                        };
-
-                        let (crop_y, crop_h) = if height > h {
-                            ((height - h) / 2, h)
-                        } else {
-                            (0, height)
-                        };
-
-                        window.set(Color::rgb(0, 0, 0));
-
-                        let x = (w as i32 - crop_w as i32) / 2;
-                        let y = (h as i32 - crop_h as i32) / 2;
-                        scaled_image
-                            .roi(crop_x, crop_y, crop_w, crop_h)
-                            .draw(&mut window, x, y);
-
-                        window.sync();
-                    }
-                });
-                handler();
-                handlers.insert(window_raw_fd as usize, handler);
-            }
-
-            for event in event_queue.map(|e| e.expect("background: failed to get next event")) {
-                let Some(handler) = handlers.get_mut(&event.fd) else {
-                    continue;
-                };
-                (*handler)();
-            }
-        }
+    let image = match Image::from_path(&path).map(Rc::new) {
+        Ok(image) => image,
         Err(err) => {
             error!("error loading {}: {}", path, err);
+            return;
         }
+    };
+    let event_queue = RawEventQueue::new().expect("background: failed to create event queue");
+
+    let mut handlers = HashMap::<usize, Box<dyn FnMut()>>::new();
+
+    for display in get_display_rects().expect("background: failed to get display rects") {
+        let mut window = Window::new_flags(
+            display.x,
+            display.y,
+            display.width,
+            display.height,
+            "",
+            &[
+                WindowFlag::Async,
+                WindowFlag::Back,
+                WindowFlag::Borderless,
+                WindowFlag::Unclosable,
+            ],
+        )
+        .unwrap();
+
+        let image = image.clone();
+        let mut scaled_image = (*image).clone();
+        let mut resize = Some((display.width, display.height));
+
+        event_queue
+            .subscribe(
+                window.as_raw_fd() as usize,
+                window.as_raw_fd() as usize,
+                event::EventFlags::READ,
+            )
+            .expect("background: failed to add event");
+
+        let window_raw_fd = window.as_raw_fd();
+        let mut handler: Box<dyn FnMut()> = Box::new(move || {
+            for event in window.events() {
+                match event.to_option() {
+                    EventOption::Resize(resize_event) => {
+                        resize = Some((resize_event.width, resize_event.height));
+                    }
+                    EventOption::Screen(screen_event) => {
+                        window.set_size(screen_event.width, screen_event.height);
+                        resize = Some((screen_event.width, screen_event.height));
+                    }
+                    _ => (),
+                }
+            }
+
+            if let Some((w, h)) = resize.take() {
+                let (width, height) = find_scale(&image, mode, w, h);
+
+                if width == scaled_image.width() && height == scaled_image.height() {
+                    // Do not resize scaled image
+                } else if width == image.width() && height == image.height() {
+                    scaled_image = (*image).clone();
+                } else {
+                    scaled_image = image
+                        .resize(width, height, orbimage::ResizeType::Lanczos3)
+                        .unwrap();
+                }
+
+                let (crop_x, crop_w) = if width > w {
+                    ((width - w) / 2, w)
+                } else {
+                    (0, width)
+                };
+
+                let (crop_y, crop_h) = if height > h {
+                    ((height - h) / 2, h)
+                } else {
+                    (0, height)
+                };
+
+                window.set(Color::rgb(0, 0, 0));
+
+                let x = (w as i32 - crop_w as i32) / 2;
+                let y = (h as i32 - crop_h as i32) / 2;
+                scaled_image
+                    .roi(crop_x, crop_y, crop_w, crop_h)
+                    .draw(&mut window, x, y);
+
+                window.sync();
+            }
+        });
+        handler();
+        handlers.insert(window_raw_fd as usize, handler);
+    }
+
+    for event in event_queue.map(|e| e.expect("background: failed to get next event")) {
+        let Some(handler) = handlers.get_mut(&event.fd) else {
+            continue;
+        };
+        (*handler)();
     }
 }
