@@ -13,7 +13,6 @@ use std::{
     env,
     fs::File,
     os::unix::io::{AsRawFd, FromRawFd, RawFd},
-    rc::Rc,
 };
 
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
@@ -206,7 +205,7 @@ fn main() {
 
     let mode = BackgroundMode::from_str(&args.next().unwrap_or_default());
 
-    let image = match Image::from_path(&path).map(Rc::new) {
+    let image = &match Image::from_path(&path) {
         Ok(image) => image,
         Err(err) => {
             error!("error loading {}: {}", path, err);
@@ -233,8 +232,7 @@ fn main() {
         )
         .unwrap();
 
-        let image = image.clone();
-        let mut scaled_image = (*image).clone();
+        let mut scaled_image = image.clone();
         let mut resize = Some((display.width, display.height));
 
         event_queue
@@ -266,7 +264,7 @@ fn main() {
                 if width == scaled_image.width() && height == scaled_image.height() {
                     // Do not resize scaled image
                 } else if width == image.width() && height == image.height() {
-                    scaled_image = (*image).clone();
+                    scaled_image = image.clone();
                 } else {
                     scaled_image = image
                         .resize(width, height, orbimage::ResizeType::Lanczos3)
