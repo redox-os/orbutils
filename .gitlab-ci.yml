@@ -10,7 +10,7 @@ fmt:
       - rustup component add rustfmt
       - rustfmt --check
 
-# TODO: Winit patch broke on Linux, switch to upstream and try remove this
+# TODO: Winit patch broke on Linux, try uncomment this after switching to upstream someday
 #build:linux:
 #  stage: build
 #  before_script:
