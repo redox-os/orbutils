@@ -14,7 +14,7 @@ build:linux:
   stage: build
   before_script:
     - apt-get update
-    - apt-get install cmake libsdl2-dev libfreetype6-dev libexpat1-dev -y
+    - apt-get install cmake fontconfig libsdl2-dev libfreetype6-dev libexpat1-dev -y
   script:
     - cargo +nightly build --bin background
     - cargo +nightly build --bin launcher
@@ -25,6 +25,9 @@ build:linux:
 
 build:redox:
   stage: build
+  before_script:
+    - apt-get update
+    - apt-get install fontconfig
   script:
     - redoxer build --bin background
     - redoxer build --bin launcher
