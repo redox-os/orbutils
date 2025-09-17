@@ -1,23 +1,34 @@
+image: "redoxos/redoxer"
+
+stages:
+  - host
+  - build
+
+fmt:
+  stage: host
+  script:
+      - rustup component add rustfmt
+      - rustfmt --check
+
 build:linux:
-  image: "redoxos/redoxer"
+  stage: build
   before_script:
     - apt-get update
     - apt-get install cmake libsdl2-dev libfreetype6-dev libexpat1-dev -y
   script:
+    - cargo +nightly build --bin background
+    - cargo +nightly build --bin launcher
+    - cargo +nightly build --bin orblogin
     - cargo +nightly build --bin calendar
-    - cargo +nightly build --bin character_map
-    - cargo +nightly build --bin editor
-    - cargo +nightly build --bin file_manager
+    - cargo +nightly build --bin calculator
     - cargo +nightly build --bin viewer
 
-test:linux:
-  image: "redoxos/redoxer"
-  before_script:
-    - apt-get update
-    - apt-get install cmake libsdl2-dev libfreetype6-dev libexpat1-dev -y
+build:redox:
+  stage: build
   script:
-    - cargo +nightly test --bin calendar
-    - cargo +nightly test --bin character_map
-    - cargo +nightly test --bin editor
-    - cargo +nightly test --bin file_manager
-    - cargo +nightly test --bin viewer
+    - redoxer build --bin background
+    - redoxer build --bin launcher
+    - redoxer build --bin orblogin
+    - redoxer build --bin calendar
+    - redoxer build --bin calculator
+    - redoxer build --bin viewer
