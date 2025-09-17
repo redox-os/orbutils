@@ -27,7 +27,7 @@ build:redox:
   stage: build
   before_script:
     - apt-get update
-    - apt-get install libfontconfig
+    - apt-get install libfontconfig -y
   script:
     - redoxer build --bin background
     - redoxer build --bin launcher
