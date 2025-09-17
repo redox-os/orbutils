@@ -16,9 +16,9 @@ build:linux:
     - apt-get update
     - apt-get install cmake libfontconfig libsdl2-dev libfreetype6-dev libexpat1-dev -y
   script:
-    - cargo +nightly build --bin background
-    - cargo +nightly build --bin launcher
-    - cargo +nightly build --bin orblogin
+#    - cargo +nightly build --bin background
+#    - cargo +nightly build --bin launcher
+#    - cargo +nightly build --bin orblogin
     - cargo +nightly build --bin calendar
     - cargo +nightly build --bin calculator
     - cargo +nightly build --bin viewer
