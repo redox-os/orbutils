@@ -3,15 +3,15 @@ extern crate orbclient;
 extern crate orbtk;
 extern crate redox_log;
 
-use chrono::prelude::*;
 use chrono::Duration;
+use chrono::prelude::*;
 use orbtk::theme::Theme;
 use orbtk::traits::{Click, Place, Text};
 use orbtk::{Button, Grid, Label, Rect, Style, Window, WindowBuilder};
 use redox_log::{OutputBuilder, RedoxLogger};
 use std::ops::{Add, Sub};
-use std::sync::mpsc::{channel, Receiver};
 use std::sync::Arc;
+use std::sync::mpsc::{Receiver, channel};
 
 static CALENDAR_THEME_CSS: &'static str = include_str!("theme.css");
 
