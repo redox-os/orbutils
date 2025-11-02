@@ -60,7 +60,7 @@ impl Icon {
 
     pub fn image(&mut self) -> &Image {
         if self.image_opt.is_none() {
-            log::info!("loading {:?}", self.source);
+            log::debug!("loading {:?}", self.source);
             self.image_opt = if let Some(path) = self.source.lookup(self.small) {
                 if path.extension() == Some(OsStr::new("png")) {
                     Some(if self.small {
