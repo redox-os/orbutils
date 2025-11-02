@@ -215,7 +215,7 @@ fn main() {
     let _ = RedoxLogger::new()
         .with_output(
             OutputBuilder::stdout()
-                .with_filter(log::LevelFilter::Debug)
+                .with_filter(log::LevelFilter::Warn)
                 .with_ansi_escape_codes()
                 .build(),
         )
