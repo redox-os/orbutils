@@ -519,7 +519,7 @@ impl Bar {
                         draw_chooser(&mut start_window, &self.font, packages, selected);
                     }
 
-                    if !mouse_left && last_mouse_left {
+                    if mouse_left && !last_mouse_left {
                         let mut y = 0;
                         for package_i in 0..packages.len() {
                             if mouse_y >= y && mouse_y < y + icon_small_size() {
@@ -759,7 +759,7 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
                             bar.draw();
                         }
 
-                        if !mouse_left && last_mouse_left {
+                        if mouse_left && !last_mouse_left {
                             let mut i = 0;
 
                             if i == bar.selected {
