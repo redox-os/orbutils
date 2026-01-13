@@ -361,7 +361,7 @@ fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Result<Option<C
                     btn_color_inactive
                 };
 
-                if keymap_state.is_available() {
+                {
                     window.rect(
                         keymap_btn_x,
                         keymap_btn_y,
