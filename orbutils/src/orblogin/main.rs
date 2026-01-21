@@ -97,7 +97,7 @@ fn login_command(
     pass: &str,
     launcher_cmd: &str,
     launcher_args: &[String],
-) -> Option<Command> {
+) -> Option<(Command, String)> {
     let sys_users = match AllUsers::authenticator(Config::default()) {
         Ok(users) => users,
         // Not maybe the best thing to do...
@@ -112,7 +112,7 @@ fn login_command(
                     command.arg(&arg);
                 }
 
-                Some(command)
+                Some((command, user.user.clone()))
             } else {
                 None
             }
@@ -121,7 +121,10 @@ fn login_command(
     }
 }
 
-fn login_window(launcher_cmd: &str, launcher_args: &[String]) -> Result<Option<Command>, String> {
+fn login_window(
+    launcher_cmd: &str,
+    launcher_args: &[String],
+) -> Result<Option<(Command, String)>, String> {
     let font = Font::find(Some("Sans"), None, None)?;
 
     let image_mode = BackgroundMode::from_str("zoom");
@@ -725,15 +728,121 @@ fn main() -> io::Result<()> {
 
     loop {
         match login_window(&launcher_cmd, &launcher_args) {
-            Ok(Some(mut command)) => match command.spawn() {
-                Ok(mut child) => match child.wait() {
-                    Ok(_) => (),
-                    Err(err) => error!("failed to wait for '{}': {}", launcher_cmd, err),
-                },
-                Err(err) => error!("failed to execute '{}': {}", launcher_cmd, err),
-            },
+            Ok(Some((mut command, username))) => {
+                #[cfg(target_os = "redox")]
+                let before_ns_fd = {
+                    let Ok(before_ns_fd) =
+                        redox::apply_login_schemes(username, &redox::DEFAULT_SCHEMES)
+                    else {
+                        continue;
+                    };
+                    let _ =
+                        syscall::fcntl(before_ns_fd.raw(), syscall::F_SETFD, syscall::O_CLOEXEC);
+                    before_ns_fd
+                };
+                match command.spawn() {
+                    Ok(mut child) => match child.wait() {
+                        Ok(_) => (),
+                        Err(err) => error!("failed to wait for '{}': {}", launcher_cmd, err),
+                    },
+                    Err(err) => error!("failed to execute '{}': {}", launcher_cmd, err),
+                }
+                #[cfg(target_os = "redox")]
+                {
+                    let _ = syscall::fcntl(before_ns_fd.raw(), syscall::F_SETFD, 0);
+                    let _ = libredox::call::close(
+                        libredox::call::setns(before_ns_fd.into_raw())
+                            .expect("failed to restore namespace"),
+                    );
+                }
+            }
             Ok(None) => info!("login completed without a command"),
             Err(e) => error!("{}", e),
         }
+    }
+}
+
+// TODO: Move to redox_users once the definition solidifies.
+#[cfg(target_os = "redox")]
+mod redox {
+    use serde::{Deserialize, Serialize};
+    use std::collections::BTreeMap;
+    use std::fs;
+
+    pub const DEFAULT_SCHEMES: [&'static str; 27] = [
+        // Kernel schemes
+        "debug",
+        "event",
+        "memory",
+        "pipe",
+        "serio",
+        "irq",
+        "time",
+        "sys",
+        // Base schemes
+        "rand",
+        "null",
+        "zero",
+        "log",
+        // Network schemes
+        "ip",
+        "icmp",
+        "tcp",
+        "udp",
+        // IPC schemes
+        "shm",
+        "chan",
+        "uds_stream",
+        "uds_dgram",
+        // File schemes
+        "file",
+        // Display schemes
+        "display.vesa",
+        "display*",
+        // Other schemes
+        "pty",
+        "sudo",
+        "audio",
+        "orbital",
+    ];
+
+    const LOGIN_SCHEMES_FILE: &'static str = "/etc/login_schemes.toml";
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct UserSchemeConfig {
+        pub schemes: Vec<String>,
+    }
+
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    struct LoginConfig {
+        #[serde(rename = "user_schemes")]
+        pub user_schemes: BTreeMap<String, UserSchemeConfig>,
+    }
+
+    pub fn apply_login_schemes(
+        user: String,
+        default_schemes: &[&str],
+    ) -> libredox::error::Result<libredox::Fd> {
+        let schemes = match load_config_schemes(&user) {
+            Some(s) => s,
+            _ => default_schemes.iter().map(|s| s.to_string()).collect(),
+        };
+
+        let mut names: Vec<ioslice::IoSlice> = Vec::with_capacity(schemes.len());
+        for scheme in schemes.iter() {
+            names.push(ioslice::IoSlice::new(scheme.as_bytes()));
+        }
+
+        let ns_fd = libredox::call::mkns(&names)?;
+        let before_ns_fd = libredox::Fd::new(libredox::call::setns(ns_fd)?);
+
+        Ok(before_ns_fd)
+    }
+
+    fn load_config_schemes(user: &str) -> Option<Vec<String>> {
+        let config_str = fs::read_to_string(LOGIN_SCHEMES_FILE).ok()?;
+        let config: LoginConfig = toml::from_str(&config_str).ok()?;
+
+        config.user_schemes.get(user).map(|cfg| cfg.schemes.clone())
     }
 }
