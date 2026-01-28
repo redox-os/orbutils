@@ -53,6 +53,8 @@ redox-log = "0.1"
 log = "0.4.14"
 dirs = "5.0.0"
 libc = "0.2.50"
+image = "0.24"
+xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
 
 [target.'cfg(not(target_os = "redox"))'.dependencies]
 libc = "0.2.50"
