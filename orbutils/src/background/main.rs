@@ -1,19 +1,16 @@
-extern crate dirs;
-extern crate event;
-extern crate libredox;
-extern crate log;
-extern crate orbclient;
-extern crate orbimage;
-extern crate redox_log;
-
+use image::RgbaImage;
 use libredox::flag;
-use log::error;
+use log::{error, warn};
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     env,
-    fs::File,
+    fs::{self, File},
     os::unix::io::{AsRawFd, FromRawFd, RawFd},
+    path::PathBuf,
+    sync::Mutex,
+    time::SystemTime,
 };
+use xxhash_rust::const_xxh3::xxh3_64;
 
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbimage::Image;
@@ -107,6 +104,122 @@ fn find_background() -> String {
     }
 
     "/ui/background.jpg".to_string()
+}
+
+/// returns the cache path and cache hash
+fn get_cached_background(path: &str, mode: BackgroundMode, w: u32, h: u32) -> Option<PathBuf> {
+    let cache_dir = dirs::cache_dir()?.join("backgrounds");
+
+    if !cache_dir.is_dir() {
+        if let Err(e) = fs::create_dir_all(&cache_dir) {
+            warn!("Unable to create cache directory: {e:?}");
+            return None;
+        }
+    }
+
+    let mtime = fs::metadata(path)
+        .and_then(|meta| meta.modified())
+        .unwrap_or(SystemTime::UNIX_EPOCH)
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+
+    let input = format!("{}:{}:{:?}:{}x{}", path, mtime, mode, w, h);
+    let hash = xxh3_64(input.as_bytes());
+
+    Some(cache_dir.join(format!("{:x}.bmp", hash)))
+}
+
+static CACHED_IMAGES: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
+
+fn scale_and_cache(
+    source: &str,
+    mode: BackgroundMode,
+    w: u32,
+    h: u32,
+    should_cache: bool,
+) -> Result<Image, String> {
+    let cache_path = get_cached_background(source, mode, w, h);
+
+    if let Some(ref path) = cache_path {
+        if path.exists() {
+            if let Ok(mut cached_images) = CACHED_IMAGES.lock() {
+                if let Some(name) = path.file_name().map(|x| x.to_string_lossy()) {
+                    cached_images.insert(name.to_string());
+                }
+            }
+            if let Ok(img) = Image::from_path(path) {
+                return Ok(img);
+            }
+        }
+    }
+
+    let original = Image::from_path(source)?;
+
+    let (width, height) = find_scale(&original, mode, w, h);
+
+    let scaled = if width == original.width() && height == original.height() {
+        original
+    } else {
+        original
+            .resize(width, height, orbimage::ResizeType::Lanczos3)
+            .unwrap()
+    };
+
+    if should_cache {
+        if let Some(path) = cache_path {
+            let width = scaled.width();
+            let height = scaled.height();
+            let data = scaled.data();
+
+            let mut rgba_bytes = Vec::with_capacity((width * height * 4) as usize);
+            for color in data.iter() {
+                rgba_bytes.extend_from_slice(&[color.r(), color.g(), color.b(), color.a()]);
+            }
+
+            if let Some(img_buffer) = RgbaImage::from_raw(width, height, rgba_bytes) {
+                if let Err(err) = img_buffer.save(&path) {
+                    warn!("Unable to write background cache: {err:?}");
+                } else {
+                    if let Ok(mut cached_images) = CACHED_IMAGES.lock() {
+                        if let Some(name) = path.file_name().map(|x| x.to_string_lossy()) {
+                            cached_images.insert(name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(scaled)
+}
+
+fn remove_unused_cache() -> std::io::Result<()> {
+    let Some(cache_dir) = dirs::cache_dir().map(|x| x.join("backgrounds")) else {
+        return Ok(());
+    };
+
+    if !cache_dir.is_dir() {
+        return Ok(());
+    }
+
+    let paths = fs::read_dir(&cache_dir)?;
+
+    let Ok(cached_images) = CACHED_IMAGES.lock() else {
+        return Ok(());
+    };
+
+    for path in paths {
+        let Ok(path) = path else {
+            continue;
+        };
+        let name = path.file_name().to_string_lossy().to_string();
+        if !cached_images.contains(&name) {
+            fs::remove_file(path.path())?;
+        }
+    }
+
+    Ok(())
 }
 
 fn get_full_url(path: &str) -> Result<String, String> {
@@ -208,6 +321,7 @@ fn main() {
     let event_queue = RawEventQueue::new().expect("background: failed to create event queue");
 
     let mut handlers = HashMap::<usize, Box<dyn FnMut()>>::new();
+    let mut should_cache = true;
 
     for display in get_display_rects().expect("background: failed to get display rects") {
         let mut window = Window::new_flags(
@@ -236,6 +350,7 @@ fn main() {
             .expect("background: failed to add event");
 
         let window_raw_fd = window.as_raw_fd();
+
         let mut handler: Box<dyn FnMut()> = Box::new(move || {
             for event in window.events() {
                 match event.to_option() {
@@ -251,23 +366,14 @@ fn main() {
             }
 
             if let Some((w, h)) = resize.take() {
-                let image = match Image::from_path(&path) {
+                let scaled_image = match scale_and_cache(&path, mode, w, h, should_cache) {
                     Ok(image) => image,
                     Err(err) => {
                         error!("error loading {}: {}", path, err);
                         return;
                     }
                 };
-
-                let (width, height) = find_scale(&image, mode, w, h);
-
-                let scaled_image = if width == image.width() && height == image.height() {
-                    image
-                } else {
-                    image
-                        .resize(width, height, orbimage::ResizeType::Lanczos3)
-                        .unwrap()
-                };
+                let (width, height) = (scaled_image.width(), scaled_image.height());
 
                 let (crop_x, crop_w) = if width > w {
                     ((width - w) / 2, w)
@@ -294,6 +400,12 @@ fn main() {
         });
         handler();
         handlers.insert(window_raw_fd as usize, handler);
+    }
+
+    should_cache = false;
+
+    if let Err(err) = remove_unused_cache() {
+        warn!("Unable to clear background cache {:?}", err);
     }
 
     for event in event_queue.map(|e| e.expect("background: failed to get next event")) {
