@@ -10,12 +10,11 @@ Some of the applications in this crate can be developed and ran across multiple 
 (namely redox-os, linux and macos) thanks to the display being rendered via the `orbclient` crate which in turn uses
 `sdl2`
 
-There are three applications that are more fundamental to redox-os, that interact with orbital more directly and are
+There are two applications that are more fundamental to redox-os, that interact with orbital more directly and are
 (currently) deemed to not make sense on other platforms that are running other windowing systems or display managers.
 These are namely:
 - launcher
 - orblogin
-- background
 
 ## Quick setup
 
@@ -46,16 +45,16 @@ cargo run --bin calculator
 ## How to run Slint ports
 
 For the `Slint` ports `SDL2` is not necessary. On `Redox` the port will run with
-[slint_orbclient](https://gitlab.redox-os.org/redox-os/slint_orbclient) backend and on other platforms Slint will 
-choose a suitable e.g. `winit` or `qt`. 
+[slint_orbclient](https://gitlab.redox-os.org/redox-os/slint_orbclient) backend and on other platforms Slint will
+choose a suitable e.g. `winit` or `qt`.
 
 To can use the `slint_orbclient` also on other platform you can run for example
 `cargo run --bin calculator --no-default-features --features=orbclient`
 
 ## Current project status
 
-After the sunset of [OrbTk](https://gitlab.redox-os.org/redox-os/orbtk) the `OrbUtils` will be 
-ported [Slint](https://slint-ui.com). 
+After the sunset of [OrbTk](https://gitlab.redox-os.org/redox-os/orbtk) the `OrbUtils` will be
+ported [Slint](https://slint-ui.com).
 With this also a new CI pipeline for GitLab will be used.
 
 ### Slint ports done

@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::process::Command;
 
 #[derive(Clone)]
 pub struct KeymapState {
