@@ -101,22 +101,32 @@ fn wait(status: &mut i32) -> io::Result<usize> {
 
     let pid = unsafe { libc::waitpid(0, status as *mut i32, libc::WNOHANG) };
     if pid < 0 {
-        Err(io::Error::new(
+        let err = Error::last_os_error();
+        if err.raw_os_error() == Some(libc::ECHILD) {
+            return Ok(0);
+        }
+        return Err(io::Error::new(
             ErrorKind::Other,
-            format!("waitpid failed: {}", Error::last_os_error()),
-        ))
+            format!("waitpid failed: {}", err),
+        ));
     }
     Ok(pid as usize)
 }
 
 #[cfg(target_os = "redox")]
 fn wait(status: &mut i32) -> io::Result<usize> {
-    libredox::call::waitpid(0, status, libc::WNOHANG).map_err(|e| {
-        io::Error::new(
-            ErrorKind::Other,
-            format!("Error in waitpid(): {}", e.to_string()),
-        )
-    })
+    match libredox::call::waitpid(0, status, libc::WNOHANG) {
+        Ok(t) => Ok(t),
+        Err(err) => {
+            if err.errno() == libredox::errno::ECHILD {
+                return Ok(0);
+            }
+            Err(io::Error::new(
+                ErrorKind::Other,
+                format!("Error in waitpid(): {}", err.to_string()),
+            ))
+        }
+    }
 }
 
 fn size_icon(icon: Image, small: bool) -> Image {
@@ -589,7 +599,7 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
     let mut mouse_left = false;
     let mut last_mouse_left = false;
 
-    let all_events = core::array::IntoIter::new([Event::Time, Event::Window]);
+    let all_events = [Event::Time, Event::Window].into_iter();
 
     'events: for event in all_events
         .chain(event_queue.map(|e| e.expect("launcher: failed to get next event").user_data))
@@ -814,7 +824,12 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
     // kill any descendents of one of the children killed above that are still running
     debug!("Launcher exiting, reaping all zombie processes");
     let mut status = 0;
-    while wait(&mut status).is_ok() {}
+    loop {
+        match wait(&mut status) {
+            Ok(0) | Err(_) => break,
+            Ok(_) => {}
+        }
+    }
 
     Ok(())
 }
