@@ -1,5 +1,0 @@
-name=Calculator
-binary=/usr/bin/calculator
-icon=/ui/icons/apps/accessories-calculator.png
-author=Jeremy Soller
-description=Calculator for Redox
