@@ -564,11 +564,6 @@ impl Bar {
 fn bar_main(width: u32, height: u32) -> io::Result<()> {
     let mut bar = Bar::new(width, height);
 
-    match Command::new("background").spawn() {
-        Ok(child) => bar.children.push(("background".to_string(), child)),
-        Err(err) => error!("failed to launch background: {}", err),
-    }
-
     user_data! {
         enum Event {
             Time,
