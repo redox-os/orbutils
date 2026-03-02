@@ -997,7 +997,6 @@ dependencies = [
 name = "orbutils"
 version = "0.1.16"
 dependencies = [
- "chrono",
  "dirs",
  "image 0.24.9",
  "ioslice",
