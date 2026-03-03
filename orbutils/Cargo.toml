@@ -16,11 +16,6 @@ path = "src/background/main.rs"
 name = "orblogin"
 path = "src/orblogin/main.rs"
 
-# Deprecated
-#[[bin]]
-#name = "character_map"
-#path = "src/character_map/main.rs"
-
 # Deprecated in favor of cosmic-edit
 #[[bin]]
 #name = "editor"
@@ -35,13 +30,7 @@ path = "src/orblogin/main.rs"
 name = "viewer"
 path = "src/viewer/main.rs"
 
-[[bin]]
-name = "calendar"
-path = "src/calendar/main.rs"
-
 [dependencies]
-calculate = { git = "https://gitlab.redox-os.org/redox-os/calc.git" }
-chrono = "0.4.6"
 mime_guess = "1.8.6"
 mime = "0.2.6"
 orbclient = "0.3.50"

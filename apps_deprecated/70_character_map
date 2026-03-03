@@ -1,6 +1,0 @@
-name=Character Map
-binary=/usr/bin/character_map
-icon=/ui/icons/apps/accessories-character-map.png
-accept=*.ttf
-author=Jeremy Soller
-description=Character Map for Redox
