@@ -496,6 +496,15 @@ fn login_window(
 
         for event in window.events() {
             match event.to_option() {
+                EventOption::TextInput(key_event) => {
+                    if item == 0 {
+                        username.push(key_event.character);
+                    } else if item == 1 {
+                        password.push(key_event.character);
+                    }
+
+                    redraw = true;
+                }
                 EventOption::Key(key_event) => {
                     if key_event.pressed {
                         if keymap_dropdown_open || power_dropdown_open {
@@ -556,18 +565,7 @@ fn login_window(
 
                                 redraw = true;
                             }
-                            _ => match key_event.character {
-                                '\0' => (),
-                                _ => {
-                                    if item == 0 {
-                                        username.push(key_event.character);
-                                    } else if item == 1 {
-                                        password.push(key_event.character);
-                                    }
-
-                                    redraw = true;
-                                }
-                            },
+                            _ => {}
                         }
                     }
                 }
