@@ -734,8 +734,11 @@ fn main() -> io::Result<()> {
                     else {
                         continue;
                     };
-                    let _ =
-                        syscall::fcntl(before_ns_fd.raw(), syscall::F_SETFD, syscall::O_CLOEXEC);
+                    let _ = libredox::call::fcntl(
+                        before_ns_fd.raw(),
+                        syscall::F_SETFD,
+                        libredox::flag::O_CLOEXEC as usize,
+                    );
                     before_ns_fd
                 };
                 match command.spawn() {
@@ -747,7 +750,7 @@ fn main() -> io::Result<()> {
                 }
                 #[cfg(target_os = "redox")]
                 {
-                    let _ = syscall::fcntl(before_ns_fd.raw(), syscall::F_SETFD, 0);
+                    let _ = libredox::call::fcntl(before_ns_fd.raw(), syscall::F_SETFD, 0);
                     let _ = libredox::call::close(
                         libredox::call::setns(before_ns_fd.into_raw())
                             .expect("failed to restore namespace"),
