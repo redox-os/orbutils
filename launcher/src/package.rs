@@ -5,7 +5,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::Ordering;
 
-use orbimage::Image;
+use orbclient::image::Image;
 
 use super::{load_icon, load_icon_small, load_icon_svg};
 
@@ -63,11 +63,11 @@ impl Icon {
             log::debug!("loading {:?}", self.source);
             self.image_opt = if let Some(path) = self.source.lookup(self.small) {
                 if path.extension() == Some(OsStr::new("png")) {
-                    Some(if self.small {
+                    if self.small {
                         load_icon_small(&path)
                     } else {
                         load_icon(&path)
-                    })
+                    }
                 } else if path.extension() == Some(OsStr::new("svg")) {
                     load_icon_svg(&path, self.small)
                 } else {
@@ -78,7 +78,7 @@ impl Icon {
             };
             if self.image_opt.is_none() {
                 println!("failed to load icon {:?}", self.source);
-                self.image_opt = Some(Image::default());
+                self.image_opt = Some(Image::new(0, 0));
             }
         }
         self.image_opt.as_ref().unwrap()

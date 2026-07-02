@@ -12,8 +12,8 @@ use std::{
 };
 use xxhash_rust::const_xxh3::xxh3_64;
 
-use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
-use orbimage::Image;
+use orbclient::image::{Image, ImageError};
+use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, rect::Rect};
 use redox_log::{OutputBuilder, RedoxLogger};
 
 use event::RawEventQueue;
@@ -103,7 +103,7 @@ fn find_background() -> String {
         _ => (),
     }
 
-    "/ui/background.jpg".to_string()
+    "/usr/share/ui/background.jpg".to_string()
 }
 
 /// returns the cache path and cache hash
@@ -138,7 +138,7 @@ fn scale_and_cache(
     w: u32,
     h: u32,
     should_cache: bool,
-) -> Result<Image, String> {
+) -> Result<Image, ImageError> {
     let cache_path = get_cached_background(source, mode, w, h);
 
     if let Some(ref path) = cache_path {
@@ -161,9 +161,7 @@ fn scale_and_cache(
     let scaled = if width == original.width() && height == original.height() {
         original
     } else {
-        original
-            .resize(width, height, orbimage::ResizeType::Lanczos3)
-            .unwrap()
+        original.resize(width, height, orbclient::image::ResizeType::Lanczos3)
     };
 
     if should_cache {
@@ -373,16 +371,17 @@ fn main() {
                         return;
                     }
                 };
+                should_cache = false;
                 let (width, height) = (scaled_image.width(), scaled_image.height());
 
                 let (crop_x, crop_w) = if width > w {
-                    ((width - w) / 2, w)
+                    ((width as i32 - w as i32) / 2, w)
                 } else {
                     (0, width)
                 };
 
                 let (crop_y, crop_h) = if height > h {
-                    ((height - h) / 2, h)
+                    ((height as i32 - h as i32) / 2, h)
                 } else {
                     (0, height)
                 };
@@ -392,7 +391,7 @@ fn main() {
                 let x = (w as i32 - crop_w as i32) / 2;
                 let y = (h as i32 - crop_h as i32) / 2;
                 scaled_image
-                    .roi(crop_x, crop_y, crop_w, crop_h)
+                    .roi(&Rect::new(crop_x, crop_y, crop_w, crop_h))
                     .draw(&mut window, x, y);
 
                 window.sync();
@@ -401,8 +400,6 @@ fn main() {
         handler();
         handlers.insert(window_raw_fd as usize, handler);
     }
-
-    should_cache = false;
 
     if let Err(err) = remove_unused_cache() {
         warn!("Unable to clear background cache {:?}", err);
