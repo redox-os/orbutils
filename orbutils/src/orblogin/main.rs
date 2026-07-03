@@ -2,12 +2,13 @@
 #![forbid(clippy::expect_used)]
 
 use log::{error, info};
+use orbclient::rect::Rect;
 use std::process::Command;
 use std::{env, io, str};
 
+use orbclient::image::Image;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
 use orbfont::Font;
-use orbimage::Image;
 use redox_log::{OutputBuilder, RedoxLogger};
 use redox_users::{All, AllUsers, Config};
 
@@ -128,8 +129,8 @@ fn login_window(
     let font = Font::find(Some("Sans"), None, None)?;
 
     let image_mode = BackgroundMode::from_str("zoom");
-    let image_path = "/ui/login.png";
-    let image = Image::from_path(image_path)?;
+    let image_path = "/usr/share/ui/login.png";
+    let image = Image::from_path(image_path).map_err(|_| format!("Cannot load {}", image_path))?;
 
     let (display_width, display_height) = orbclient::get_display_size()?;
     let s_u = (display_height / 1600) + 1;
@@ -193,7 +194,7 @@ fn login_window(
             } else if width == image.width() && height == image.height() {
                 scaled_image = image.clone();
             } else {
-                scaled_image = image.resize(width, height, orbimage::ResizeType::Lanczos3)?;
+                scaled_image = image.resize(width, height, orbclient::image::ResizeType::Lanczos3);
             }
 
             let (crop_x, crop_w) = if width > w {
@@ -213,7 +214,7 @@ fn login_window(
             let x = (w as i32 - crop_w as i32) / 2;
             let y = (h as i32 - crop_h as i32) / 2;
             scaled_image
-                .roi(crop_x, crop_y, crop_w, crop_h)
+                .roi(&Rect::new(crop_x as i32, crop_y as i32, crop_w, crop_h))
                 .draw(&mut window, x, y);
 
             let x = (window.width() as i32 - 216 * s_i) / 2;

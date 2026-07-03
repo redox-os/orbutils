@@ -1,13 +1,10 @@
 #![deny(warnings)]
 
-extern crate orbclient;
-extern crate orbimage;
-
 use std::cmp::max;
 use std::env;
 
+use orbclient::image::Image;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
-use orbimage::Image;
 
 fn find_scale(image: &Image, width: u32, height: u32) -> (u32, u32, f64) {
     let d_w = width as f64;
@@ -45,16 +42,16 @@ fn draw_image(window: &mut Window, image: &Image) {
     }
     */
 
-    let x = (window.width() - image.width()) / 2;
-    let y = (window.height() - image.height()) / 2;
-    image.draw(window, x as i32, y as i32);
+    let x = (window.width() as i32 - image.width() as i32) / 2;
+    let y = (window.height() as i32 - image.height() as i32) / 2;
+    window.image(x, y, image.width(), image.height(), image.data());
     window.sync();
 }
 
 fn main() {
     let path = match env::args().nth(1) {
         Some(arg) => arg,
-        None => "/ui/background.jpg".to_string(),
+        None => "/usr/share/ui/background.jpg".to_string(),
     };
 
     match Image::from_path(&path) {
@@ -86,9 +83,8 @@ fn main() {
                     } else if width == image.width() && height == image.height() {
                         scaled_image = image.clone();
                     } else {
-                        scaled_image = image
-                            .resize(width, height, orbimage::ResizeType::Lanczos3)
-                            .unwrap();
+                        scaled_image =
+                            image.resize(width, height, orbclient::image::ResizeType::Lanczos3);
                     }
 
                     window.set_title(&format!("{} - {:.1}% - Viewer", path, scale * 100.0));

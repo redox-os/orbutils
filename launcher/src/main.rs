@@ -4,7 +4,6 @@ extern crate libredox;
 extern crate log;
 extern crate orbclient;
 extern crate orbfont;
-extern crate orbimage;
 extern crate redox_log;
 
 use event::{user_data, EventQueue};
@@ -21,9 +20,9 @@ use std::process::{Child, Command};
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::{env, io, mem};
 
+use orbclient::image::Image;
 use orbclient::{Color, EventOption, Renderer, Window, WindowFlag, K_ESC};
 use orbfont::Font;
-use orbimage::Image;
 
 use package::{IconSource, Package};
 use theme::{BAR_COLOR, BAR_HIGHLIGHT_COLOR, TEXT_COLOR, TEXT_HIGHLIGHT_COLOR};
@@ -50,7 +49,7 @@ fn icon_small_size() -> i32 {
 }
 
 #[cfg(target_os = "redox")]
-static UI_PATH: &'static str = "/ui";
+static UI_PATH: &'static str = "/usr/share/ui";
 
 #[cfg(not(target_os = "redox"))]
 static UI_PATH: &'static str = "ui";
@@ -138,19 +137,18 @@ fn size_icon(icon: Image, small: bool) -> Image {
     if icon.width() == size && icon.height() == size {
         icon
     } else {
-        icon.resize(size, size, orbimage::ResizeType::Lanczos3)
-            .unwrap()
+        icon.resize(size, size, orbclient::image::ResizeType::Lanczos3)
     }
 }
 
-fn load_icon<P: AsRef<Path>>(path: P) -> Image {
-    let icon = Image::from_path(path).unwrap_or(Image::default());
-    size_icon(icon, false)
+fn load_icon<P: AsRef<Path>>(path: P) -> Option<Image> {
+    let icon = Image::from_path(path).ok()?;
+    Some(size_icon(icon, false))
 }
 
-fn load_icon_small<P: AsRef<Path>>(path: P) -> Image {
-    let icon = Image::from_path(path).unwrap_or(Image::default());
-    size_icon(icon, true)
+fn load_icon_small<P: AsRef<Path>>(path: P) -> Option<Image> {
+    let icon = Image::from_path(path).ok()?;
+    Some(size_icon(icon, true))
 }
 
 lazy_static::lazy_static! {
@@ -182,7 +180,7 @@ fn load_icon_svg<P: AsRef<Path>>(path: P, small: bool) -> Option<Image> {
         data.push(Color::rgba(rgba[0], rgba[1], rgba[2], rgba[3]));
     }
 
-    let icon = Image::from_data(width, height, data.into()).ok()?;
+    let icon = Image::from_data(width, height, data.into())?;
     Some(size_icon(icon, small))
 }
 
@@ -238,7 +236,8 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &mut Vec<Package>, s
             window.rect(0, y, w, icon_small_size() as u32, BAR_HIGHLIGHT_COLOR);
         }
 
-        package.icon_small.image().draw(window, 0, y);
+        let image = package.icon_small.image();
+        window.image(0, y, image.width(), image.height(), image.data());
 
         font.render(&package.name, font_size() as f32).draw(
             window,
@@ -260,7 +259,7 @@ fn draw_chooser(window: &mut Window, font: &Font, packages: &mut Vec<Package>, s
 struct Bar {
     children: Vec<(String, Child)>,
     packages: Vec<Package>,
-    start: Image,
+    start: Option<Image>,
     start_packages: Vec<Package>,
     category_packages: BTreeMap<String, Vec<Package>>,
     font: Font,
@@ -394,20 +393,21 @@ impl Bar {
         let mut y = 0;
         let mut i = 0;
 
-        {
+        if let Some(start) = self.start.as_ref() {
             if i == self.selected {
                 self.window.rect(
                     x as i32,
                     y as i32,
-                    self.start.width() as u32,
-                    self.start.height() as u32,
+                    start.width() as u32,
+                    start.height() as u32,
                     BAR_HIGHLIGHT_COLOR,
                 );
             }
 
-            self.start.draw(&mut self.window, x as i32, y as i32);
+            self.window
+                .image(x, y, start.width(), start.height(), start.data());
 
-            x += self.start.width() as i32;
+            x += start.width() as i32;
             i += 1;
         }
 
@@ -435,7 +435,9 @@ impl Bar {
             }
 
             let image = package.icon.image();
-            image.draw(&mut self.window, x as i32, y as i32);
+
+            self.window
+                .image(x, y, image.width(), image.height(), image.data());
 
             let mut count = 0;
             for (exec, _) in self.children.iter() {
@@ -733,7 +735,7 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
                     if redraw {
                         let mut now_selected = -1;
 
-                        {
+                        if let Some(start) = bar.start.as_ref() {
                             let mut x = 0;
                             let y = 0;
                             let mut i = 0;
@@ -741,11 +743,11 @@ fn bar_main(width: u32, height: u32) -> io::Result<()> {
                             {
                                 if mouse_y >= y
                                     && mouse_x >= x
-                                    && mouse_x < x + bar.start.width() as i32
+                                    && mouse_x < x + start.width() as i32
                                 {
                                     now_selected = i;
                                 }
-                                x += bar.start.width() as i32;
+                                x += start.width() as i32;
                                 i += 1;
                             }
 

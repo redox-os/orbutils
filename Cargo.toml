@@ -4,3 +4,10 @@ members = [
     "launcher",
 ]
 resolver = "2"
+
+[workspace.dependencies]
+orbclient = { version = "0.4.3", features = [ "image" ] }
+orbfont = "0.4"
+libredox = { version = "0.1.18", default-features = false, features = ["std", "call", "mkns"] }
+redox_event = "0.4.8"
+redox_syscall = "0.9.0"

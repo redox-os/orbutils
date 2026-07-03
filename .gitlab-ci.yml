@@ -38,6 +38,4 @@ build:redox:
     - redoxer build --bin background
     - redoxer build --bin launcher
     - redoxer build --bin orblogin
-    - redoxer build --bin calendar
-    - redoxer build --bin calculator
     - redoxer build --bin viewer

@@ -8,13 +8,12 @@ freedesktop_entry_parser = "1"
 freedesktop-icons = "0.2"
 lazy_static = "1"
 libc = "0.2"
-libredox = { version = "0.1.18", default-features = false, features = ["std", "call"] }
+libredox = { workspace = true }
 log = "0.4.14"
-orbclient = "0.3.50"
-orbfont = "0.1"
-orbimage = "0.1"
+orbclient = { workspace = true }
+orbfont = { workspace = true }
 redox-log = "0.1"
-redox_event = "0.4.8"
+redox_event = { workspace = true }
 resvg = "0.44"
 shlex = "1"
 xdg = "2"
