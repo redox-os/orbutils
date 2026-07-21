@@ -14,6 +14,6 @@ orbclient = { workspace = true }
 orbfont = { workspace = true }
 redox-log = "0.1"
 redox_event = { workspace = true }
-resvg = "0.44"
+resvg = "0.47"
 shlex = "1"
 xdg = "2"
