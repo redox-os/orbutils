@@ -175,17 +175,19 @@ fn scale_and_cache(
                 rgba_bytes.extend_from_slice(&[color.r(), color.g(), color.b(), color.a()]);
             }
 
-            if let Some(img_buffer) = RgbaImage::from_raw(width, height, rgba_bytes) {
-                if let Err(err) = img_buffer.save(&path) {
-                    warn!("Unable to write background cache: {err:?}");
-                } else {
-                    if let Ok(mut cached_images) = CACHED_IMAGES.lock() {
-                        if let Some(name) = path.file_name().map(|x| x.to_string_lossy()) {
-                            cached_images.insert(name.to_string());
+            std::thread::spawn(move || {
+                if let Some(img_buffer) = RgbaImage::from_raw(width, height, rgba_bytes) {
+                    if let Err(err) = img_buffer.save(&path) {
+                        warn!("Unable to write background cache: {err:?}");
+                    } else {
+                        if let Ok(mut cached_images) = CACHED_IMAGES.lock() {
+                            if let Some(name) = path.file_name().map(|x| x.to_string_lossy()) {
+                                cached_images.insert(name.to_string());
+                            }
                         }
                     }
                 }
-            }
+            });
         }
     }
 
@@ -386,7 +388,7 @@ fn main() {
                     (0, height)
                 };
 
-                window.set(Color::rgb(0, 0, 0));
+                window.set(Color::BLACK);
 
                 let x = (w as i32 - crop_w as i32) / 2;
                 let y = (h as i32 - crop_h as i32) / 2;
