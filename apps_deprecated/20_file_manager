@@ -1,6 +1,0 @@
-name=File Manager
-binary=/usr/bin/file_manager
-icon=/ui/icons/apps/system-file-manager.png
-accept=*/
-author=Jeremy Soller
-description=File Manager for Redox
