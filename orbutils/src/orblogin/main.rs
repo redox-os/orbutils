@@ -3,13 +3,22 @@
 
 use log::{error, info};
 use orbclient::rect::Rect;
+use std::cell::{Cell, OnceCell};
 use std::error::Error;
+use std::num::NonZero;
 use std::ops::ControlFlow;
 use std::process::Command;
 use std::{env, io, str};
+use winit::application::ApplicationHandler;
+use winit::event::{ButtonSource, MouseButton, WindowEvent};
+use winit::event_loop::run_on_demand::EventLoopExtRunOnDemand;
+use winit::event_loop::{ActiveEventLoop, EventLoop, OwnedDisplayHandle};
+use winit::keyboard::{Key, KeyCode, PhysicalKey};
+use winit::monitor::Fullscreen;
+use winit::window::{Window, WindowAttributes, WindowId};
 
 use orbclient::image::Image;
-use orbclient::{Color, EventOption, Renderer, WindowFlag};
+use orbclient::{Color, Mode, Renderer};
 use orbfont::Font;
 use redox_log::{OutputBuilder, RedoxLogger};
 use redox_users::{All, AllUsers, Config};
@@ -136,7 +145,12 @@ struct UiConfig {
 }
 
 fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
-    const IMAGE_PATH: &str = "/usr/share/ui/login.png";
+    // FIXME replace
+    const IMAGE_PATH: &str = if cfg!(target_os = "redox") {
+        "/usr/share/ui/login.png"
+    } else {
+        "/usr/share/icons/desktop-base/128x128/emblems/emblem-debian.png"
+    };
 
     Ok(UiConfig {
         font: Font::find(Some("Sans"), None, None)?,
@@ -151,9 +165,6 @@ fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
 }
 
 struct UiLayout {
-    display_width: u32,
-    display_height: u32,
-
     s_u: u32,
     s_i: i32,
     s_f: f32,
@@ -173,7 +184,7 @@ struct UiLayout {
 }
 
 fn build_ui_layout() -> Result<UiLayout, Box<dyn Error + 'static>> {
-    let (display_width, display_height) = orbclient::get_display_size()?;
+    let (_display_width, display_height) = orbclient::get_display_size()?;
     let s_u = (display_height / 1600) + 1;
     let s_i = s_u as i32;
     let s_f = s_i as f32;
@@ -181,8 +192,6 @@ fn build_ui_layout() -> Result<UiLayout, Box<dyn Error + 'static>> {
     let btn_size_u = 28 * s_u;
     let btn_size_i = 28 * s_i;
     Ok(UiLayout {
-        display_width,
-        display_height,
         s_u,
         s_i,
         s_f,
@@ -215,26 +224,161 @@ struct UiState {
     mouse_x: i32,
     mouse_y: i32,
     mouse_left: bool,
-    redraw: bool,
-    resize: Option<(u32, u32)>,
+}
+
+type Surface = softbuffer::Surface<OwnedDisplayHandle, Box<dyn Window + 'static>>;
+
+// General surface
+pub struct OrbBuffer<'a> {
+    w: u32,
+    h: u32,
+    mode: Cell<Mode>,
+    data: &'a mut [Color],
+}
+
+impl<'a> OrbBuffer<'a> {
+    fn from_buffer(buffer: &mut softbuffer::Buffer<'a>) -> Self {
+        let w = buffer.width().get();
+        let h = buffer.height().get();
+        let raw = buffer.data_u8();
+        let data = unsafe {
+            let raw_pixels = core::ptr::from_mut(raw) as *mut Color;
+            std::slice::from_raw_parts_mut(raw_pixels, raw.len() / 4)
+        };
+        OrbBuffer {
+            w,
+            h,
+            mode: Cell::new(Mode::Blend),
+            data,
+        }
+    }
+}
+
+impl Renderer for OrbBuffer<'_> {
+    fn width(&self) -> u32 {
+        self.w
+    }
+
+    fn height(&self) -> u32 {
+        self.h
+    }
+
+    fn data(&self) -> &[Color] {
+        self.data
+    }
+
+    fn data_mut(&mut self) -> &mut [Color] {
+        self.data
+    }
+
+    fn sync(&mut self) -> bool {
+        true
+    }
+
+    fn update(&mut self) -> bool {
+        true
+    }
+
+    fn update_rects(&mut self, _rects: &[(i32, i32, u32, u32)]) -> bool {
+        true
+    }
+
+    fn mode(&self) -> &Cell<Mode> {
+        &self.mode
+    }
+}
+
+struct App<'a> {
+    launcher_cmd: &'a str,
+    launcher_args: &'a [String],
+    context: &'a softbuffer::Context<OwnedDisplayHandle>,
+    ui_config: UiConfig,
+    ui_layout: UiLayout,
+    ui_state: UiState,
+    scaled_image: Image,
+    window: OnceCell<Surface>,
+    output: &'a mut Option<(Command, String)>,
+}
+
+impl ApplicationHandler for App<'_> {
+    fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
+        let window = event_loop
+            .create_window(
+                WindowAttributes::default().with_fullscreen(Some(Fullscreen::Borderless(None))),
+            )
+            .unwrap();
+        let mut surface = softbuffer::Surface::new(&self.context, window).unwrap();
+        surface
+            .configure(
+                NonZero::new(surface.window().outer_size().width).unwrap(),
+                NonZero::new(surface.window().outer_size().height).unwrap(),
+                softbuffer::AlphaMode::Ignored,
+            )
+            .unwrap();
+        self.window.set(surface).unwrap();
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &dyn ActiveEventLoop,
+        _id: WindowId,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::SurfaceResized(size) => {
+                self.window
+                    .get_mut()
+                    .unwrap()
+                    .resize(
+                        NonZero::new(size.width).unwrap(),
+                        NonZero::new(size.height).unwrap(),
+                    )
+                    .unwrap();
+                self.window.get().unwrap().window().request_redraw();
+            }
+            WindowEvent::RedrawRequested => {
+                let window = self.window.get_mut().unwrap();
+                let mut buffer = window.next_buffer().unwrap();
+
+                handle_redraw(
+                    &self.ui_config,
+                    &self.ui_layout,
+                    &mut OrbBuffer::from_buffer(&mut buffer),
+                    &mut self.scaled_image,
+                    &self.ui_state,
+                );
+
+                buffer.present().unwrap();
+            }
+            event => {
+                match handle_event(
+                    self.launcher_cmd,
+                    self.launcher_args,
+                    &self.ui_layout,
+                    &**self.window.get().unwrap().window(),
+                    &mut self.ui_state,
+                    event,
+                ) {
+                    ControlFlow::Break(res) => {
+                        *self.output = res;
+                        event_loop.exit();
+                    }
+                    ControlFlow::Continue(()) => {}
+                }
+            }
+        }
+    }
 }
 
 fn login_window(
     launcher_cmd: &str,
     launcher_args: &[String],
+    event_loop: &mut EventLoop,
+    context: &softbuffer::Context<OwnedDisplayHandle>,
 ) -> Result<Option<(Command, String)>, Box<dyn Error>> {
     let ui_config = build_ui_config()?;
     let ui_layout = build_ui_layout()?;
-
-    let mut window = orbclient::Window::new_flags(
-        0,
-        0,
-        ui_layout.display_width,
-        ui_layout.display_height,
-        "orblogin",
-        &[WindowFlag::Borderless, WindowFlag::Unclosable],
-    )
-    .ok_or("Could not create new window with flags")?;
 
     let (item, username) = match *normal_usernames() {
         [ref username] => (1, username.clone()),
@@ -242,7 +386,7 @@ fn login_window(
     };
     let keymap_state = crate::keymap::KeymapState::new();
     let keymap_options = keymap_state.list.clone();
-    let mut ui_state = UiState {
+    let ui_state = UiState {
         item,
         username,
         password: String::new(),
@@ -255,47 +399,31 @@ fn login_window(
         mouse_x: 0,
         mouse_y: 0,
         mouse_left: false,
-        redraw: true,
-        resize: Some((ui_layout.display_width, ui_layout.display_height)),
     };
-    let mut scaled_image = ui_config.image.clone();
+    let scaled_image = ui_config.image.clone();
 
-    loop {
-        if let Some((w, h)) = ui_state.resize.take() {
-            ui_state.redraw = true;
-        }
+    let mut output = None;
 
-        if ui_state.redraw {
-            ui_state.redraw = false;
-            handle_redraw(
-                &ui_config,
-                &ui_layout,
-                &mut window,
-                &mut scaled_image,
-                &ui_state,
-            );
-        }
+    event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
+    event_loop.run_app_on_demand(App {
+        launcher_cmd,
+        launcher_args,
+        context,
+        ui_config,
+        ui_layout,
+        ui_state,
+        scaled_image,
+        window: OnceCell::new(),
+        output: &mut output,
+    })?;
 
-        for event in window.events() {
-            match handle_event(
-                launcher_cmd,
-                launcher_args,
-                &ui_layout,
-                &mut window,
-                &mut ui_state,
-                event,
-            ) {
-                ControlFlow::Break(res) => return Ok(res),
-                ControlFlow::Continue(()) => {}
-            }
-        }
-    }
+    Ok(output)
 }
 
 fn handle_redraw(
     ui_config: &UiConfig,
     ui_layout: &UiLayout,
-    window: &mut orbclient::Window,
+    window: &mut OrbBuffer<'_>,
     scaled_image: &mut Image,
     ui_state: &UiState,
 ) {
@@ -651,9 +779,9 @@ fn handle_event(
     launcher_cmd: &str,
     launcher_args: &[String],
     ui_layout: &UiLayout,
-    window: &mut orbclient::Window,
+    window: &dyn Window,
     ui_state: &mut UiState,
-    event: orbclient::Event,
+    event: WindowEvent,
 ) -> ControlFlow<Option<(Command, String)>> {
     let UiLayout {
         s_i,
@@ -677,44 +805,50 @@ fn handle_event(
         mouse_x,
         mouse_y,
         mouse_left,
-        redraw,
-        resize,
     } = ui_state;
 
-    match event.to_option() {
-        EventOption::TextInput(key_event) => {
-            if *item == 0 {
-                username.push(key_event.character);
-            } else if *item == 1 {
-                password.push(key_event.character);
+    match event {
+        WindowEvent::KeyboardInput {
+            device_id: _,
+            event,
+            is_synthetic: _,
+        } => {
+            if !event.state.is_pressed() {
+                return ControlFlow::Continue(());
             }
+            if let Key::Character(text) = event.logical_key {
+                if *item == 0 {
+                    username.push_str(&*text);
+                } else if *item == 1 {
+                    password.push_str(&*text);
+                }
 
-            *redraw = true;
-        }
-        EventOption::Key(key_event) => {
-            if key_event.pressed {
+                window.request_redraw();
+            } else {
                 if *keymap_dropdown_open || *power_dropdown_open {
-                    match key_event.scancode {
-                        orbclient::K_ENTER | orbclient::K_ESC | orbclient::K_TAB => {
+                    match event.physical_key {
+                        PhysicalKey::Code(KeyCode::Enter)
+                        | PhysicalKey::Code(KeyCode::Escape)
+                        | PhysicalKey::Code(KeyCode::Tab) => {
                             *keymap_dropdown_open = false;
                             *power_dropdown_open = false;
-                            *redraw = true;
+                            window.request_redraw();
                         }
                         _ => (),
                     }
                 }
 
-                match key_event.scancode {
-                    orbclient::K_BKSP => {
+                match event.physical_key {
+                    PhysicalKey::Code(KeyCode::Backspace) => {
                         if *item == 0 {
                             username.pop();
                         } else if *item == 1 {
                             password.pop();
                         }
 
-                        *redraw = true;
+                        window.request_redraw();
                     }
-                    orbclient::K_ENTER => {
+                    PhysicalKey::Code(KeyCode::Enter) => {
                         if *item == 0 {
                             *item = 1;
                         } else if *item == 1 {
@@ -729,45 +863,56 @@ fn handle_event(
                             }
                         }
 
-                        *redraw = true;
+                        window.request_redraw();
                     }
-                    orbclient::K_ESC => {
+                    PhysicalKey::Code(KeyCode::Escape) => {
                         *item = 0;
                         username.clear();
                         password.clear();
                         *failure = false;
 
-                        *redraw = true;
+                        window.request_redraw();
                     }
-                    orbclient::K_TAB => {
+                    PhysicalKey::Code(KeyCode::Tab) => {
                         if *item == 0 {
                             *item = 1;
                         } else if *item == 1 {
                             *item = 0;
                         }
 
-                        *redraw = true;
+                        window.request_redraw();
                     }
                     _ => {}
                 }
             }
         }
-        EventOption::Mouse(mouse_event) => {
-            *mouse_x = mouse_event.x;
-            *mouse_y = mouse_event.y;
+        WindowEvent::PointerMoved {
+            device_id: _,
+            position,
+            primary: true,
+            source: _,
+        } => {
+            *mouse_x = position.x as i32;
+            *mouse_y = position.y as i32;
 
-            *redraw = true;
+            window.request_redraw();
         }
-        EventOption::Button(button_event) => {
-            if !button_event.left && *mouse_left {
-                let power_btn_y = window.height() as i32 - btn_size_i - padding;
-                let power_btn_x = window.width() as i32 - btn_size_i - padding;
+        WindowEvent::PointerButton {
+            device_id: _,
+            state,
+            position: _, // FIXME (0,0) on orbital
+            primary: true,
+            button: ButtonSource::Mouse(MouseButton::Left),
+            is_macos_activation_click: _,
+        } => {
+            if !state.is_pressed() && *mouse_left {
+                let power_btn_y = window.outer_size().height as i32 - btn_size_i - padding;
+                let power_btn_x = window.outer_size().width as i32 - btn_size_i - padding;
                 let keymap_btn_y = power_btn_y;
                 let keymap_btn_x = power_btn_x - btn_size_i - padding;
 
-                let mut trigger_redraw = || {
-                    *redraw = true;
-                    *resize = Some((window.width(), window.height()));
+                let trigger_redraw = || {
+                    window.request_redraw();
                 };
 
                 if *keymap_dropdown_open {
@@ -833,8 +978,8 @@ fn handle_event(
                     trigger_redraw();
                     return ControlFlow::Continue(());
                 } else {
-                    let x = (window.width() as i32 - 216 * s_i) / 2;
-                    let y = (window.height() as i32 - 164 * s_i) / 2;
+                    let x = (window.outer_size().width as i32 - 216 * s_i) / 2;
+                    let y = (window.outer_size().height as i32 - 164 * s_i) / 2;
 
                     if *mouse_x >= x
                         && *mouse_x < x + 216 * s_i
@@ -868,16 +1013,8 @@ fn handle_event(
                     return ControlFlow::Continue(());
                 }
             }
-            *mouse_left = button_event.left;
+            *mouse_left = state.is_pressed();
         }
-        EventOption::Resize(resize_event) => {
-            *resize = Some((resize_event.width, resize_event.height));
-        }
-        EventOption::Screen(screen_event) => {
-            window.set_size(screen_event.width, screen_event.height);
-            *resize = Some((screen_event.width, screen_event.height));
-        }
-        EventOption::Quit(_) => return ControlFlow::Break(None),
         _ => (),
     }
 
@@ -904,8 +1041,11 @@ fn main() -> io::Result<()> {
     ))?;
     let launcher_args: Vec<String> = args.collect();
 
+    let mut event_loop = EventLoop::new().unwrap();
+    let context = softbuffer::Context::new(event_loop.owned_display_handle()).unwrap();
+
     loop {
-        match login_window(&launcher_cmd, &launcher_args) {
+        match login_window(&launcher_cmd, &launcher_args, &mut event_loop, &context) {
             Ok(Some((mut command, username))) => {
                 #[cfg(target_os = "redox")]
                 let before_ns_fd = {
