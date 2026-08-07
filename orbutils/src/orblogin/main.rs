@@ -3,11 +3,12 @@
 
 use log::{error, info};
 use orbclient::rect::Rect;
+use std::error::Error;
 use std::process::Command;
 use std::{env, io, str};
 
 use orbclient::image::Image;
-use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
+use orbclient::{Color, EventOption, Renderer, WindowFlag};
 use orbfont::Font;
 use redox_log::{OutputBuilder, RedoxLogger};
 use redox_users::{All, AllUsers, Config};
@@ -122,15 +123,37 @@ fn login_command(
     }
 }
 
-fn login_window(
-    launcher_cmd: &str,
-    launcher_args: &[String],
-) -> Result<Option<(Command, String)>, String> {
-    let font = Font::find(Some("Sans"), None, None)?;
+struct UiConfig {
+    font: Font,
 
-    let image_mode = BackgroundMode::from_str("zoom");
-    let image_path = "/usr/share/ui/login.png";
-    let image = Image::from_path(image_path).map_err(|_| format!("Cannot load {}", image_path))?;
+    image_mode: BackgroundMode,
+    image: Image,
+
+    display_width: u32,
+    display_height: u32,
+    s_u: u32,
+    s_i: i32,
+    s_f: f32,
+
+    btn_size_u: u32,
+    btn_size_i: i32,
+    padding: i32,
+    btn_inner_x: i32,
+    btn_inner_y: i32,
+    btn_inner_w: u32,
+    btn_inner_h: u32,
+    btn_text_offset_y: i32,
+    btn_color_inactive: Color,
+    btn_color_active: Color,
+    btn_border_color: Color,
+    item_height_u: u32,
+    item_height_i: i32,
+    menu_width_u: u32,
+    menu_width_i: i32,
+}
+
+fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
+    const IMAGE_PATH: &str = "/usr/share/ui/login.png";
 
     let (display_width, display_height) = orbclient::get_display_size()?;
     let s_u = (display_height / 1600) + 1;
@@ -139,36 +162,55 @@ fn login_window(
 
     let btn_size_u = 28 * s_u;
     let btn_size_i = 28 * s_i;
-    let padding = 10 * s_i;
-    let btn_inner_x = 2 * s_i;
-    let btn_inner_y = 2 * s_i;
-    let btn_inner_w = (btn_size_i - 4 * s_i) as u32;
-    let btn_inner_h = (btn_size_i - 4 * s_i) as u32;
-    let btn_text_offset_y = 6 * s_i;
-    let btn_color_inactive = Color::rgb(39, 72, 105);
-    let btn_color_active = Color::rgb(59, 102, 135);
-    let btn_border_color = Color::rgb(29, 29, 29);
-    let item_height_u = 28 * s_u;
-    let item_height_i = 28 * s_i;
-    let menu_width_u = 150 * s_u;
-    let menu_width_i = 150 * s_i;
+    Ok(UiConfig {
+        font: Font::find(Some("Sans"), None, None)?,
 
-    let usernames = normal_usernames();
+        image_mode: BackgroundMode::from_str("zoom"),
+        image: Image::from_path(IMAGE_PATH).map_err(|_| format!("Cannot load {}", IMAGE_PATH))?,
 
-    let mut window = Window::new_flags(
-        0,
-        0,
         display_width,
         display_height,
+        s_u,
+        s_i,
+        s_f,
+
+        btn_size_u,
+        btn_size_i,
+        padding: 10 * s_i,
+        btn_inner_x: 2 * s_i,
+        btn_inner_y: 2 * s_i,
+        btn_inner_w: (btn_size_i - 4 * s_i) as u32,
+        btn_inner_h: (btn_size_i - 4 * s_i) as u32,
+        btn_text_offset_y: 6 * s_i,
+        btn_color_inactive: Color::rgb(39, 72, 105),
+        btn_color_active: Color::rgb(59, 102, 135),
+        btn_border_color: Color::rgb(29, 29, 29),
+        item_height_u: 28 * s_u,
+        item_height_i: 28 * s_i,
+        menu_width_u: 150 * s_u,
+        menu_width_i: 150 * s_i,
+    })
+}
+
+fn login_window(
+    launcher_cmd: &str,
+    launcher_args: &[String],
+) -> Result<Option<(Command, String)>, Box<dyn Error>> {
+    let ui_config = build_ui_config()?;
+
+    let mut window = orbclient::Window::new_flags(
+        0,
+        0,
+        ui_config.display_width,
+        ui_config.display_height,
         "orblogin",
         &[WindowFlag::Borderless, WindowFlag::Unclosable],
     )
     .ok_or("Could not create new window with flags")?;
 
-    let (mut item, mut username) = if usernames.len() == 1 {
-        (1, usernames[0].clone())
-    } else {
-        (0, String::new())
+    let (mut item, mut username) = match *normal_usernames() {
+        [ref username] => (1, username.clone()),
+        _ => (0, String::new()),
     };
     let mut password = String::new();
     let mut failure = false;
@@ -179,14 +221,24 @@ fn login_window(
     let keymap_options = keymap_state.list.clone();
     let power_options = vec!["Restart", "Shutdown"];
 
-    let mut scaled_image = image.clone();
+    let mut scaled_image = ui_config.image.clone();
     let mut mouse_x = 0;
     let mut mouse_y = 0;
     let mut mouse_left = false;
     let mut redraw = true;
-    let mut resize = Some((display_width, display_height));
+    let mut resize = Some((ui_config.display_width, ui_config.display_height));
     loop {
         if let Some((w, h)) = resize.take() {
+            let UiConfig {
+                ref font,
+                image_mode,
+                ref image,
+                s_u,
+                s_i,
+                s_f,
+                ..
+            } = ui_config;
+
             let (width, height) = find_scale(&image, image_mode, w, h);
 
             if width == scaled_image.width() && height == scaled_image.height() {
@@ -239,6 +291,29 @@ fn login_window(
 
         if redraw {
             redraw = false;
+
+            let UiConfig {
+                ref font,
+                s_u,
+                s_i,
+                s_f,
+                btn_size_u,
+                btn_size_i,
+                padding,
+                btn_inner_x,
+                btn_inner_y,
+                btn_inner_w,
+                btn_inner_h,
+                btn_text_offset_y,
+                btn_color_inactive,
+                btn_color_active,
+                btn_border_color,
+                item_height_u,
+                item_height_i,
+                menu_width_u,
+                menu_width_i,
+                ..
+            } = ui_config;
 
             let active = if failure {
                 Color::rgb(255, 0, 0)
@@ -496,6 +571,15 @@ fn login_window(
         }
 
         for event in window.events() {
+            let UiConfig {
+                s_i,
+                btn_size_i,
+                padding,
+                item_height_i,
+                menu_width_i,
+                ..
+            } = ui_config;
+
             match event.to_option() {
                 EventOption::TextInput(key_event) => {
                     if item == 0 {
