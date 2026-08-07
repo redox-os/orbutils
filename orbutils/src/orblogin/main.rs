@@ -4,6 +4,7 @@
 use log::{error, info};
 use orbclient::rect::Rect;
 use std::error::Error;
+use std::ops::ControlFlow;
 use std::process::Command;
 use std::{env, io, str};
 
@@ -229,564 +230,648 @@ fn login_window(
     let mut resize = Some((ui_config.display_width, ui_config.display_height));
     loop {
         if let Some((w, h)) = resize.take() {
-            let UiConfig {
-                ref font,
-                image_mode,
-                ref image,
-                s_u,
-                s_i,
-                s_f,
-                ..
-            } = ui_config;
-
-            let (width, height) = find_scale(&image, image_mode, w, h);
-
-            if width == scaled_image.width() && height == scaled_image.height() {
-                // Do not resize scaled image
-            } else if width == image.width() && height == image.height() {
-                scaled_image = image.clone();
-            } else {
-                scaled_image = image.resize(width, height, orbclient::image::ResizeType::Lanczos3);
-            }
-
-            let (crop_x, crop_w) = if width > w {
-                ((width - w) / 2, w)
-            } else {
-                (0, width)
-            };
-
-            let (crop_y, crop_h) = if height > h {
-                ((height - h) / 2, h)
-            } else {
-                (0, height)
-            };
-
-            window.set(Color::rgb(0, 0, 0));
-
-            let x = (w as i32 - crop_w as i32) / 2;
-            let y = (h as i32 - crop_h as i32) / 2;
-            scaled_image
-                .roi(&Rect::new(crop_x as i32, crop_y as i32, crop_w, crop_h))
-                .draw(&mut window, x, y);
-
-            let x = (window.width() as i32 - 216 * s_i) / 2;
-            let y = (window.height() as i32 - 164 * s_i) / 2;
-            window.rect(x, y, 216 * s_u, 164 * s_u, Color::rgba(0, 0, 0, 128));
-
-            font.render("Username:", 16.0 * s_f).draw(
-                &mut window,
-                x + 8 * s_i,
-                y + 8 * s_i,
-                Color::rgb(255, 255, 255),
-            );
-            font.render("Password:", 16.0 * s_f).draw(
-                &mut window,
-                x + 8 * s_i,
-                y + 68 * s_i,
-                Color::rgb(255, 255, 255),
-            );
-
+            handle_resize(&ui_config, &mut window, &mut scaled_image, w, h);
             redraw = true;
         }
 
         if redraw {
             redraw = false;
 
-            let UiConfig {
-                ref font,
-                s_u,
-                s_i,
-                s_f,
+            handle_redraw(
+                &ui_config,
+                &mut window,
+                item,
+                &username,
+                &password,
+                failure,
+                keymap_dropdown_open,
+                power_dropdown_open,
+                &keymap_state,
+                &keymap_options,
+                &power_options,
+                mouse_x,
+                mouse_y,
+            );
+        }
+
+        for event in window.events() {
+            match handle_event(
+                launcher_cmd,
+                launcher_args,
+                &ui_config,
+                &mut window,
+                &mut item,
+                &mut username,
+                &mut password,
+                &mut failure,
+                &mut keymap_dropdown_open,
+                &mut power_dropdown_open,
+                &mut keymap_state,
+                &keymap_options,
+                &power_options,
+                &mut mouse_x,
+                &mut mouse_y,
+                &mut mouse_left,
+                &mut redraw,
+                &mut resize,
+                event,
+            ) {
+                ControlFlow::Break(res) => return Ok(res),
+                ControlFlow::Continue(()) => {}
+            }
+        }
+    }
+}
+
+fn handle_resize(
+    ui_config: &UiConfig,
+    window: &mut orbclient::Window,
+    scaled_image: &mut Image,
+    w: u32,
+    h: u32,
+) {
+    let UiConfig {
+        ref font,
+        image_mode,
+        ref image,
+        s_u,
+        s_i,
+        s_f,
+        ..
+    } = *ui_config;
+
+    let (width, height) = find_scale(&image, image_mode, w, h);
+
+    if width == scaled_image.width() && height == scaled_image.height() {
+        // Do not resize scaled image
+    } else if width == image.width() && height == image.height() {
+        *scaled_image = image.clone();
+    } else {
+        *scaled_image = image.resize(width, height, orbclient::image::ResizeType::Lanczos3);
+    }
+
+    let (crop_x, crop_w) = if width > w {
+        ((width - w) / 2, w)
+    } else {
+        (0, width)
+    };
+
+    let (crop_y, crop_h) = if height > h {
+        ((height - h) / 2, h)
+    } else {
+        (0, height)
+    };
+
+    window.set(Color::rgb(0, 0, 0));
+
+    let x = (w as i32 - crop_w as i32) / 2;
+    let y = (h as i32 - crop_h as i32) / 2;
+    scaled_image
+        .roi(&Rect::new(crop_x as i32, crop_y as i32, crop_w, crop_h))
+        .draw(window, x, y);
+
+    let x = (window.width() as i32 - 216 * s_i) / 2;
+    let y = (window.height() as i32 - 164 * s_i) / 2;
+    window.rect(x, y, 216 * s_u, 164 * s_u, Color::rgba(0, 0, 0, 128));
+
+    font.render("Username:", 16.0 * s_f).draw(
+        window,
+        x + 8 * s_i,
+        y + 8 * s_i,
+        Color::rgb(255, 255, 255),
+    );
+    font.render("Password:", 16.0 * s_f).draw(
+        window,
+        x + 8 * s_i,
+        y + 68 * s_i,
+        Color::rgb(255, 255, 255),
+    );
+}
+
+fn handle_redraw(
+    ui_config: &UiConfig,
+    window: &mut orbclient::Window,
+    item: i32,
+    username: &String,
+    password: &String,
+    failure: bool,
+    keymap_dropdown_open: bool,
+    power_dropdown_open: bool,
+    keymap_state: &keymap::KeymapState,
+    keymap_options: &Vec<String>,
+    power_options: &Vec<&str>,
+    mouse_x: i32,
+    mouse_y: i32,
+) {
+    let UiConfig {
+        ref font,
+        s_u,
+        s_i,
+        s_f,
+        btn_size_u,
+        btn_size_i,
+        padding,
+        btn_inner_x,
+        btn_inner_y,
+        btn_inner_w,
+        btn_inner_h,
+        btn_text_offset_y,
+        btn_color_inactive,
+        btn_color_active,
+        btn_border_color,
+        item_height_u,
+        item_height_i,
+        menu_width_u,
+        menu_width_i,
+        ..
+    } = *ui_config;
+
+    let active = if failure {
+        Color::rgb(255, 0, 0)
+    } else {
+        Color::rgb(255, 255, 255)
+    };
+    let inactive = if failure {
+        Color::rgb(128, 0, 0)
+    } else {
+        Color::rgb(29, 29, 29)
+    };
+
+    let x = (window.width() as i32 - 200 * s_i) / 2;
+    let mut y = (window.height() as i32 - 148 * s_i) / 2;
+
+    y += 24 * s_i;
+
+    // --- Username Box ---
+    {
+        window.rect(
+            x,
+            y,
+            200 * s_u,
+            28 * s_u,
+            if item == 0 { active } else { inactive },
+        );
+        window.rect(
+            x + 2 * s_i,
+            y + 2 * s_i,
+            196 * s_u,
+            24 * s_u,
+            Color::rgb(40, 40, 40),
+        );
+        let mut string = username.to_string();
+        if item == 0 {
+            string.push('|');
+        }
+        font.render(&string, 16.0 * s_f).draw(
+            window,
+            x + 6 * s_i,
+            y + 6 * s_i,
+            Color::rgb(255, 255, 255),
+        );
+    }
+
+    y += 60 * s_i;
+
+    // --- Password Box ---
+    {
+        window.rect(
+            x,
+            y,
+            200 * s_u,
+            28 * s_u,
+            if item == 1 { active } else { inactive },
+        );
+        window.rect(
+            x + 2 * s_i,
+            y + 2 * s_i,
+            196 * s_u,
+            24 * s_u,
+            Color::rgb(40, 40, 40),
+        );
+        let mut string = String::new();
+        for _c in password.chars() {
+            string.push('•');
+        }
+        if item == 1 {
+            string.push('|');
+        }
+        font.render(&string, 16.0 * s_f).draw(
+            window,
+            x + 6 * s_i,
+            y + 6 * s_i,
+            Color::rgb(255, 255, 255),
+        );
+    }
+
+    y += 36 * s_i;
+
+    // --- Login Button ---
+    {
+        window.rect(x, y, 200 * s_u, 28 * s_u, Color::rgb(29, 29, 29));
+        window.rect(
+            x + 2 * s_i,
+            y + 2 * s_i,
+            196 * s_u,
+            24 * s_u,
+            Color::rgb(39, 72, 105),
+        );
+        let text = font.render(&"Login", 16.0 * s_f);
+        text.draw(
+            window,
+            x + (200 * s_i - text.width() as i32) / 2,
+            y + 6 * s_i,
+            Color::rgb(255, 255, 255),
+        );
+    }
+
+    // --- Buttons and Menus ---
+    {
+        let power_btn_y = window.height() as i32 - btn_size_i - padding;
+        let power_btn_x = window.width() as i32 - btn_size_i - padding;
+        let keymap_btn_y = power_btn_y;
+        let keymap_btn_x = power_btn_x - btn_size_i - padding;
+
+        let keymap_hover = mouse_x >= keymap_btn_x
+            && mouse_x < keymap_btn_x + btn_size_i
+            && mouse_y >= keymap_btn_y
+            && mouse_y < keymap_btn_y + btn_size_i;
+        let power_hover = mouse_x >= power_btn_x
+            && mouse_x < power_btn_x + btn_size_i
+            && mouse_y >= power_btn_y
+            && mouse_y < power_btn_y + btn_size_i;
+
+        let keymap_color = if keymap_hover || keymap_dropdown_open {
+            btn_color_active
+        } else {
+            btn_color_inactive
+        };
+        let power_color = if power_hover || power_dropdown_open {
+            btn_color_active
+        } else {
+            btn_color_inactive
+        };
+
+        {
+            window.rect(
+                keymap_btn_x,
+                keymap_btn_y,
                 btn_size_u,
-                btn_size_i,
-                padding,
-                btn_inner_x,
-                btn_inner_y,
+                btn_size_u,
+                btn_border_color,
+            );
+            window.rect(
+                keymap_btn_x + btn_inner_x,
+                keymap_btn_y + btn_inner_y,
                 btn_inner_w,
                 btn_inner_h,
-                btn_text_offset_y,
-                btn_color_inactive,
-                btn_color_active,
+                keymap_color,
+            );
+            let text_k = font.render("K", 16.0 * s_f);
+            text_k.draw(
+                window,
+                keymap_btn_x + (btn_size_i - text_k.width() as i32) / 2,
+                keymap_btn_y + btn_text_offset_y,
+                Color::rgb(255, 255, 255),
+            );
+        }
+        {
+            window.rect(
+                power_btn_x,
+                power_btn_y,
+                btn_size_u,
+                btn_size_u,
                 btn_border_color,
-                item_height_u,
-                item_height_i,
+            );
+            window.rect(
+                power_btn_x + btn_inner_x,
+                power_btn_y + btn_inner_y,
+                btn_inner_w,
+                btn_inner_h,
+                power_color,
+            );
+            let text_p = font.render("P", 16.0 * s_f);
+            text_p.draw(
+                window,
+                power_btn_x + (btn_size_i - text_p.width() as i32) / 2,
+                power_btn_y + btn_text_offset_y,
+                Color::rgb(255, 255, 255),
+            );
+        }
+        if keymap_dropdown_open {
+            let menu_height_u = item_height_u * keymap_options.len() as u32;
+            let menu_x = keymap_btn_x - (menu_width_i - btn_size_i); // Align right
+            let menu_y = keymap_btn_y - menu_height_u as i32; // Opens upwards
+
+            window.rect(
+                menu_x,
+                menu_y,
                 menu_width_u,
-                menu_width_i,
-                ..
-            } = ui_config;
+                menu_height_u,
+                btn_border_color,
+            );
 
-            let active = if failure {
-                Color::rgb(255, 0, 0)
-            } else {
-                Color::rgb(255, 255, 255)
-            };
-            let inactive = if failure {
-                Color::rgb(128, 0, 0)
-            } else {
-                Color::rgb(29, 29, 29)
-            };
-
-            let x = (window.width() as i32 - 200 * s_i) / 2;
-            let mut y = (window.height() as i32 - 148 * s_i) / 2;
-
-            y += 24 * s_i;
-
-            // --- Username Box ---
-            {
+            for (i, option) in keymap_options.iter().enumerate() {
+                let item_y = menu_y + (i as i32 * item_height_i);
+                let item_hover = mouse_x >= menu_x
+                    && mouse_x < menu_x + menu_width_i
+                    && mouse_y >= item_y
+                    && mouse_y < item_y + item_height_i;
+                let item_color = if item_hover || option == &keymap_state.active {
+                    btn_color_active
+                } else {
+                    btn_color_inactive
+                };
                 window.rect(
-                    x,
-                    y,
-                    200 * s_u,
-                    28 * s_u,
-                    if item == 0 { active } else { inactive },
+                    menu_x + btn_inner_x,
+                    item_y + btn_inner_y,
+                    (menu_width_i - 4 * s_i) as u32,
+                    (item_height_i - 4 * s_i) as u32,
+                    item_color,
                 );
-                window.rect(
-                    x + 2 * s_i,
-                    y + 2 * s_i,
-                    196 * s_u,
-                    24 * s_u,
-                    Color::rgb(40, 40, 40),
-                );
-                let mut string = username.to_string();
-                if item == 0 {
-                    string.push('|');
-                }
-                font.render(&string, 16.0 * s_f).draw(
-                    &mut window,
-                    x + 6 * s_i,
-                    y + 6 * s_i,
+                font.render(option, 16.0 * s_f).draw(
+                    window,
+                    menu_x + 6 * s_i,
+                    item_y + 6 * s_i,
                     Color::rgb(255, 255, 255),
                 );
             }
+        }
 
-            y += 60 * s_i;
+        if power_dropdown_open {
+            let menu_height_u = item_height_u * power_options.len() as u32;
+            let menu_x = power_btn_x - (menu_width_i - btn_size_i); // Align right
+            let menu_y = power_btn_y - menu_height_u as i32; // Opens upwards
 
-            // --- Password Box ---
-            {
+            window.rect(
+                menu_x,
+                menu_y,
+                menu_width_u,
+                menu_height_u,
+                btn_border_color,
+            );
+
+            for (i, option) in power_options.iter().enumerate() {
+                let item_y = menu_y + (i as i32 * item_height_i);
+                let item_hover = mouse_x >= menu_x
+                    && mouse_x < menu_x + menu_width_i
+                    && mouse_y >= item_y
+                    && mouse_y < item_y + item_height_i;
+                let item_color = if item_hover {
+                    btn_color_active
+                } else {
+                    btn_color_inactive
+                };
                 window.rect(
-                    x,
-                    y,
-                    200 * s_u,
-                    28 * s_u,
-                    if item == 1 { active } else { inactive },
+                    menu_x + btn_inner_x,
+                    item_y + btn_inner_y,
+                    (menu_width_i - 4 * s_i) as u32,
+                    (item_height_i - 4 * s_i) as u32,
+                    item_color,
                 );
-                window.rect(
-                    x + 2 * s_i,
-                    y + 2 * s_i,
-                    196 * s_u,
-                    24 * s_u,
-                    Color::rgb(40, 40, 40),
-                );
-                let mut string = String::new();
-                for _c in password.chars() {
-                    string.push('•');
-                }
-                if item == 1 {
-                    string.push('|');
-                }
-                font.render(&string, 16.0 * s_f).draw(
-                    &mut window,
-                    x + 6 * s_i,
-                    y + 6 * s_i,
+                font.render(option, 16.0 * s_f).draw(
+                    window,
+                    menu_x + 6 * s_i,
+                    item_y + 6 * s_i,
                     Color::rgb(255, 255, 255),
                 );
             }
+        }
+    }
 
-            y += 36 * s_i;
+    window.sync();
+}
 
-            // --- Login Button ---
-            {
-                window.rect(x, y, 200 * s_u, 28 * s_u, Color::rgb(29, 29, 29));
-                window.rect(
-                    x + 2 * s_i,
-                    y + 2 * s_i,
-                    196 * s_u,
-                    24 * s_u,
-                    Color::rgb(39, 72, 105),
-                );
-                let text = font.render(&"Login", 16.0 * s_f);
-                text.draw(
-                    &mut window,
-                    x + (200 * s_i - text.width() as i32) / 2,
-                    y + 6 * s_i,
-                    Color::rgb(255, 255, 255),
-                );
+fn handle_event(
+    launcher_cmd: &str,
+    launcher_args: &[String],
+    ui_config: &UiConfig,
+    window: &mut orbclient::Window,
+    item: &mut i32,
+    username: &mut String,
+    password: &mut String,
+    failure: &mut bool,
+    keymap_dropdown_open: &mut bool,
+    power_dropdown_open: &mut bool,
+    keymap_state: &mut keymap::KeymapState,
+    keymap_options: &Vec<String>,
+    power_options: &Vec<&str>,
+    mouse_x: &mut i32,
+    mouse_y: &mut i32,
+    mouse_left: &mut bool,
+    redraw: &mut bool,
+    resize: &mut Option<(u32, u32)>,
+    event: orbclient::Event,
+) -> ControlFlow<Option<(Command, String)>> {
+    let UiConfig {
+        s_i,
+        btn_size_i,
+        padding,
+        item_height_i,
+        menu_width_i,
+        ..
+    } = *ui_config;
+
+    match event.to_option() {
+        EventOption::TextInput(key_event) => {
+            if *item == 0 {
+                username.push(key_event.character);
+            } else if *item == 1 {
+                password.push(key_event.character);
             }
 
-            // --- Buttons and Menus ---
-            {
+            *redraw = true;
+        }
+        EventOption::Key(key_event) => {
+            if key_event.pressed {
+                if *keymap_dropdown_open || *power_dropdown_open {
+                    match key_event.scancode {
+                        orbclient::K_ENTER | orbclient::K_ESC | orbclient::K_TAB => {
+                            *keymap_dropdown_open = false;
+                            *power_dropdown_open = false;
+                            *redraw = true;
+                        }
+                        _ => (),
+                    }
+                }
+
+                match key_event.scancode {
+                    orbclient::K_BKSP => {
+                        if *item == 0 {
+                            username.pop();
+                        } else if *item == 1 {
+                            password.pop();
+                        }
+
+                        *redraw = true;
+                    }
+                    orbclient::K_ENTER => {
+                        if *item == 0 {
+                            *item = 1;
+                        } else if *item == 1 {
+                            if let Some(command) =
+                                login_command(&*username, &*password, launcher_cmd, launcher_args)
+                            {
+                                return ControlFlow::Break(Some(command));
+                            } else {
+                                *item = 0;
+                                password.clear();
+                                *failure = true
+                            }
+                        }
+
+                        *redraw = true;
+                    }
+                    orbclient::K_ESC => {
+                        *item = 0;
+                        username.clear();
+                        password.clear();
+                        *failure = false;
+
+                        *redraw = true;
+                    }
+                    orbclient::K_TAB => {
+                        if *item == 0 {
+                            *item = 1;
+                        } else if *item == 1 {
+                            *item = 0;
+                        }
+
+                        *redraw = true;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        EventOption::Mouse(mouse_event) => {
+            *mouse_x = mouse_event.x;
+            *mouse_y = mouse_event.y;
+
+            *redraw = true;
+        }
+        EventOption::Button(button_event) => {
+            if !button_event.left && *mouse_left {
                 let power_btn_y = window.height() as i32 - btn_size_i - padding;
                 let power_btn_x = window.width() as i32 - btn_size_i - padding;
                 let keymap_btn_y = power_btn_y;
                 let keymap_btn_x = power_btn_x - btn_size_i - padding;
 
-                let keymap_hover = mouse_x >= keymap_btn_x
-                    && mouse_x < keymap_btn_x + btn_size_i
-                    && mouse_y >= keymap_btn_y
-                    && mouse_y < keymap_btn_y + btn_size_i;
-                let power_hover = mouse_x >= power_btn_x
-                    && mouse_x < power_btn_x + btn_size_i
-                    && mouse_y >= power_btn_y
-                    && mouse_y < power_btn_y + btn_size_i;
-
-                let keymap_color = if keymap_hover || keymap_dropdown_open {
-                    btn_color_active
-                } else {
-                    btn_color_inactive
-                };
-                let power_color = if power_hover || power_dropdown_open {
-                    btn_color_active
-                } else {
-                    btn_color_inactive
+                let mut trigger_redraw = || {
+                    *redraw = true;
+                    *resize = Some((window.width(), window.height()));
                 };
 
-                {
-                    window.rect(
-                        keymap_btn_x,
-                        keymap_btn_y,
-                        btn_size_u,
-                        btn_size_u,
-                        btn_border_color,
-                    );
-                    window.rect(
-                        keymap_btn_x + btn_inner_x,
-                        keymap_btn_y + btn_inner_y,
-                        btn_inner_w,
-                        btn_inner_h,
-                        keymap_color,
-                    );
-                    let text_k = font.render("K", 16.0 * s_f);
-                    text_k.draw(
-                        &mut window,
-                        keymap_btn_x + (btn_size_i - text_k.width() as i32) / 2,
-                        keymap_btn_y + btn_text_offset_y,
-                        Color::rgb(255, 255, 255),
-                    );
-                }
-                {
-                    window.rect(
-                        power_btn_x,
-                        power_btn_y,
-                        btn_size_u,
-                        btn_size_u,
-                        btn_border_color,
-                    );
-                    window.rect(
-                        power_btn_x + btn_inner_x,
-                        power_btn_y + btn_inner_y,
-                        btn_inner_w,
-                        btn_inner_h,
-                        power_color,
-                    );
-                    let text_p = font.render("P", 16.0 * s_f);
-                    text_p.draw(
-                        &mut window,
-                        power_btn_x + (btn_size_i - text_p.width() as i32) / 2,
-                        power_btn_y + btn_text_offset_y,
-                        Color::rgb(255, 255, 255),
-                    );
-                }
-                if keymap_dropdown_open {
-                    let menu_height_u = item_height_u * keymap_options.len() as u32;
+                if *keymap_dropdown_open {
+                    let menu_height_i = item_height_i * keymap_options.len() as i32;
                     let menu_x = keymap_btn_x - (menu_width_i - btn_size_i); // Align right
-                    let menu_y = keymap_btn_y - menu_height_u as i32; // Opens upwards
+                    let menu_y = keymap_btn_y - menu_height_i;
 
-                    window.rect(
-                        menu_x,
-                        menu_y,
-                        menu_width_u,
-                        menu_height_u,
-                        btn_border_color,
-                    );
-
-                    for (i, option) in keymap_options.iter().enumerate() {
-                        let item_y = menu_y + (i as i32 * item_height_i);
-                        let item_hover = mouse_x >= menu_x
-                            && mouse_x < menu_x + menu_width_i
-                            && mouse_y >= item_y
-                            && mouse_y < item_y + item_height_i;
-                        let item_color = if item_hover || option == &keymap_state.active {
-                            btn_color_active
-                        } else {
-                            btn_color_inactive
-                        };
-                        window.rect(
-                            menu_x + btn_inner_x,
-                            item_y + btn_inner_y,
-                            (menu_width_i - 4 * s_i) as u32,
-                            (item_height_i - 4 * s_i) as u32,
-                            item_color,
-                        );
-                        font.render(option, 16.0 * s_f).draw(
-                            &mut window,
-                            menu_x + 6 * s_i,
-                            item_y + 6 * s_i,
-                            Color::rgb(255, 255, 255),
-                        );
+                    if *mouse_x >= menu_x
+                        && *mouse_x < menu_x + menu_width_i
+                        && *mouse_y >= menu_y
+                        && *mouse_y < menu_y + menu_height_i
+                    {
+                        let item_index = (*mouse_y - menu_y) / item_height_i;
+                        if let Some(option) = keymap_options.get(item_index as usize) {
+                            keymap_state.set_active(option);
+                        }
+                        *keymap_dropdown_open = false;
+                        trigger_redraw();
+                        return ControlFlow::Continue(());
                     }
                 }
 
-                if power_dropdown_open {
-                    let menu_height_u = item_height_u * power_options.len() as u32;
+                if *power_dropdown_open {
+                    let menu_height_i = item_height_i * power_options.len() as i32;
                     let menu_x = power_btn_x - (menu_width_i - btn_size_i); // Align right
-                    let menu_y = power_btn_y - menu_height_u as i32; // Opens upwards
+                    let menu_y = power_btn_y - menu_height_i;
 
-                    window.rect(
-                        menu_x,
-                        menu_y,
-                        menu_width_u,
-                        menu_height_u,
-                        btn_border_color,
-                    );
-
-                    for (i, option) in power_options.iter().enumerate() {
-                        let item_y = menu_y + (i as i32 * item_height_i);
-                        let item_hover = mouse_x >= menu_x
-                            && mouse_x < menu_x + menu_width_i
-                            && mouse_y >= item_y
-                            && mouse_y < item_y + item_height_i;
-                        let item_color = if item_hover {
-                            btn_color_active
-                        } else {
-                            btn_color_inactive
-                        };
-                        window.rect(
-                            menu_x + btn_inner_x,
-                            item_y + btn_inner_y,
-                            (menu_width_i - 4 * s_i) as u32,
-                            (item_height_i - 4 * s_i) as u32,
-                            item_color,
-                        );
-                        font.render(option, 16.0 * s_f).draw(
-                            &mut window,
-                            menu_x + 6 * s_i,
-                            item_y + 6 * s_i,
-                            Color::rgb(255, 255, 255),
-                        );
-                    }
-                }
-            }
-
-            window.sync();
-        }
-
-        for event in window.events() {
-            let UiConfig {
-                s_i,
-                btn_size_i,
-                padding,
-                item_height_i,
-                menu_width_i,
-                ..
-            } = ui_config;
-
-            match event.to_option() {
-                EventOption::TextInput(key_event) => {
-                    if item == 0 {
-                        username.push(key_event.character);
-                    } else if item == 1 {
-                        password.push(key_event.character);
-                    }
-
-                    redraw = true;
-                }
-                EventOption::Key(key_event) => {
-                    if key_event.pressed {
-                        if keymap_dropdown_open || power_dropdown_open {
-                            match key_event.scancode {
-                                orbclient::K_ENTER | orbclient::K_ESC | orbclient::K_TAB => {
-                                    keymap_dropdown_open = false;
-                                    power_dropdown_open = false;
-                                    redraw = true;
-                                }
-                                _ => (),
+                    if *mouse_x >= menu_x
+                        && *mouse_x < menu_x + menu_width_i
+                        && *mouse_y >= menu_y
+                        && *mouse_y < menu_y + menu_height_i
+                    {
+                        let item_index = (*mouse_y - menu_y) / item_height_i;
+                        if let Some(option) = power_options.get(item_index as usize) {
+                            if *option == "Shutdown" {
+                                Command::new("shutdown").spawn().ok();
+                            } else if *option == "Restart" {
+                                Command::new("shutdown").arg("-r").spawn().ok();
                             }
                         }
+                        *power_dropdown_open = false;
+                        trigger_redraw();
+                        return ControlFlow::Continue(());
+                    }
+                }
 
-                        match key_event.scancode {
-                            orbclient::K_BKSP => {
-                                if item == 0 {
-                                    username.pop();
-                                } else if item == 1 {
-                                    password.pop();
-                                }
+                if *mouse_x >= keymap_btn_x
+                    && *mouse_x < keymap_btn_x + btn_size_i
+                    && *mouse_y >= keymap_btn_y
+                    && *mouse_y < keymap_btn_y + btn_size_i
+                {
+                    *keymap_dropdown_open = !*keymap_dropdown_open;
+                    *power_dropdown_open = false;
+                    trigger_redraw();
+                    return ControlFlow::Continue(());
+                } else if *mouse_x >= power_btn_x
+                    && *mouse_x < power_btn_x + btn_size_i
+                    && *mouse_y >= power_btn_y
+                    && *mouse_y < power_btn_y + btn_size_i
+                {
+                    *power_dropdown_open = !*power_dropdown_open;
+                    *keymap_dropdown_open = false;
+                    trigger_redraw();
+                    return ControlFlow::Continue(());
+                } else {
+                    let x = (window.width() as i32 - 216 * s_i) / 2;
+                    let y = (window.height() as i32 - 164 * s_i) / 2;
 
-                                redraw = true;
-                            }
-                            orbclient::K_ENTER => {
-                                if item == 0 {
-                                    item = 1;
-                                } else if item == 1 {
-                                    if let Some(command) = login_command(
-                                        &username,
-                                        &password,
-                                        launcher_cmd,
-                                        launcher_args,
-                                    ) {
-                                        return Ok(Some(command));
-                                    } else {
-                                        item = 0;
-                                        password.clear();
-                                        failure = true
-                                    }
-                                }
-
-                                redraw = true;
-                            }
-                            orbclient::K_ESC => {
-                                item = 0;
-                                username.clear();
+                    if *mouse_x >= x
+                        && *mouse_x < x + 216 * s_i
+                        && *mouse_y >= y
+                        && *mouse_y < y + 164 * s_i
+                    {
+                        if *mouse_y < y + 64 * s_i {
+                            *item = 0;
+                        } else if *mouse_y < y + 128 * s_i {
+                            *item = 1;
+                        } else {
+                            if let Some(command) =
+                                login_command(&*username, &*password, launcher_cmd, launcher_args)
+                            {
+                                return ControlFlow::Break(Some(command));
+                            } else {
+                                *item = 0;
                                 password.clear();
-                                failure = false;
-
-                                redraw = true;
+                                *failure = true
                             }
-                            orbclient::K_TAB => {
-                                if item == 0 {
-                                    item = 1;
-                                } else if item == 1 {
-                                    item = 0;
-                                }
-
-                                redraw = true;
-                            }
-                            _ => {}
                         }
+                        trigger_redraw();
+                        return ControlFlow::Continue(());
                     }
                 }
-                EventOption::Mouse(mouse_event) => {
-                    mouse_x = mouse_event.x;
-                    mouse_y = mouse_event.y;
 
-                    redraw = true;
+                if *keymap_dropdown_open || *power_dropdown_open {
+                    *keymap_dropdown_open = false;
+                    *power_dropdown_open = false;
+                    trigger_redraw();
+                    return ControlFlow::Continue(());
                 }
-                EventOption::Button(button_event) => {
-                    if !button_event.left && mouse_left {
-                        let power_btn_y = window.height() as i32 - btn_size_i - padding;
-                        let power_btn_x = window.width() as i32 - btn_size_i - padding;
-                        let keymap_btn_y = power_btn_y;
-                        let keymap_btn_x = power_btn_x - btn_size_i - padding;
-
-                        let mut trigger_redraw = || {
-                            redraw = true;
-                            resize = Some((window.width(), window.height()));
-                        };
-
-                        if keymap_dropdown_open {
-                            let menu_height_i = item_height_i * keymap_options.len() as i32;
-                            let menu_x = keymap_btn_x - (menu_width_i - btn_size_i); // Align right
-                            let menu_y = keymap_btn_y - menu_height_i;
-
-                            if mouse_x >= menu_x
-                                && mouse_x < menu_x + menu_width_i
-                                && mouse_y >= menu_y
-                                && mouse_y < menu_y + menu_height_i
-                            {
-                                let item_index = (mouse_y - menu_y) / item_height_i;
-                                if let Some(option) = keymap_options.get(item_index as usize) {
-                                    keymap_state.set_active(option);
-                                }
-                                keymap_dropdown_open = false;
-                                trigger_redraw();
-                                continue;
-                            }
-                        }
-
-                        if power_dropdown_open {
-                            let menu_height_i = item_height_i * power_options.len() as i32;
-                            let menu_x = power_btn_x - (menu_width_i - btn_size_i); // Align right
-                            let menu_y = power_btn_y - menu_height_i;
-
-                            if mouse_x >= menu_x
-                                && mouse_x < menu_x + menu_width_i
-                                && mouse_y >= menu_y
-                                && mouse_y < menu_y + menu_height_i
-                            {
-                                let item_index = (mouse_y - menu_y) / item_height_i;
-                                if let Some(option) = power_options.get(item_index as usize) {
-                                    if *option == "Shutdown" {
-                                        Command::new("shutdown").spawn().ok();
-                                    } else if *option == "Restart" {
-                                        Command::new("shutdown").arg("-r").spawn().ok();
-                                    }
-                                }
-                                power_dropdown_open = false;
-                                trigger_redraw();
-                                continue;
-                            }
-                        }
-
-                        if mouse_x >= keymap_btn_x
-                            && mouse_x < keymap_btn_x + btn_size_i
-                            && mouse_y >= keymap_btn_y
-                            && mouse_y < keymap_btn_y + btn_size_i
-                        {
-                            keymap_dropdown_open = !keymap_dropdown_open;
-                            power_dropdown_open = false;
-                            trigger_redraw();
-                            continue;
-                        } else if mouse_x >= power_btn_x
-                            && mouse_x < power_btn_x + btn_size_i
-                            && mouse_y >= power_btn_y
-                            && mouse_y < power_btn_y + btn_size_i
-                        {
-                            power_dropdown_open = !power_dropdown_open;
-                            keymap_dropdown_open = false;
-                            trigger_redraw();
-                            continue;
-                        } else {
-                            let x = (window.width() as i32 - 216 * s_i) / 2;
-                            let y = (window.height() as i32 - 164 * s_i) / 2;
-
-                            if mouse_x >= x
-                                && mouse_x < x + 216 * s_i
-                                && mouse_y >= y
-                                && mouse_y < y + 164 * s_i
-                            {
-                                if mouse_y < y + 64 * s_i {
-                                    item = 0;
-                                } else if mouse_y < y + 128 * s_i {
-                                    item = 1;
-                                } else {
-                                    if let Some(command) = login_command(
-                                        &username,
-                                        &password,
-                                        launcher_cmd,
-                                        launcher_args,
-                                    ) {
-                                        return Ok(Some(command));
-                                    } else {
-                                        item = 0;
-                                        password.clear();
-                                        failure = true
-                                    }
-                                }
-                                trigger_redraw();
-                                continue;
-                            }
-                        }
-
-                        if keymap_dropdown_open || power_dropdown_open {
-                            keymap_dropdown_open = false;
-                            power_dropdown_open = false;
-                            trigger_redraw();
-                            continue;
-                        }
-                    }
-                    mouse_left = button_event.left;
-                }
-                EventOption::Resize(resize_event) => {
-                    resize = Some((resize_event.width, resize_event.height));
-                }
-                EventOption::Screen(screen_event) => {
-                    window.set_size(screen_event.width, screen_event.height);
-                    resize = Some((screen_event.width, screen_event.height));
-                }
-                EventOption::Quit(_) => return Ok(None),
-                _ => (),
             }
+            *mouse_left = button_event.left;
         }
+        EventOption::Resize(resize_event) => {
+            *resize = Some((resize_event.width, resize_event.height));
+        }
+        EventOption::Screen(screen_event) => {
+            window.set_size(screen_event.width, screen_event.height);
+            *resize = Some((screen_event.width, screen_event.height));
+        }
+        EventOption::Quit(_) => return ControlFlow::Break(None),
+        _ => (),
     }
+
+    ControlFlow::Continue(())
 }
 
 fn main() -> io::Result<()> {
