@@ -193,6 +193,23 @@ fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
     })
 }
 
+struct UiState {
+    item: i32,
+    username: String,
+    password: String,
+    failure: bool,
+    keymap_dropdown_open: bool,
+    power_dropdown_open: bool,
+    keymap_state: keymap::KeymapState,
+    keymap_options: Vec<String>,
+    power_options: Vec<&'static str>,
+    mouse_x: i32,
+    mouse_y: i32,
+    mouse_left: bool,
+    redraw: bool,
+    resize: Option<(u32, u32)>,
+}
+
 fn login_window(
     launcher_cmd: &str,
     launcher_args: &[String],
@@ -209,49 +226,39 @@ fn login_window(
     )
     .ok_or("Could not create new window with flags")?;
 
-    let (mut item, mut username) = match *normal_usernames() {
+    let (item, username) = match *normal_usernames() {
         [ref username] => (1, username.clone()),
         _ => (0, String::new()),
     };
-    let mut password = String::new();
-    let mut failure = false;
-
-    let mut keymap_dropdown_open = false;
-    let mut power_dropdown_open = false;
-    let mut keymap_state = crate::keymap::KeymapState::new();
+    let keymap_state = crate::keymap::KeymapState::new();
     let keymap_options = keymap_state.list.clone();
-    let power_options = vec!["Restart", "Shutdown"];
-
+    let mut ui_state = UiState {
+        item,
+        username,
+        password: String::new(),
+        failure: false,
+        keymap_dropdown_open: false,
+        power_dropdown_open: false,
+        keymap_state,
+        keymap_options,
+        power_options: vec!["Restart", "Shutdown"],
+        mouse_x: 0,
+        mouse_y: 0,
+        mouse_left: false,
+        redraw: true,
+        resize: Some((ui_config.display_width, ui_config.display_height)),
+    };
     let mut scaled_image = ui_config.image.clone();
-    let mut mouse_x = 0;
-    let mut mouse_y = 0;
-    let mut mouse_left = false;
-    let mut redraw = true;
-    let mut resize = Some((ui_config.display_width, ui_config.display_height));
+
     loop {
-        if let Some((w, h)) = resize.take() {
+        if let Some((w, h)) = ui_state.resize.take() {
             handle_resize(&ui_config, &mut window, &mut scaled_image, w, h);
-            redraw = true;
+            ui_state.redraw = true;
         }
 
-        if redraw {
-            redraw = false;
-
-            handle_redraw(
-                &ui_config,
-                &mut window,
-                item,
-                &username,
-                &password,
-                failure,
-                keymap_dropdown_open,
-                power_dropdown_open,
-                &keymap_state,
-                &keymap_options,
-                &power_options,
-                mouse_x,
-                mouse_y,
-            );
+        if ui_state.redraw {
+            ui_state.redraw = false;
+            handle_redraw(&ui_config, &mut window, &ui_state);
         }
 
         for event in window.events() {
@@ -260,20 +267,7 @@ fn login_window(
                 launcher_args,
                 &ui_config,
                 &mut window,
-                &mut item,
-                &mut username,
-                &mut password,
-                &mut failure,
-                &mut keymap_dropdown_open,
-                &mut power_dropdown_open,
-                &mut keymap_state,
-                &keymap_options,
-                &power_options,
-                &mut mouse_x,
-                &mut mouse_y,
-                &mut mouse_left,
-                &mut redraw,
-                &mut resize,
+                &mut ui_state,
                 event,
             ) {
                 ControlFlow::Break(res) => return Ok(res),
@@ -348,21 +342,7 @@ fn handle_resize(
     );
 }
 
-fn handle_redraw(
-    ui_config: &UiConfig,
-    window: &mut orbclient::Window,
-    item: i32,
-    username: &String,
-    password: &String,
-    failure: bool,
-    keymap_dropdown_open: bool,
-    power_dropdown_open: bool,
-    keymap_state: &keymap::KeymapState,
-    keymap_options: &Vec<String>,
-    power_options: &Vec<&str>,
-    mouse_x: i32,
-    mouse_y: i32,
-) {
+fn handle_redraw(ui_config: &UiConfig, window: &mut orbclient::Window, ui_state: &UiState) {
     let UiConfig {
         ref font,
         s_u,
@@ -385,6 +365,21 @@ fn handle_redraw(
         menu_width_i,
         ..
     } = *ui_config;
+
+    let UiState {
+        item,
+        ref username,
+        ref password,
+        failure,
+        keymap_dropdown_open,
+        power_dropdown_open,
+        ref keymap_state,
+        ref keymap_options,
+        ref power_options,
+        mouse_x,
+        mouse_y,
+        ..
+    } = *ui_state;
 
     let active = if failure {
         Color::rgb(255, 0, 0)
@@ -646,20 +641,7 @@ fn handle_event(
     launcher_args: &[String],
     ui_config: &UiConfig,
     window: &mut orbclient::Window,
-    item: &mut i32,
-    username: &mut String,
-    password: &mut String,
-    failure: &mut bool,
-    keymap_dropdown_open: &mut bool,
-    power_dropdown_open: &mut bool,
-    keymap_state: &mut keymap::KeymapState,
-    keymap_options: &Vec<String>,
-    power_options: &Vec<&str>,
-    mouse_x: &mut i32,
-    mouse_y: &mut i32,
-    mouse_left: &mut bool,
-    redraw: &mut bool,
-    resize: &mut Option<(u32, u32)>,
+    ui_state: &mut UiState,
     event: orbclient::Event,
 ) -> ControlFlow<Option<(Command, String)>> {
     let UiConfig {
@@ -670,6 +652,23 @@ fn handle_event(
         menu_width_i,
         ..
     } = *ui_config;
+
+    let UiState {
+        item,
+        username,
+        password,
+        failure,
+        keymap_dropdown_open,
+        power_dropdown_open,
+        keymap_state,
+        keymap_options,
+        power_options,
+        mouse_x,
+        mouse_y,
+        mouse_left,
+        redraw,
+        resize,
+    } = ui_state;
 
     match event.to_option() {
         EventOption::TextInput(key_event) => {
