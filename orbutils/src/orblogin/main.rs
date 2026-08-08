@@ -130,8 +130,30 @@ struct UiConfig {
     image_mode: BackgroundMode,
     image: Image,
 
+    btn_color_inactive: Color,
+    btn_color_active: Color,
+    btn_border_color: Color,
+}
+
+fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
+    const IMAGE_PATH: &str = "/usr/share/ui/login.png";
+
+    Ok(UiConfig {
+        font: Font::find(Some("Sans"), None, None)?,
+
+        image_mode: BackgroundMode::from_str("zoom"),
+        image: Image::from_path(IMAGE_PATH).map_err(|_| format!("Cannot load {}", IMAGE_PATH))?,
+
+        btn_color_inactive: Color::rgb(39, 72, 105),
+        btn_color_active: Color::rgb(59, 102, 135),
+        btn_border_color: Color::rgb(29, 29, 29),
+    })
+}
+
+struct UiLayout {
     display_width: u32,
     display_height: u32,
+
     s_u: u32,
     s_i: i32,
     s_f: f32,
@@ -144,18 +166,13 @@ struct UiConfig {
     btn_inner_w: u32,
     btn_inner_h: u32,
     btn_text_offset_y: i32,
-    btn_color_inactive: Color,
-    btn_color_active: Color,
-    btn_border_color: Color,
     item_height_u: u32,
     item_height_i: i32,
     menu_width_u: u32,
     menu_width_i: i32,
 }
 
-fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
-    const IMAGE_PATH: &str = "/usr/share/ui/login.png";
-
+fn build_ui_layout() -> Result<UiLayout, Box<dyn Error + 'static>> {
     let (display_width, display_height) = orbclient::get_display_size()?;
     let s_u = (display_height / 1600) + 1;
     let s_i = s_u as i32;
@@ -163,12 +180,7 @@ fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
 
     let btn_size_u = 28 * s_u;
     let btn_size_i = 28 * s_i;
-    Ok(UiConfig {
-        font: Font::find(Some("Sans"), None, None)?,
-
-        image_mode: BackgroundMode::from_str("zoom"),
-        image: Image::from_path(IMAGE_PATH).map_err(|_| format!("Cannot load {}", IMAGE_PATH))?,
-
+    Ok(UiLayout {
         display_width,
         display_height,
         s_u,
@@ -183,9 +195,6 @@ fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
         btn_inner_w: (btn_size_i - 4 * s_i) as u32,
         btn_inner_h: (btn_size_i - 4 * s_i) as u32,
         btn_text_offset_y: 6 * s_i,
-        btn_color_inactive: Color::rgb(39, 72, 105),
-        btn_color_active: Color::rgb(59, 102, 135),
-        btn_border_color: Color::rgb(29, 29, 29),
         item_height_u: 28 * s_u,
         item_height_i: 28 * s_i,
         menu_width_u: 150 * s_u,
@@ -215,12 +224,13 @@ fn login_window(
     launcher_args: &[String],
 ) -> Result<Option<(Command, String)>, Box<dyn Error>> {
     let ui_config = build_ui_config()?;
+    let ui_layout = build_ui_layout()?;
 
     let mut window = orbclient::Window::new_flags(
         0,
         0,
-        ui_config.display_width,
-        ui_config.display_height,
+        ui_layout.display_width,
+        ui_layout.display_height,
         "orblogin",
         &[WindowFlag::Borderless, WindowFlag::Unclosable],
     )
@@ -246,7 +256,7 @@ fn login_window(
         mouse_y: 0,
         mouse_left: false,
         redraw: true,
-        resize: Some((ui_config.display_width, ui_config.display_height)),
+        resize: Some((ui_layout.display_width, ui_layout.display_height)),
     };
     let mut scaled_image = ui_config.image.clone();
 
@@ -257,14 +267,20 @@ fn login_window(
 
         if ui_state.redraw {
             ui_state.redraw = false;
-            handle_redraw(&ui_config, &mut window, &mut scaled_image, &ui_state);
+            handle_redraw(
+                &ui_config,
+                &ui_layout,
+                &mut window,
+                &mut scaled_image,
+                &ui_state,
+            );
         }
 
         for event in window.events() {
             match handle_event(
                 launcher_cmd,
                 launcher_args,
-                &ui_config,
+                &ui_layout,
                 &mut window,
                 &mut ui_state,
                 event,
@@ -278,6 +294,7 @@ fn login_window(
 
 fn handle_redraw(
     ui_config: &UiConfig,
+    ui_layout: &UiLayout,
     window: &mut orbclient::Window,
     scaled_image: &mut Image,
     ui_state: &UiState,
@@ -286,6 +303,13 @@ fn handle_redraw(
         ref font,
         image_mode,
         ref image,
+        btn_color_inactive,
+        btn_color_active,
+        btn_border_color,
+        ..
+    } = *ui_config;
+
+    let UiLayout {
         s_u,
         s_i,
         s_f,
@@ -297,15 +321,12 @@ fn handle_redraw(
         btn_inner_w,
         btn_inner_h,
         btn_text_offset_y,
-        btn_color_inactive,
-        btn_color_active,
-        btn_border_color,
         item_height_u,
         item_height_i,
         menu_width_u,
         menu_width_i,
         ..
-    } = *ui_config;
+    } = *ui_layout;
 
     let UiState {
         item,
@@ -629,19 +650,19 @@ fn handle_redraw(
 fn handle_event(
     launcher_cmd: &str,
     launcher_args: &[String],
-    ui_config: &UiConfig,
+    ui_layout: &UiLayout,
     window: &mut orbclient::Window,
     ui_state: &mut UiState,
     event: orbclient::Event,
 ) -> ControlFlow<Option<(Command, String)>> {
-    let UiConfig {
+    let UiLayout {
         s_i,
         btn_size_i,
         padding,
         item_height_i,
         menu_width_i,
         ..
-    } = *ui_config;
+    } = *ui_layout;
 
     let UiState {
         item,
