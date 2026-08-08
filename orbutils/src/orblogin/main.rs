@@ -183,15 +183,14 @@ struct UiLayout {
     menu_width_i: i32,
 }
 
-fn build_ui_layout() -> Result<UiLayout, Box<dyn Error + 'static>> {
-    let (_display_width, display_height) = orbclient::get_display_size()?;
-    let s_u = (display_height / 1600) + 1;
-    let s_i = s_u as i32;
-    let s_f = s_i as f32;
+fn build_ui_layout(scale: f64) -> UiLayout {
+    let s_u = scale as u32;
+    let s_i = scale as i32;
+    let s_f = scale as f32;
 
     let btn_size_u = 28 * s_u;
     let btn_size_i = 28 * s_i;
-    Ok(UiLayout {
+    UiLayout {
         s_u,
         s_i,
         s_f,
@@ -208,7 +207,7 @@ fn build_ui_layout() -> Result<UiLayout, Box<dyn Error + 'static>> {
         item_height_i: 28 * s_i,
         menu_width_u: 150 * s_u,
         menu_width_i: 150 * s_i,
-    })
+    }
 }
 
 struct UiState {
@@ -293,7 +292,6 @@ struct App<'a> {
     launcher_args: &'a [String],
     context: &'a softbuffer::Context<OwnedDisplayHandle>,
     ui_config: UiConfig,
-    ui_layout: UiLayout,
     ui_state: UiState,
     scaled_image: Image,
     window: OnceCell<Surface>,
@@ -339,11 +337,12 @@ impl ApplicationHandler for App<'_> {
             }
             WindowEvent::RedrawRequested => {
                 let window = self.window.get_mut().unwrap();
+                let ui_layout = build_ui_layout(window.window().scale_factor());
                 let mut buffer = window.next_buffer().unwrap();
 
                 handle_redraw(
                     &self.ui_config,
-                    &self.ui_layout,
+                    ui_layout,
                     &mut OrbBuffer::from_buffer(&mut buffer),
                     &mut self.scaled_image,
                     &self.ui_state,
@@ -352,11 +351,13 @@ impl ApplicationHandler for App<'_> {
                 buffer.present().unwrap();
             }
             event => {
+                let window = self.window.get_mut().unwrap();
+                let ui_layout = build_ui_layout(window.window().scale_factor());
                 match handle_event(
                     self.launcher_cmd,
                     self.launcher_args,
-                    &self.ui_layout,
-                    &**self.window.get().unwrap().window(),
+                    ui_layout,
+                    &**window.window(),
                     &mut self.ui_state,
                     event,
                 ) {
@@ -378,7 +379,6 @@ fn login_window(
     context: &softbuffer::Context<OwnedDisplayHandle>,
 ) -> Result<Option<(Command, String)>, Box<dyn Error>> {
     let ui_config = build_ui_config()?;
-    let ui_layout = build_ui_layout()?;
 
     let (item, username) = match *normal_usernames() {
         [ref username] => (1, username.clone()),
@@ -410,7 +410,6 @@ fn login_window(
         launcher_args,
         context,
         ui_config,
-        ui_layout,
         ui_state,
         scaled_image,
         window: OnceCell::new(),
@@ -422,7 +421,7 @@ fn login_window(
 
 fn handle_redraw(
     ui_config: &UiConfig,
-    ui_layout: &UiLayout,
+    ui_layout: UiLayout,
     window: &mut OrbBuffer<'_>,
     scaled_image: &mut Image,
     ui_state: &UiState,
@@ -454,7 +453,7 @@ fn handle_redraw(
         menu_width_u,
         menu_width_i,
         ..
-    } = *ui_layout;
+    } = ui_layout;
 
     let UiState {
         item,
@@ -778,7 +777,7 @@ fn handle_redraw(
 fn handle_event(
     launcher_cmd: &str,
     launcher_args: &[String],
-    ui_layout: &UiLayout,
+    ui_layout: UiLayout,
     window: &dyn Window,
     ui_state: &mut UiState,
     event: WindowEvent,
@@ -790,7 +789,7 @@ fn handle_event(
         item_height_i,
         menu_width_i,
         ..
-    } = *ui_layout;
+    } = ui_layout;
 
     let UiState {
         item,
