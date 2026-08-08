@@ -252,13 +252,12 @@ fn login_window(
 
     loop {
         if let Some((w, h)) = ui_state.resize.take() {
-            handle_resize(&ui_config, &mut window, &mut scaled_image, w, h);
             ui_state.redraw = true;
         }
 
         if ui_state.redraw {
             ui_state.redraw = false;
-            handle_redraw(&ui_config, &mut window, &ui_state);
+            handle_redraw(&ui_config, &mut window, &mut scaled_image, &ui_state);
         }
 
         for event in window.events() {
@@ -277,12 +276,11 @@ fn login_window(
     }
 }
 
-fn handle_resize(
+fn handle_redraw(
     ui_config: &UiConfig,
     window: &mut orbclient::Window,
     scaled_image: &mut Image,
-    w: u32,
-    h: u32,
+    ui_state: &UiState,
 ) {
     let UiConfig {
         ref font,
@@ -291,8 +289,40 @@ fn handle_resize(
         s_u,
         s_i,
         s_f,
+        btn_size_u,
+        btn_size_i,
+        padding,
+        btn_inner_x,
+        btn_inner_y,
+        btn_inner_w,
+        btn_inner_h,
+        btn_text_offset_y,
+        btn_color_inactive,
+        btn_color_active,
+        btn_border_color,
+        item_height_u,
+        item_height_i,
+        menu_width_u,
+        menu_width_i,
         ..
     } = *ui_config;
+
+    let UiState {
+        item,
+        ref username,
+        ref password,
+        failure,
+        keymap_dropdown_open,
+        power_dropdown_open,
+        ref keymap_state,
+        ref keymap_options,
+        ref power_options,
+        mouse_x,
+        mouse_y,
+        ..
+    } = *ui_state;
+
+    let (w, h) = (window.width(), window.height());
 
     let (width, height) = find_scale(&image, image_mode, w, h);
 
@@ -340,46 +370,6 @@ fn handle_resize(
         y + 68 * s_i,
         Color::rgb(255, 255, 255),
     );
-}
-
-fn handle_redraw(ui_config: &UiConfig, window: &mut orbclient::Window, ui_state: &UiState) {
-    let UiConfig {
-        ref font,
-        s_u,
-        s_i,
-        s_f,
-        btn_size_u,
-        btn_size_i,
-        padding,
-        btn_inner_x,
-        btn_inner_y,
-        btn_inner_w,
-        btn_inner_h,
-        btn_text_offset_y,
-        btn_color_inactive,
-        btn_color_active,
-        btn_border_color,
-        item_height_u,
-        item_height_i,
-        menu_width_u,
-        menu_width_i,
-        ..
-    } = *ui_config;
-
-    let UiState {
-        item,
-        ref username,
-        ref password,
-        failure,
-        keymap_dropdown_open,
-        power_dropdown_open,
-        ref keymap_state,
-        ref keymap_options,
-        ref power_options,
-        mouse_x,
-        mouse_y,
-        ..
-    } = *ui_state;
 
     let active = if failure {
         Color::rgb(255, 0, 0)
