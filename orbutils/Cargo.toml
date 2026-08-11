@@ -29,6 +29,8 @@ log = "0.4.14"
 dirs = "5.0.0"
 image = { workspace = true }
 xxhash-rust = { version = "0.8.15", features = ["xxh3", "const_xxh3"] }
+winit = { version = "0.31.0-beta.2", git = "https://github.com/rust-windowing/winit.git" }
+softbuffer = { version = "0.4.8", git = "https://github.com/rust-windowing/softbuffer" }
 
 [target.'cfg(target_os = "redox")'.dependencies]
 redox_event = { workspace = true }

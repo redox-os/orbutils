@@ -3,11 +3,22 @@
 
 use log::{error, info};
 use orbclient::rect::Rect;
+use std::cell::{Cell, OnceCell};
+use std::error::Error;
+use std::num::NonZero;
+use std::ops::ControlFlow;
 use std::process::Command;
 use std::{env, io, str};
+use winit::application::ApplicationHandler;
+use winit::event::{ButtonSource, MouseButton, WindowEvent};
+use winit::event_loop::run_on_demand::EventLoopExtRunOnDemand;
+use winit::event_loop::{ActiveEventLoop, EventLoop, OwnedDisplayHandle};
+use winit::keyboard::{Key, KeyCode, PhysicalKey};
+use winit::monitor::Fullscreen;
+use winit::window::{Window, WindowAttributes, WindowId};
 
 use orbclient::image::Image;
-use orbclient::{Color, EventOption, Renderer, Window, WindowFlag};
+use orbclient::{Color, Mode, Renderer};
 use orbfont::Font;
 use redox_log::{OutputBuilder, RedoxLogger};
 use redox_users::{All, AllUsers, Config};
@@ -122,587 +133,891 @@ fn login_command(
     }
 }
 
-fn login_window(
-    launcher_cmd: &str,
-    launcher_args: &[String],
-) -> Result<Option<(Command, String)>, String> {
-    let font = Font::find(Some("Sans"), None, None)?;
+struct UiConfig {
+    font: Font,
 
-    let image_mode = BackgroundMode::from_str("zoom");
-    let image_path = "/usr/share/ui/login.png";
-    let image = Image::from_path(image_path).map_err(|_| format!("Cannot load {}", image_path))?;
+    image_mode: BackgroundMode,
+    image: Image,
 
-    let (display_width, display_height) = orbclient::get_display_size()?;
-    let s_u = (display_height / 1600) + 1;
-    let s_i = s_u as i32;
-    let s_f = s_i as f32;
+    btn_color_inactive: Color,
+    btn_color_active: Color,
+    btn_border_color: Color,
+}
+
+fn build_ui_config() -> Result<UiConfig, Box<dyn Error + 'static>> {
+    // FIXME replace
+    const IMAGE_PATH: &str = if cfg!(target_os = "redox") {
+        "/usr/share/ui/login.png"
+    } else {
+        "/usr/share/icons/desktop-base/128x128/emblems/emblem-debian.png"
+    };
+
+    Ok(UiConfig {
+        font: Font::find(Some("Sans"), None, None)?,
+
+        image_mode: BackgroundMode::from_str("zoom"),
+        image: Image::from_path(IMAGE_PATH).map_err(|_| format!("Cannot load {}", IMAGE_PATH))?,
+
+        btn_color_inactive: Color::rgb(39, 72, 105),
+        btn_color_active: Color::rgb(59, 102, 135),
+        btn_border_color: Color::rgb(29, 29, 29),
+    })
+}
+
+struct UiLayout {
+    s_u: u32,
+    s_i: i32,
+    s_f: f32,
+
+    btn_size_u: u32,
+    btn_size_i: i32,
+    padding: i32,
+    btn_inner_x: i32,
+    btn_inner_y: i32,
+    btn_inner_w: u32,
+    btn_inner_h: u32,
+    btn_text_offset_y: i32,
+    item_height_u: u32,
+    item_height_i: i32,
+    menu_width_u: u32,
+    menu_width_i: i32,
+}
+
+fn build_ui_layout(scale: f64) -> UiLayout {
+    let s_u = scale as u32;
+    let s_i = scale as i32;
+    let s_f = scale as f32;
 
     let btn_size_u = 28 * s_u;
     let btn_size_i = 28 * s_i;
-    let padding = 10 * s_i;
-    let btn_inner_x = 2 * s_i;
-    let btn_inner_y = 2 * s_i;
-    let btn_inner_w = (btn_size_i - 4 * s_i) as u32;
-    let btn_inner_h = (btn_size_i - 4 * s_i) as u32;
-    let btn_text_offset_y = 6 * s_i;
-    let btn_color_inactive = Color::rgb(39, 72, 105);
-    let btn_color_active = Color::rgb(59, 102, 135);
-    let btn_border_color = Color::rgb(29, 29, 29);
-    let item_height_u = 28 * s_u;
-    let item_height_i = 28 * s_i;
-    let menu_width_u = 150 * s_u;
-    let menu_width_i = 150 * s_i;
+    UiLayout {
+        s_u,
+        s_i,
+        s_f,
 
-    let usernames = normal_usernames();
+        btn_size_u,
+        btn_size_i,
+        padding: 10 * s_i,
+        btn_inner_x: 2 * s_i,
+        btn_inner_y: 2 * s_i,
+        btn_inner_w: (btn_size_i - 4 * s_i) as u32,
+        btn_inner_h: (btn_size_i - 4 * s_i) as u32,
+        btn_text_offset_y: 6 * s_i,
+        item_height_u: 28 * s_u,
+        item_height_i: 28 * s_i,
+        menu_width_u: 150 * s_u,
+        menu_width_i: 150 * s_i,
+    }
+}
 
-    let mut window = Window::new_flags(
-        0,
-        0,
-        display_width,
-        display_height,
-        "orblogin",
-        &[WindowFlag::Borderless, WindowFlag::Unclosable],
-    )
-    .ok_or("Could not create new window with flags")?;
+struct UiState {
+    item: i32,
+    username: String,
+    password: String,
+    failure: bool,
+    keymap_dropdown_open: bool,
+    power_dropdown_open: bool,
+    keymap_state: keymap::KeymapState,
+    keymap_options: Vec<String>,
+    power_options: Vec<&'static str>,
+    mouse_x: i32,
+    mouse_y: i32,
+    mouse_left: bool,
+}
 
-    let (mut item, mut username) = if usernames.len() == 1 {
-        (1, usernames[0].clone())
-    } else {
-        (0, String::new())
-    };
-    let mut password = String::new();
-    let mut failure = false;
+type Surface = softbuffer::Surface<OwnedDisplayHandle, Box<dyn Window + 'static>>;
 
-    let mut keymap_dropdown_open = false;
-    let mut power_dropdown_open = false;
-    let mut keymap_state = crate::keymap::KeymapState::new();
-    let keymap_options = keymap_state.list.clone();
-    let power_options = vec!["Restart", "Shutdown"];
+// General surface
+pub struct OrbBuffer<'a> {
+    w: u32,
+    h: u32,
+    mode: Cell<Mode>,
+    data: &'a mut [Color],
+}
 
-    let mut scaled_image = image.clone();
-    let mut mouse_x = 0;
-    let mut mouse_y = 0;
-    let mut mouse_left = false;
-    let mut redraw = true;
-    let mut resize = Some((display_width, display_height));
-    loop {
-        if let Some((w, h)) = resize.take() {
-            let (width, height) = find_scale(&image, image_mode, w, h);
-
-            if width == scaled_image.width() && height == scaled_image.height() {
-                // Do not resize scaled image
-            } else if width == image.width() && height == image.height() {
-                scaled_image = image.clone();
-            } else {
-                scaled_image = image.resize(width, height, orbclient::image::ResizeType::Lanczos3);
-            }
-
-            let (crop_x, crop_w) = if width > w {
-                ((width - w) / 2, w)
-            } else {
-                (0, width)
-            };
-
-            let (crop_y, crop_h) = if height > h {
-                ((height - h) / 2, h)
-            } else {
-                (0, height)
-            };
-
-            window.set(Color::rgb(0, 0, 0));
-
-            let x = (w as i32 - crop_w as i32) / 2;
-            let y = (h as i32 - crop_h as i32) / 2;
-            scaled_image
-                .roi(&Rect::new(crop_x as i32, crop_y as i32, crop_w, crop_h))
-                .draw(&mut window, x, y);
-
-            let x = (window.width() as i32 - 216 * s_i) / 2;
-            let y = (window.height() as i32 - 164 * s_i) / 2;
-            window.rect(x, y, 216 * s_u, 164 * s_u, Color::rgba(0, 0, 0, 128));
-
-            font.render("Username:", 16.0 * s_f).draw(
-                &mut window,
-                x + 8 * s_i,
-                y + 8 * s_i,
-                Color::rgb(255, 255, 255),
-            );
-            font.render("Password:", 16.0 * s_f).draw(
-                &mut window,
-                x + 8 * s_i,
-                y + 68 * s_i,
-                Color::rgb(255, 255, 255),
-            );
-
-            redraw = true;
+impl<'a> OrbBuffer<'a> {
+    fn from_buffer(buffer: &mut softbuffer::Buffer<'a>) -> Self {
+        let w = buffer.width().get();
+        let h = buffer.height().get();
+        let raw = buffer.data_u8();
+        let data = unsafe {
+            let raw_pixels = core::ptr::from_mut(raw) as *mut Color;
+            std::slice::from_raw_parts_mut(raw_pixels, raw.len() / 4)
+        };
+        OrbBuffer {
+            w,
+            h,
+            mode: Cell::new(Mode::Blend),
+            data,
         }
+    }
+}
 
-        if redraw {
-            redraw = false;
+impl Renderer for OrbBuffer<'_> {
+    fn width(&self) -> u32 {
+        self.w
+    }
 
-            let active = if failure {
-                Color::rgb(255, 0, 0)
-            } else {
-                Color::rgb(255, 255, 255)
-            };
-            let inactive = if failure {
-                Color::rgb(128, 0, 0)
-            } else {
-                Color::rgb(29, 29, 29)
-            };
+    fn height(&self) -> u32 {
+        self.h
+    }
 
-            let x = (window.width() as i32 - 200 * s_i) / 2;
-            let mut y = (window.height() as i32 - 148 * s_i) / 2;
+    fn data(&self) -> &[Color] {
+        self.data
+    }
 
-            y += 24 * s_i;
+    fn data_mut(&mut self) -> &mut [Color] {
+        self.data
+    }
 
-            // --- Username Box ---
-            {
-                window.rect(
-                    x,
-                    y,
-                    200 * s_u,
-                    28 * s_u,
-                    if item == 0 { active } else { inactive },
-                );
-                window.rect(
-                    x + 2 * s_i,
-                    y + 2 * s_i,
-                    196 * s_u,
-                    24 * s_u,
-                    Color::rgb(40, 40, 40),
-                );
-                let mut string = username.to_string();
-                if item == 0 {
-                    string.push('|');
-                }
-                font.render(&string, 16.0 * s_f).draw(
-                    &mut window,
-                    x + 6 * s_i,
-                    y + 6 * s_i,
-                    Color::rgb(255, 255, 255),
-                );
+    fn sync(&mut self) -> bool {
+        true
+    }
+
+    fn update(&mut self) -> bool {
+        true
+    }
+
+    fn update_rects(&mut self, _rects: &[(i32, i32, u32, u32)]) -> bool {
+        true
+    }
+
+    fn mode(&self) -> &Cell<Mode> {
+        &self.mode
+    }
+}
+
+struct App<'a> {
+    launcher_cmd: &'a str,
+    launcher_args: &'a [String],
+    context: &'a softbuffer::Context<OwnedDisplayHandle>,
+    ui_config: UiConfig,
+    ui_state: UiState,
+    scaled_image: Image,
+    window: OnceCell<Surface>,
+    output: &'a mut Option<(Command, String)>,
+}
+
+impl ApplicationHandler for App<'_> {
+    fn can_create_surfaces(&mut self, event_loop: &dyn ActiveEventLoop) {
+        let window = event_loop
+            .create_window(
+                WindowAttributes::default().with_fullscreen(Some(Fullscreen::Borderless(None))),
+            )
+            .unwrap();
+        let mut surface = softbuffer::Surface::new(&self.context, window).unwrap();
+        surface
+            .configure(
+                NonZero::new(surface.window().outer_size().width).unwrap(),
+                NonZero::new(surface.window().outer_size().height).unwrap(),
+                softbuffer::AlphaMode::Ignored,
+            )
+            .unwrap();
+        self.window.set(surface).unwrap();
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &dyn ActiveEventLoop,
+        _id: WindowId,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::SurfaceResized(size) => {
+                self.window
+                    .get_mut()
+                    .unwrap()
+                    .resize(
+                        NonZero::new(size.width).unwrap(),
+                        NonZero::new(size.height).unwrap(),
+                    )
+                    .unwrap();
+                self.window.get().unwrap().window().request_redraw();
             }
+            WindowEvent::RedrawRequested => {
+                let window = self.window.get_mut().unwrap();
+                let ui_layout = build_ui_layout(window.window().scale_factor());
+                let mut buffer = window.next_buffer().unwrap();
 
-            y += 60 * s_i;
+                handle_redraw(
+                    &self.ui_config,
+                    ui_layout,
+                    &mut OrbBuffer::from_buffer(&mut buffer),
+                    &mut self.scaled_image,
+                    &self.ui_state,
+                );
 
-            // --- Password Box ---
-            {
-                window.rect(
-                    x,
-                    y,
-                    200 * s_u,
-                    28 * s_u,
-                    if item == 1 { active } else { inactive },
-                );
-                window.rect(
-                    x + 2 * s_i,
-                    y + 2 * s_i,
-                    196 * s_u,
-                    24 * s_u,
-                    Color::rgb(40, 40, 40),
-                );
-                let mut string = String::new();
-                for _c in password.chars() {
-                    string.push('•');
-                }
-                if item == 1 {
-                    string.push('|');
-                }
-                font.render(&string, 16.0 * s_f).draw(
-                    &mut window,
-                    x + 6 * s_i,
-                    y + 6 * s_i,
-                    Color::rgb(255, 255, 255),
-                );
+                buffer.present().unwrap();
             }
-
-            y += 36 * s_i;
-
-            // --- Login Button ---
-            {
-                window.rect(x, y, 200 * s_u, 28 * s_u, Color::rgb(29, 29, 29));
-                window.rect(
-                    x + 2 * s_i,
-                    y + 2 * s_i,
-                    196 * s_u,
-                    24 * s_u,
-                    Color::rgb(39, 72, 105),
-                );
-                let text = font.render(&"Login", 16.0 * s_f);
-                text.draw(
-                    &mut window,
-                    x + (200 * s_i - text.width() as i32) / 2,
-                    y + 6 * s_i,
-                    Color::rgb(255, 255, 255),
-                );
-            }
-
-            // --- Buttons and Menus ---
-            {
-                let power_btn_y = window.height() as i32 - btn_size_i - padding;
-                let power_btn_x = window.width() as i32 - btn_size_i - padding;
-                let keymap_btn_y = power_btn_y;
-                let keymap_btn_x = power_btn_x - btn_size_i - padding;
-
-                let keymap_hover = mouse_x >= keymap_btn_x
-                    && mouse_x < keymap_btn_x + btn_size_i
-                    && mouse_y >= keymap_btn_y
-                    && mouse_y < keymap_btn_y + btn_size_i;
-                let power_hover = mouse_x >= power_btn_x
-                    && mouse_x < power_btn_x + btn_size_i
-                    && mouse_y >= power_btn_y
-                    && mouse_y < power_btn_y + btn_size_i;
-
-                let keymap_color = if keymap_hover || keymap_dropdown_open {
-                    btn_color_active
-                } else {
-                    btn_color_inactive
-                };
-                let power_color = if power_hover || power_dropdown_open {
-                    btn_color_active
-                } else {
-                    btn_color_inactive
-                };
-
-                {
-                    window.rect(
-                        keymap_btn_x,
-                        keymap_btn_y,
-                        btn_size_u,
-                        btn_size_u,
-                        btn_border_color,
-                    );
-                    window.rect(
-                        keymap_btn_x + btn_inner_x,
-                        keymap_btn_y + btn_inner_y,
-                        btn_inner_w,
-                        btn_inner_h,
-                        keymap_color,
-                    );
-                    let text_k = font.render("K", 16.0 * s_f);
-                    text_k.draw(
-                        &mut window,
-                        keymap_btn_x + (btn_size_i - text_k.width() as i32) / 2,
-                        keymap_btn_y + btn_text_offset_y,
-                        Color::rgb(255, 255, 255),
-                    );
-                }
-                {
-                    window.rect(
-                        power_btn_x,
-                        power_btn_y,
-                        btn_size_u,
-                        btn_size_u,
-                        btn_border_color,
-                    );
-                    window.rect(
-                        power_btn_x + btn_inner_x,
-                        power_btn_y + btn_inner_y,
-                        btn_inner_w,
-                        btn_inner_h,
-                        power_color,
-                    );
-                    let text_p = font.render("P", 16.0 * s_f);
-                    text_p.draw(
-                        &mut window,
-                        power_btn_x + (btn_size_i - text_p.width() as i32) / 2,
-                        power_btn_y + btn_text_offset_y,
-                        Color::rgb(255, 255, 255),
-                    );
-                }
-                if keymap_dropdown_open {
-                    let menu_height_u = item_height_u * keymap_options.len() as u32;
-                    let menu_x = keymap_btn_x - (menu_width_i - btn_size_i); // Align right
-                    let menu_y = keymap_btn_y - menu_height_u as i32; // Opens upwards
-
-                    window.rect(
-                        menu_x,
-                        menu_y,
-                        menu_width_u,
-                        menu_height_u,
-                        btn_border_color,
-                    );
-
-                    for (i, option) in keymap_options.iter().enumerate() {
-                        let item_y = menu_y + (i as i32 * item_height_i);
-                        let item_hover = mouse_x >= menu_x
-                            && mouse_x < menu_x + menu_width_i
-                            && mouse_y >= item_y
-                            && mouse_y < item_y + item_height_i;
-                        let item_color = if item_hover || option == &keymap_state.active {
-                            btn_color_active
-                        } else {
-                            btn_color_inactive
-                        };
-                        window.rect(
-                            menu_x + btn_inner_x,
-                            item_y + btn_inner_y,
-                            (menu_width_i - 4 * s_i) as u32,
-                            (item_height_i - 4 * s_i) as u32,
-                            item_color,
-                        );
-                        font.render(option, 16.0 * s_f).draw(
-                            &mut window,
-                            menu_x + 6 * s_i,
-                            item_y + 6 * s_i,
-                            Color::rgb(255, 255, 255),
-                        );
+            event => {
+                let window = self.window.get_mut().unwrap();
+                let ui_layout = build_ui_layout(window.window().scale_factor());
+                match handle_event(
+                    self.launcher_cmd,
+                    self.launcher_args,
+                    ui_layout,
+                    &**window.window(),
+                    &mut self.ui_state,
+                    event,
+                ) {
+                    ControlFlow::Break(res) => {
+                        *self.output = res;
+                        event_loop.exit();
                     }
+                    ControlFlow::Continue(()) => {}
                 }
-
-                if power_dropdown_open {
-                    let menu_height_u = item_height_u * power_options.len() as u32;
-                    let menu_x = power_btn_x - (menu_width_i - btn_size_i); // Align right
-                    let menu_y = power_btn_y - menu_height_u as i32; // Opens upwards
-
-                    window.rect(
-                        menu_x,
-                        menu_y,
-                        menu_width_u,
-                        menu_height_u,
-                        btn_border_color,
-                    );
-
-                    for (i, option) in power_options.iter().enumerate() {
-                        let item_y = menu_y + (i as i32 * item_height_i);
-                        let item_hover = mouse_x >= menu_x
-                            && mouse_x < menu_x + menu_width_i
-                            && mouse_y >= item_y
-                            && mouse_y < item_y + item_height_i;
-                        let item_color = if item_hover {
-                            btn_color_active
-                        } else {
-                            btn_color_inactive
-                        };
-                        window.rect(
-                            menu_x + btn_inner_x,
-                            item_y + btn_inner_y,
-                            (menu_width_i - 4 * s_i) as u32,
-                            (item_height_i - 4 * s_i) as u32,
-                            item_color,
-                        );
-                        font.render(option, 16.0 * s_f).draw(
-                            &mut window,
-                            menu_x + 6 * s_i,
-                            item_y + 6 * s_i,
-                            Color::rgb(255, 255, 255),
-                        );
-                    }
-                }
-            }
-
-            window.sync();
-        }
-
-        for event in window.events() {
-            match event.to_option() {
-                EventOption::TextInput(key_event) => {
-                    if item == 0 {
-                        username.push(key_event.character);
-                    } else if item == 1 {
-                        password.push(key_event.character);
-                    }
-
-                    redraw = true;
-                }
-                EventOption::Key(key_event) => {
-                    if key_event.pressed {
-                        if keymap_dropdown_open || power_dropdown_open {
-                            match key_event.scancode {
-                                orbclient::K_ENTER | orbclient::K_ESC | orbclient::K_TAB => {
-                                    keymap_dropdown_open = false;
-                                    power_dropdown_open = false;
-                                    redraw = true;
-                                }
-                                _ => (),
-                            }
-                        }
-
-                        match key_event.scancode {
-                            orbclient::K_BKSP => {
-                                if item == 0 {
-                                    username.pop();
-                                } else if item == 1 {
-                                    password.pop();
-                                }
-
-                                redraw = true;
-                            }
-                            orbclient::K_ENTER => {
-                                if item == 0 {
-                                    item = 1;
-                                } else if item == 1 {
-                                    if let Some(command) = login_command(
-                                        &username,
-                                        &password,
-                                        launcher_cmd,
-                                        launcher_args,
-                                    ) {
-                                        return Ok(Some(command));
-                                    } else {
-                                        item = 0;
-                                        password.clear();
-                                        failure = true
-                                    }
-                                }
-
-                                redraw = true;
-                            }
-                            orbclient::K_ESC => {
-                                item = 0;
-                                username.clear();
-                                password.clear();
-                                failure = false;
-
-                                redraw = true;
-                            }
-                            orbclient::K_TAB => {
-                                if item == 0 {
-                                    item = 1;
-                                } else if item == 1 {
-                                    item = 0;
-                                }
-
-                                redraw = true;
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                EventOption::Mouse(mouse_event) => {
-                    mouse_x = mouse_event.x;
-                    mouse_y = mouse_event.y;
-
-                    redraw = true;
-                }
-                EventOption::Button(button_event) => {
-                    if !button_event.left && mouse_left {
-                        let power_btn_y = window.height() as i32 - btn_size_i - padding;
-                        let power_btn_x = window.width() as i32 - btn_size_i - padding;
-                        let keymap_btn_y = power_btn_y;
-                        let keymap_btn_x = power_btn_x - btn_size_i - padding;
-
-                        let mut trigger_redraw = || {
-                            redraw = true;
-                            resize = Some((window.width(), window.height()));
-                        };
-
-                        if keymap_dropdown_open {
-                            let menu_height_i = item_height_i * keymap_options.len() as i32;
-                            let menu_x = keymap_btn_x - (menu_width_i - btn_size_i); // Align right
-                            let menu_y = keymap_btn_y - menu_height_i;
-
-                            if mouse_x >= menu_x
-                                && mouse_x < menu_x + menu_width_i
-                                && mouse_y >= menu_y
-                                && mouse_y < menu_y + menu_height_i
-                            {
-                                let item_index = (mouse_y - menu_y) / item_height_i;
-                                if let Some(option) = keymap_options.get(item_index as usize) {
-                                    keymap_state.set_active(option);
-                                }
-                                keymap_dropdown_open = false;
-                                trigger_redraw();
-                                continue;
-                            }
-                        }
-
-                        if power_dropdown_open {
-                            let menu_height_i = item_height_i * power_options.len() as i32;
-                            let menu_x = power_btn_x - (menu_width_i - btn_size_i); // Align right
-                            let menu_y = power_btn_y - menu_height_i;
-
-                            if mouse_x >= menu_x
-                                && mouse_x < menu_x + menu_width_i
-                                && mouse_y >= menu_y
-                                && mouse_y < menu_y + menu_height_i
-                            {
-                                let item_index = (mouse_y - menu_y) / item_height_i;
-                                if let Some(option) = power_options.get(item_index as usize) {
-                                    if *option == "Shutdown" {
-                                        Command::new("shutdown").spawn().ok();
-                                    } else if *option == "Restart" {
-                                        Command::new("shutdown").arg("-r").spawn().ok();
-                                    }
-                                }
-                                power_dropdown_open = false;
-                                trigger_redraw();
-                                continue;
-                            }
-                        }
-
-                        if mouse_x >= keymap_btn_x
-                            && mouse_x < keymap_btn_x + btn_size_i
-                            && mouse_y >= keymap_btn_y
-                            && mouse_y < keymap_btn_y + btn_size_i
-                        {
-                            keymap_dropdown_open = !keymap_dropdown_open;
-                            power_dropdown_open = false;
-                            trigger_redraw();
-                            continue;
-                        } else if mouse_x >= power_btn_x
-                            && mouse_x < power_btn_x + btn_size_i
-                            && mouse_y >= power_btn_y
-                            && mouse_y < power_btn_y + btn_size_i
-                        {
-                            power_dropdown_open = !power_dropdown_open;
-                            keymap_dropdown_open = false;
-                            trigger_redraw();
-                            continue;
-                        } else {
-                            let x = (window.width() as i32 - 216 * s_i) / 2;
-                            let y = (window.height() as i32 - 164 * s_i) / 2;
-
-                            if mouse_x >= x
-                                && mouse_x < x + 216 * s_i
-                                && mouse_y >= y
-                                && mouse_y < y + 164 * s_i
-                            {
-                                if mouse_y < y + 64 * s_i {
-                                    item = 0;
-                                } else if mouse_y < y + 128 * s_i {
-                                    item = 1;
-                                } else {
-                                    if let Some(command) = login_command(
-                                        &username,
-                                        &password,
-                                        launcher_cmd,
-                                        launcher_args,
-                                    ) {
-                                        return Ok(Some(command));
-                                    } else {
-                                        item = 0;
-                                        password.clear();
-                                        failure = true
-                                    }
-                                }
-                                trigger_redraw();
-                                continue;
-                            }
-                        }
-
-                        if keymap_dropdown_open || power_dropdown_open {
-                            keymap_dropdown_open = false;
-                            power_dropdown_open = false;
-                            trigger_redraw();
-                            continue;
-                        }
-                    }
-                    mouse_left = button_event.left;
-                }
-                EventOption::Resize(resize_event) => {
-                    resize = Some((resize_event.width, resize_event.height));
-                }
-                EventOption::Screen(screen_event) => {
-                    window.set_size(screen_event.width, screen_event.height);
-                    resize = Some((screen_event.width, screen_event.height));
-                }
-                EventOption::Quit(_) => return Ok(None),
-                _ => (),
             }
         }
     }
+}
+
+fn login_window(
+    launcher_cmd: &str,
+    launcher_args: &[String],
+    event_loop: &mut EventLoop,
+    context: &softbuffer::Context<OwnedDisplayHandle>,
+) -> Result<Option<(Command, String)>, Box<dyn Error>> {
+    let ui_config = build_ui_config()?;
+
+    let (item, username) = match *normal_usernames() {
+        [ref username] => (1, username.clone()),
+        _ => (0, String::new()),
+    };
+    let keymap_state = crate::keymap::KeymapState::new();
+    let keymap_options = keymap_state.list.clone();
+    let ui_state = UiState {
+        item,
+        username,
+        password: String::new(),
+        failure: false,
+        keymap_dropdown_open: false,
+        power_dropdown_open: false,
+        keymap_state,
+        keymap_options,
+        power_options: vec!["Restart", "Shutdown"],
+        mouse_x: 0,
+        mouse_y: 0,
+        mouse_left: false,
+    };
+    let scaled_image = ui_config.image.clone();
+
+    let mut output = None;
+
+    event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
+    event_loop.run_app_on_demand(App {
+        launcher_cmd,
+        launcher_args,
+        context,
+        ui_config,
+        ui_state,
+        scaled_image,
+        window: OnceCell::new(),
+        output: &mut output,
+    })?;
+
+    Ok(output)
+}
+
+fn handle_redraw(
+    ui_config: &UiConfig,
+    ui_layout: UiLayout,
+    window: &mut OrbBuffer<'_>,
+    scaled_image: &mut Image,
+    ui_state: &UiState,
+) {
+    let UiConfig {
+        ref font,
+        image_mode,
+        ref image,
+        btn_color_inactive,
+        btn_color_active,
+        btn_border_color,
+        ..
+    } = *ui_config;
+
+    let UiLayout {
+        s_u,
+        s_i,
+        s_f,
+        btn_size_u,
+        btn_size_i,
+        padding,
+        btn_inner_x,
+        btn_inner_y,
+        btn_inner_w,
+        btn_inner_h,
+        btn_text_offset_y,
+        item_height_u,
+        item_height_i,
+        menu_width_u,
+        menu_width_i,
+        ..
+    } = ui_layout;
+
+    let UiState {
+        item,
+        ref username,
+        ref password,
+        failure,
+        keymap_dropdown_open,
+        power_dropdown_open,
+        ref keymap_state,
+        ref keymap_options,
+        ref power_options,
+        mouse_x,
+        mouse_y,
+        ..
+    } = *ui_state;
+
+    let (w, h) = (window.width(), window.height());
+
+    let (width, height) = find_scale(&image, image_mode, w, h);
+
+    if width == scaled_image.width() && height == scaled_image.height() {
+        // Do not resize scaled image
+    } else if width == image.width() && height == image.height() {
+        *scaled_image = image.clone();
+    } else {
+        *scaled_image = image.resize(width, height, orbclient::image::ResizeType::Lanczos3);
+    }
+
+    let (crop_x, crop_w) = if width > w {
+        ((width - w) / 2, w)
+    } else {
+        (0, width)
+    };
+
+    let (crop_y, crop_h) = if height > h {
+        ((height - h) / 2, h)
+    } else {
+        (0, height)
+    };
+
+    window.set(Color::rgb(0, 0, 0));
+
+    let x = (w as i32 - crop_w as i32) / 2;
+    let y = (h as i32 - crop_h as i32) / 2;
+    scaled_image
+        .roi(&Rect::new(crop_x as i32, crop_y as i32, crop_w, crop_h))
+        .draw(window, x, y);
+
+    let x = (window.width() as i32 - 216 * s_i) / 2;
+    let y = (window.height() as i32 - 164 * s_i) / 2;
+    window.rect(x, y, 216 * s_u, 164 * s_u, Color::rgba(0, 0, 0, 128));
+
+    font.render("Username:", 16.0 * s_f).draw(
+        window,
+        x + 8 * s_i,
+        y + 8 * s_i,
+        Color::rgb(255, 255, 255),
+    );
+    font.render("Password:", 16.0 * s_f).draw(
+        window,
+        x + 8 * s_i,
+        y + 68 * s_i,
+        Color::rgb(255, 255, 255),
+    );
+
+    let active = if failure {
+        Color::rgb(255, 0, 0)
+    } else {
+        Color::rgb(255, 255, 255)
+    };
+    let inactive = if failure {
+        Color::rgb(128, 0, 0)
+    } else {
+        Color::rgb(29, 29, 29)
+    };
+
+    let x = (window.width() as i32 - 200 * s_i) / 2;
+    let mut y = (window.height() as i32 - 148 * s_i) / 2;
+
+    y += 24 * s_i;
+
+    // --- Username Box ---
+    {
+        window.rect(
+            x,
+            y,
+            200 * s_u,
+            28 * s_u,
+            if item == 0 { active } else { inactive },
+        );
+        window.rect(
+            x + 2 * s_i,
+            y + 2 * s_i,
+            196 * s_u,
+            24 * s_u,
+            Color::rgb(40, 40, 40),
+        );
+        let mut string = username.to_string();
+        if item == 0 {
+            string.push('|');
+        }
+        font.render(&string, 16.0 * s_f).draw(
+            window,
+            x + 6 * s_i,
+            y + 6 * s_i,
+            Color::rgb(255, 255, 255),
+        );
+    }
+
+    y += 60 * s_i;
+
+    // --- Password Box ---
+    {
+        window.rect(
+            x,
+            y,
+            200 * s_u,
+            28 * s_u,
+            if item == 1 { active } else { inactive },
+        );
+        window.rect(
+            x + 2 * s_i,
+            y + 2 * s_i,
+            196 * s_u,
+            24 * s_u,
+            Color::rgb(40, 40, 40),
+        );
+        let mut string = String::new();
+        for _c in password.chars() {
+            string.push('•');
+        }
+        if item == 1 {
+            string.push('|');
+        }
+        font.render(&string, 16.0 * s_f).draw(
+            window,
+            x + 6 * s_i,
+            y + 6 * s_i,
+            Color::rgb(255, 255, 255),
+        );
+    }
+
+    y += 36 * s_i;
+
+    // --- Login Button ---
+    {
+        window.rect(x, y, 200 * s_u, 28 * s_u, Color::rgb(29, 29, 29));
+        window.rect(
+            x + 2 * s_i,
+            y + 2 * s_i,
+            196 * s_u,
+            24 * s_u,
+            Color::rgb(39, 72, 105),
+        );
+        let text = font.render(&"Login", 16.0 * s_f);
+        text.draw(
+            window,
+            x + (200 * s_i - text.width() as i32) / 2,
+            y + 6 * s_i,
+            Color::rgb(255, 255, 255),
+        );
+    }
+
+    // --- Buttons and Menus ---
+    {
+        let power_btn_y = window.height() as i32 - btn_size_i - padding;
+        let power_btn_x = window.width() as i32 - btn_size_i - padding;
+        let keymap_btn_y = power_btn_y;
+        let keymap_btn_x = power_btn_x - btn_size_i - padding;
+
+        let keymap_hover = mouse_x >= keymap_btn_x
+            && mouse_x < keymap_btn_x + btn_size_i
+            && mouse_y >= keymap_btn_y
+            && mouse_y < keymap_btn_y + btn_size_i;
+        let power_hover = mouse_x >= power_btn_x
+            && mouse_x < power_btn_x + btn_size_i
+            && mouse_y >= power_btn_y
+            && mouse_y < power_btn_y + btn_size_i;
+
+        let keymap_color = if keymap_hover || keymap_dropdown_open {
+            btn_color_active
+        } else {
+            btn_color_inactive
+        };
+        let power_color = if power_hover || power_dropdown_open {
+            btn_color_active
+        } else {
+            btn_color_inactive
+        };
+
+        {
+            window.rect(
+                keymap_btn_x,
+                keymap_btn_y,
+                btn_size_u,
+                btn_size_u,
+                btn_border_color,
+            );
+            window.rect(
+                keymap_btn_x + btn_inner_x,
+                keymap_btn_y + btn_inner_y,
+                btn_inner_w,
+                btn_inner_h,
+                keymap_color,
+            );
+            let text_k = font.render("K", 16.0 * s_f);
+            text_k.draw(
+                window,
+                keymap_btn_x + (btn_size_i - text_k.width() as i32) / 2,
+                keymap_btn_y + btn_text_offset_y,
+                Color::rgb(255, 255, 255),
+            );
+        }
+        {
+            window.rect(
+                power_btn_x,
+                power_btn_y,
+                btn_size_u,
+                btn_size_u,
+                btn_border_color,
+            );
+            window.rect(
+                power_btn_x + btn_inner_x,
+                power_btn_y + btn_inner_y,
+                btn_inner_w,
+                btn_inner_h,
+                power_color,
+            );
+            let text_p = font.render("P", 16.0 * s_f);
+            text_p.draw(
+                window,
+                power_btn_x + (btn_size_i - text_p.width() as i32) / 2,
+                power_btn_y + btn_text_offset_y,
+                Color::rgb(255, 255, 255),
+            );
+        }
+        if keymap_dropdown_open {
+            let menu_height_u = item_height_u * keymap_options.len() as u32;
+            let menu_x = keymap_btn_x - (menu_width_i - btn_size_i); // Align right
+            let menu_y = keymap_btn_y - menu_height_u as i32; // Opens upwards
+
+            window.rect(
+                menu_x,
+                menu_y,
+                menu_width_u,
+                menu_height_u,
+                btn_border_color,
+            );
+
+            for (i, option) in keymap_options.iter().enumerate() {
+                let item_y = menu_y + (i as i32 * item_height_i);
+                let item_hover = mouse_x >= menu_x
+                    && mouse_x < menu_x + menu_width_i
+                    && mouse_y >= item_y
+                    && mouse_y < item_y + item_height_i;
+                let item_color = if item_hover || option == &keymap_state.active {
+                    btn_color_active
+                } else {
+                    btn_color_inactive
+                };
+                window.rect(
+                    menu_x + btn_inner_x,
+                    item_y + btn_inner_y,
+                    (menu_width_i - 4 * s_i) as u32,
+                    (item_height_i - 4 * s_i) as u32,
+                    item_color,
+                );
+                font.render(option, 16.0 * s_f).draw(
+                    window,
+                    menu_x + 6 * s_i,
+                    item_y + 6 * s_i,
+                    Color::rgb(255, 255, 255),
+                );
+            }
+        }
+
+        if power_dropdown_open {
+            let menu_height_u = item_height_u * power_options.len() as u32;
+            let menu_x = power_btn_x - (menu_width_i - btn_size_i); // Align right
+            let menu_y = power_btn_y - menu_height_u as i32; // Opens upwards
+
+            window.rect(
+                menu_x,
+                menu_y,
+                menu_width_u,
+                menu_height_u,
+                btn_border_color,
+            );
+
+            for (i, option) in power_options.iter().enumerate() {
+                let item_y = menu_y + (i as i32 * item_height_i);
+                let item_hover = mouse_x >= menu_x
+                    && mouse_x < menu_x + menu_width_i
+                    && mouse_y >= item_y
+                    && mouse_y < item_y + item_height_i;
+                let item_color = if item_hover {
+                    btn_color_active
+                } else {
+                    btn_color_inactive
+                };
+                window.rect(
+                    menu_x + btn_inner_x,
+                    item_y + btn_inner_y,
+                    (menu_width_i - 4 * s_i) as u32,
+                    (item_height_i - 4 * s_i) as u32,
+                    item_color,
+                );
+                font.render(option, 16.0 * s_f).draw(
+                    window,
+                    menu_x + 6 * s_i,
+                    item_y + 6 * s_i,
+                    Color::rgb(255, 255, 255),
+                );
+            }
+        }
+    }
+
+    window.sync();
+}
+
+fn handle_event(
+    launcher_cmd: &str,
+    launcher_args: &[String],
+    ui_layout: UiLayout,
+    window: &dyn Window,
+    ui_state: &mut UiState,
+    event: WindowEvent,
+) -> ControlFlow<Option<(Command, String)>> {
+    let UiLayout {
+        s_i,
+        btn_size_i,
+        padding,
+        item_height_i,
+        menu_width_i,
+        ..
+    } = ui_layout;
+
+    let UiState {
+        item,
+        username,
+        password,
+        failure,
+        keymap_dropdown_open,
+        power_dropdown_open,
+        keymap_state,
+        keymap_options,
+        power_options,
+        mouse_x,
+        mouse_y,
+        mouse_left,
+    } = ui_state;
+
+    match event {
+        WindowEvent::KeyboardInput {
+            device_id: _,
+            event,
+            is_synthetic: _,
+        } => {
+            if !event.state.is_pressed() {
+                return ControlFlow::Continue(());
+            }
+            if let Key::Character(text) = event.logical_key {
+                if *item == 0 {
+                    username.push_str(&*text);
+                } else if *item == 1 {
+                    password.push_str(&*text);
+                }
+
+                window.request_redraw();
+            } else {
+                if *keymap_dropdown_open || *power_dropdown_open {
+                    match event.physical_key {
+                        PhysicalKey::Code(KeyCode::Enter)
+                        | PhysicalKey::Code(KeyCode::Escape)
+                        | PhysicalKey::Code(KeyCode::Tab) => {
+                            *keymap_dropdown_open = false;
+                            *power_dropdown_open = false;
+                            window.request_redraw();
+                        }
+                        _ => (),
+                    }
+                }
+
+                match event.physical_key {
+                    PhysicalKey::Code(KeyCode::Backspace) => {
+                        if *item == 0 {
+                            username.pop();
+                        } else if *item == 1 {
+                            password.pop();
+                        }
+
+                        window.request_redraw();
+                    }
+                    PhysicalKey::Code(KeyCode::Enter) => {
+                        if *item == 0 {
+                            *item = 1;
+                        } else if *item == 1 {
+                            if let Some(command) =
+                                login_command(&*username, &*password, launcher_cmd, launcher_args)
+                            {
+                                return ControlFlow::Break(Some(command));
+                            } else {
+                                *item = 0;
+                                password.clear();
+                                *failure = true
+                            }
+                        }
+
+                        window.request_redraw();
+                    }
+                    PhysicalKey::Code(KeyCode::Escape) => {
+                        *item = 0;
+                        username.clear();
+                        password.clear();
+                        *failure = false;
+
+                        window.request_redraw();
+                    }
+                    PhysicalKey::Code(KeyCode::Tab) => {
+                        if *item == 0 {
+                            *item = 1;
+                        } else if *item == 1 {
+                            *item = 0;
+                        }
+
+                        window.request_redraw();
+                    }
+                    _ => {}
+                }
+            }
+        }
+        WindowEvent::PointerMoved {
+            device_id: _,
+            position,
+            primary: true,
+            source: _,
+        } => {
+            *mouse_x = position.x as i32;
+            *mouse_y = position.y as i32;
+
+            window.request_redraw();
+        }
+        WindowEvent::PointerButton {
+            device_id: _,
+            state,
+            position: _, // FIXME (0,0) on orbital
+            primary: true,
+            button: ButtonSource::Mouse(MouseButton::Left),
+            is_macos_activation_click: _,
+        } => {
+            if !state.is_pressed() && *mouse_left {
+                let power_btn_y = window.outer_size().height as i32 - btn_size_i - padding;
+                let power_btn_x = window.outer_size().width as i32 - btn_size_i - padding;
+                let keymap_btn_y = power_btn_y;
+                let keymap_btn_x = power_btn_x - btn_size_i - padding;
+
+                let trigger_redraw = || {
+                    window.request_redraw();
+                };
+
+                if *keymap_dropdown_open {
+                    let menu_height_i = item_height_i * keymap_options.len() as i32;
+                    let menu_x = keymap_btn_x - (menu_width_i - btn_size_i); // Align right
+                    let menu_y = keymap_btn_y - menu_height_i;
+
+                    if *mouse_x >= menu_x
+                        && *mouse_x < menu_x + menu_width_i
+                        && *mouse_y >= menu_y
+                        && *mouse_y < menu_y + menu_height_i
+                    {
+                        let item_index = (*mouse_y - menu_y) / item_height_i;
+                        if let Some(option) = keymap_options.get(item_index as usize) {
+                            keymap_state.set_active(option);
+                        }
+                        *keymap_dropdown_open = false;
+                        trigger_redraw();
+                        return ControlFlow::Continue(());
+                    }
+                }
+
+                if *power_dropdown_open {
+                    let menu_height_i = item_height_i * power_options.len() as i32;
+                    let menu_x = power_btn_x - (menu_width_i - btn_size_i); // Align right
+                    let menu_y = power_btn_y - menu_height_i;
+
+                    if *mouse_x >= menu_x
+                        && *mouse_x < menu_x + menu_width_i
+                        && *mouse_y >= menu_y
+                        && *mouse_y < menu_y + menu_height_i
+                    {
+                        let item_index = (*mouse_y - menu_y) / item_height_i;
+                        if let Some(option) = power_options.get(item_index as usize) {
+                            if *option == "Shutdown" {
+                                Command::new("shutdown").spawn().ok();
+                            } else if *option == "Restart" {
+                                Command::new("shutdown").arg("-r").spawn().ok();
+                            }
+                        }
+                        *power_dropdown_open = false;
+                        trigger_redraw();
+                        return ControlFlow::Continue(());
+                    }
+                }
+
+                if *mouse_x >= keymap_btn_x
+                    && *mouse_x < keymap_btn_x + btn_size_i
+                    && *mouse_y >= keymap_btn_y
+                    && *mouse_y < keymap_btn_y + btn_size_i
+                {
+                    *keymap_dropdown_open = !*keymap_dropdown_open;
+                    *power_dropdown_open = false;
+                    trigger_redraw();
+                    return ControlFlow::Continue(());
+                } else if *mouse_x >= power_btn_x
+                    && *mouse_x < power_btn_x + btn_size_i
+                    && *mouse_y >= power_btn_y
+                    && *mouse_y < power_btn_y + btn_size_i
+                {
+                    *power_dropdown_open = !*power_dropdown_open;
+                    *keymap_dropdown_open = false;
+                    trigger_redraw();
+                    return ControlFlow::Continue(());
+                } else {
+                    let x = (window.outer_size().width as i32 - 216 * s_i) / 2;
+                    let y = (window.outer_size().height as i32 - 164 * s_i) / 2;
+
+                    if *mouse_x >= x
+                        && *mouse_x < x + 216 * s_i
+                        && *mouse_y >= y
+                        && *mouse_y < y + 164 * s_i
+                    {
+                        if *mouse_y < y + 64 * s_i {
+                            *item = 0;
+                        } else if *mouse_y < y + 128 * s_i {
+                            *item = 1;
+                        } else {
+                            if let Some(command) =
+                                login_command(&*username, &*password, launcher_cmd, launcher_args)
+                            {
+                                return ControlFlow::Break(Some(command));
+                            } else {
+                                *item = 0;
+                                password.clear();
+                                *failure = true
+                            }
+                        }
+                        trigger_redraw();
+                        return ControlFlow::Continue(());
+                    }
+                }
+
+                if *keymap_dropdown_open || *power_dropdown_open {
+                    *keymap_dropdown_open = false;
+                    *power_dropdown_open = false;
+                    trigger_redraw();
+                    return ControlFlow::Continue(());
+                }
+            }
+            *mouse_left = state.is_pressed();
+        }
+        _ => (),
+    }
+
+    ControlFlow::Continue(())
 }
 
 fn main() -> io::Result<()> {
@@ -725,8 +1040,11 @@ fn main() -> io::Result<()> {
     ))?;
     let launcher_args: Vec<String> = args.collect();
 
+    let mut event_loop = EventLoop::new().unwrap();
+    let context = softbuffer::Context::new(event_loop.owned_display_handle()).unwrap();
+
     loop {
-        match login_window(&launcher_cmd, &launcher_args) {
+        match login_window(&launcher_cmd, &launcher_args, &mut event_loop, &context) {
             Ok(Some((mut command, username))) => {
                 #[cfg(target_os = "redox")]
                 let before_ns_fd = {
