@@ -1,6 +1,6 @@
 name=Viewer
 binary=/usr/bin/viewer
-icon=/ui/icons/apps/multimedia-photo-viewer.png
+icon=/usr/share/ui/icons/apps/multimedia-photo-viewer.png
 accept=*.bmp
 accept=*.gif
 accept=*.jpg
